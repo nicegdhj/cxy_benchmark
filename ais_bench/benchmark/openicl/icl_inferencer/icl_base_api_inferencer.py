@@ -371,7 +371,7 @@ class BaseApiInferencer(BaseInferencer):
                         ICLI_CODES.CONCURRENCY_NOT_SET_IN_PRESSEURE_MODE,
                         f"Concurrency not set in pressure mode, please set `batch_size` in model config",
                     )
-            async with semaphore:      
+            async with semaphore:
                 # Pressure mode: continuously send requests until pressure_time
                 if self.pressure_mode:
                     # Prefetch next data immediately after first request
