@@ -126,6 +126,10 @@ ais_bench --models vllm_api_general_chat --datasets demo_gsm8k_gen_4_shot_cot_ch
 
 - `--summarizer`指定了结果呈现任务，即`example`结果呈现任务(不指定`--summarizer`精度评测场景默认使用`example`任务)，一般使用默认，不需要在命令行中指定，后续命令不指定。
 
+多任务测评请参考：📚 精度场景的[多任务测评](./docs/source_zh_cn/base_tutorials/scenes_intro/accuracy_benchmark.md#多任务测评) 和 性能场景的[多任务测评](./docs/source_zh_cn/base_tutorials/scenes_intro/performance_benchmark.md#多任务测评)。
+
+如需自行组合测评任务，实现更灵活的测评方式，可参考：📚 [自定义配置文件运行AISBench](./docs/source_zh_cn/advanced_tutorials/run_custom_config.md#自定义配置文件运行AISBench)。
+
 ### 任务含义查询(可选)
 所选模型任务`vllm_api_general_chat`、数据集任务`demo_gsm8k_gen_4_shot_cot_chat_prompt`和结果呈现任务`example`的具体信息(简介，使用约束等)可以分别从如下链接中查询含义：
 - `--models`: 📚 [服务化推理后端](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/all_params/models.html#id2)

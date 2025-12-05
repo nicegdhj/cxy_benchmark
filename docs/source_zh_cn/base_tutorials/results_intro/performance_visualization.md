@@ -50,9 +50,8 @@
 | **左键双击区域** | 重置为默认视图                                               | Autoscale    | |
 | **左键拖拽画布** | Zoom模式：选中导航栏中的Zoom按钮后，可放大鼠标拖拽选中的矩形区域; <br />Pan模式：选中导航栏中的Pan按钮后，可跟随鼠标拖拽来平移图表视角 | Zoom、Pan    | Zoom模式：<br /> - 选中: <br /> ![select_example](../../img/request_concurrency/select_example.png) <br /> - 松开鼠标左键后：<br /> ![zoom_in_example](../../img/request_concurrency/zoom_in_example.png) <br /> Pan模式：无图例 <br /> |
 
-
-
 ### 2. 数据查看
+
 - **参考样例**
   - **全图总览**
   ![full_plot_example](../../img/request_concurrency/full_plot_example.png)
@@ -112,7 +111,7 @@
 
 | 情况           | 解决方法                                                     |
 | -------------- | ------------------------------------------------------------ |
-| 图表无法加载   | 确认浏览器启用JavaScript和WebGL, 若仍无法打开，可尝试关闭代理       |
+| 图表无法加载   | 确认浏览器启用JavaScript和WebGL，若仍无法打开，可尝试关闭代理       |
 | 悬停提示不显示 | 鼠标悬停至时间变化处的数据点而非快速划过或停留在旧事件转折角处 |
 | 视图卡顿       | 降低数据密度或缩小视图范围                                   |
 | 移动设备操作   | 双指捏合缩放+单指滑动调整                                    |

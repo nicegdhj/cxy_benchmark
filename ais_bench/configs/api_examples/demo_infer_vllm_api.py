@@ -1,8 +1,5 @@
 from mmengine.config import read_base
-from ais_bench.benchmark.partitioners import NaivePartitioner
-from ais_bench.benchmark.runners.local_api import LocalAPIRunner
-from ais_bench.benchmark.tasks import OpenICLInferTask
-from ais_bench.benchmark.models import VLLMCustomAPIChat
+from ais_bench.benchmark.models.api_models.vllm_custom_api_chat import VLLMCustomAPIChat
 
 with read_base():
     from ais_bench.benchmark.configs.summarizers.example import summarizer
