@@ -17,7 +17,7 @@
 <br><br>
 [🌐官方网站](https://www.aisbench.com) |
 [📖工具文档](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/) |
-[👨‍💻开发者文档](docs/source_zh_cn/develop_guide/contributing.md) |
+[👨‍💻开发者文档](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/develop_guide/contributing.html) |
 [🔥最新进展](#-最新进展)|
 [🤔报告问题](https://github.com/AISBench/benchmark/issues/new/choose)
 <br><br>简体中文 | [English](README_en.md)
@@ -28,6 +28,14 @@
 > **⭐️收藏项目**，你将能第一时间获取 AISBench评测工具 的最新动态～
 
 ## 🔥 最新进展
+- **\[2025.12.19\]** 🎉 **AISBench 架构全面重构完成！**
+  - ✨ **架构升级**：对cli、models、inferencer、tasks组件进行了全面重构，支持快速接入新的测试基准，参考📚 [开发者文档](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/develop_guide/contributing.html)了解详情！
+  - 🖥️ **任务管理界面**：全新的任务UI管理界面，支持同时监控每个任务的详细执行状态，包括任务名称、进度、时间成本、状态、日志路径、扩展参数等，让任务执行状态一目了然！
+  - ⚡ **并行执行增强**：扩展了多任务并行功能，支持多个性能或精度测评任务并行执行，大幅提升评测效率！
+  - 📊 **新增15+测评基准**：新增docvqa、infovqa、ocrbench_v2、omnidocbench、mmmu、mmmu_pro、mmstar、videomme、FewCLUE系列、dapo_math、leval等多模态和文本测评基准！
+  - 🤖 **新增模型支持**：新增vllm/vllm-ascend VL 离线推理模型支持！
+  - 🔧 **功能增强**：新增流式推理开关、自定义URL路径、API key配置；支持API模型推理warmup；支持自定义多模态数据集性能测评；部分数据集支持服务化PPL（困惑度）测评等多项功能！
+  - 🏗️ **基础设施优化**：重构local models和api models组件，统一流式和非流式实现；重构inferencer组件，采用多进程+协程调用方式，提高并发能力；测试结果数据格式优化为jsonl，降低IO压力；采用错误码统一管理错误信息等！
 - **\[2025.11.25\]** 支持服务化模型PPL(Perplexity-based，困惑度)模式精度测评。🔥🔥🔥
 - **\[2025.9.08\]** 支持📚[模拟真实业务流量](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/advanced_tutorials/rps_distribution.html)：通过控制请求发送速率波动，感知在模拟真实场景下服务化的性能测评结果！🔥🔥🔥
 
@@ -59,9 +67,9 @@ AISBench Benchmark 是基于 [OpenCompass](https://github.com/open-compass/openc
 
 当前，AISBench 支持两大类推理任务的评测场景：
 
-🔍 [精度测评](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/scenes_intro/home.html#id2)：支持对服务化模型和本地模型在各类问答、推理基准数据集上的精度验证。
+🔍 [精度测评](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/scenes_intro/home.html#id2)：支持对服务化模型和本地模型在各类问答、推理基准数据集上的精度验证，覆盖文本、多模态等多种场景。
 
-🚀 [性能测评](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/scenes_intro/home.html#id5)：支持对服务化模型的延迟与吞吐率评估，并可进行压测场景下的极限性能测试。
+🚀 [性能测评](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/scenes_intro/home.html#id5)：支持对服务化模型的延迟与吞吐率评估，并可进行压测场景下的极限性能测试，支持稳态性能评测和真实业务流量模拟。
 
 ## 🛠️ 工具安装
 ✅ 环境要求
@@ -199,7 +207,7 @@ models = [
 ais_bench --models vllm_api_general_chat --datasets demo_gsm8k_gen_4_shot_cot_chat_prompt
 ```
 #### 查看任务执行细节
-执行AISBench命令后，正在执行的任务状态会在命令行实时刷新的看板上显示（键盘按"P"键可以停止刷新，用于复制看板信息，再按"P"可以继续刷新），例如：
+执行AISBench命令后，任务管理界面会在命令行实时刷新显示任务执行状态（键盘按"P"键可以暂停/恢复刷新，用于复制看板信息，再按"P"键可以继续刷新）。任务管理界面支持同时监控多个任务的详细执行状态，包括任务名称、进度、时间成本、状态、日志路径、扩展参数等信息，例如：
 ```
 Base path of result&log : outputs/default/20250628_151326
 Task Progress Table (Updated at: 2025-11-06 10:08:21)
@@ -263,13 +271,9 @@ demo_gsm8k              401e4c   accuracy gen                   62.50
 
 
 ## 🔜 即将推出
-- [ ] **\[2025.10\]** AISBench完成全面重构，支持在AISBench框架下🔌插件化集成前沿测试基准，以应对业界愈发复杂多样化的测试任务；并且显著提高易用性。
-- [ ] **\[2025.11\]** 提供业界前沿的多模态测评能力。
-- [ ] **\[2025.12\]** 提供业界主流Agent测评能力。
-- [x] **\[2025.9\]** 支持模拟真实任务流量。
-- [x] **\[2025.8\]** 将支持ShareGPT、BFCL等多轮对话数据集的性能评测。
-- [x] **\[2025.8\]** 优化性能测评中评估eval阶段的计算效率，优化工具显存占用，补充工具使用规格说明。
-- [x] **\[2025.7\]** 性能评测场景使用自定义数据集，将支持定义每条数据对应的最大输出长度限制。
+- [x] **\[已完成\]** ✅ AISBench完成全面重构，支持在AISBench框架下🔌插件化集成前沿测试基准，以应对业界愈发复杂多样化的测试任务；并且显著提高易用性。
+- [ ] **\[规划中\]** 持续扩展业界前沿的多模态测评能力，支持更多多模态数据集和评测场景。
+- [ ] **\[规划中\]** 提供业界主流Agent测评能力，支持Agent任务链和工具调用等复杂场景的评测。
 
 ## 🤝 致谢
 - 本项目代码基于🔗 [OpenCompass](https://github.com/open-compass/opencompass)做拓展开发。

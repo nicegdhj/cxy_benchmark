@@ -18,7 +18,7 @@
 <br><br>
 [🌐 Official Website](https://www.aisbench.com) |
 [📖 Tool Documentation](https://ais-bench-benchmark-rf.readthedocs.io/en/latest/) |
-[👨‍💻 Developer Documentation](docs/source_en/develop_guide/contributing.md) |
+[👨‍💻 Developer Documentation](https://ais-bench-benchmark-rf.readthedocs.io/en/latest/develop_guide/contributing.html) |
 [🔥 Latest Updates](#-latest-updates)|
 [🤔 Report Issues](https://github.com/AISBench/benchmark/issues/new/choose)
 <br><br>[简体中文](README.md) | English
@@ -29,6 +29,14 @@
 > **⭐️Star this project** to get the latest updates of AISBench Benchmark Tool in real time!
 
 ## 🔥 Latest Updates
+- **\[2025.12.19\]** 🎉 **AISBench Architecture Refactoring Completed!**
+  - ✨ **Architecture Upgrade**: Comprehensive refactoring of cli, models, inferencer, and tasks components, supporting rapid integration of new test benchmarks. See 📚 [Developer Documentation](https://ais-bench-benchmark-rf.readthedocs.io/en/latest/develop_guide/contributing.html) for details!
+  - 🖥️ **Task Management Interface**: Brand new task UI management interface that supports simultaneous monitoring of detailed execution status for each task, including task name, progress, time cost, status, log path, extended parameters, etc., making task execution status clear at a glance!
+  - ⚡ **Enhanced Parallel Execution**: Extended multi-task parallel functionality, supporting parallel execution of multiple performance or accuracy evaluation tasks, significantly improving evaluation efficiency!
+  - 📊 **15+ New Evaluation Benchmarks**: Added docvqa, infovqa, ocrbench_v2, omnidocbench, mmmu, mmmu_pro, mmstar, videomme, FewCLUE series, dapo_math, leval and other multimodal and text evaluation benchmarks!
+  - 🤖 **New Model Support**: Added vllm/vllm-ascend VL offline inference model support!
+  - 🔧 **Feature Enhancements**: Added streaming inference switch, custom URL path, API key configuration; supports API model inference warmup; supports custom multimodal dataset performance evaluation; some datasets support service-based PPL (perplexity) evaluation and many other features!
+  - 🏗️ **Infrastructure Optimization**: Refactored local models and api models components, unified streaming and non-streaming implementations; refactored inferencer component, adopted multi-process + coroutine calling approach to improve concurrency; optimized test result data format to jsonl, reducing IO pressure; adopted error codes for unified error information management and more!
 - **\[2025.11.25\]** Support for PPL (Perplexity-based) mode accuracy evaluation for service-deployed models.🔥🔥🔥
 - **\[2025.9.08\]** Support for 📚[Simulating Real Business Traffic](https://ais-bench-benchmark-rf.readthedocs.io/en/latest/advanced_tutorials/rps_distribution.html): By controlling fluctuations in request sending rates, perceive the performance evaluation results of service deployment in simulated real-world scenarios! 🔥🔥🔥
 
@@ -58,13 +66,13 @@
 
 
 ## 🌏 Introduction
-AISBench Benchmark is a model evaluation tool built based on [OpenCompass](https://github.com/open-compass/opencompass). It is compatible with OpenCompass’s configuration system, dataset structure, and model backend implementation, and on this basis, extends support for service-deployed models.
+AISBench Benchmark is a model evaluation tool built based on [OpenCompass](https://github.com/open-compass/opencompass). It is compatible with OpenCompass's configuration system, dataset structure, and model backend implementation, and on this basis, extends support for service-deployed models.
 
 Currently, AISBench supports evaluation scenarios for two major types of inference tasks:
 
-🔍 [Accuracy Evaluation](https://ais-bench-benchmark-rf.readthedocs.io/en/latest/base_tutorials/scenes_intro/home.html#id2): Supports accuracy verification of service-deployed models and local models on various question-answering and reasoning benchmark datasets.
+🔍 [Accuracy Evaluation](https://ais-bench-benchmark-rf.readthedocs.io/en/latest/base_tutorials/scenes_intro/home.html#id2): Supports accuracy verification of service-deployed models and local models on various question-answering and reasoning benchmark datasets, covering text, multimodal and other scenarios.
 
-🚀 [Performance Evaluation](https://ais-bench-benchmark-rf.readthedocs.io/en/latest/base_tutorials/scenes_intro/home.html#id5): Supports latency and throughput evaluation of service-deployed models, as well as extreme performance testing under stress test scenarios.
+🚀 [Performance Evaluation](https://ais-bench-benchmark-rf.readthedocs.io/en/latest/base_tutorials/scenes_intro/home.html#id5): Supports latency and throughput evaluation of service-deployed models, as well as extreme performance testing under stress test scenarios, supporting steady-state performance evaluation and real business traffic simulation.
 
 
 ## 🛠️ Tool Installation
@@ -193,7 +201,7 @@ After modifying the configuration files, execute the command to start the servic
 ais_bench --models vllm_api_general_chat --datasets demo_gsm8k_gen_4_shot_cot_chat_prompt
 ```
 ## View Task Execution Details
-After executing the AISBench command, the status of the ongoing task will be displayed on a real-time refreshed dashboard in the command line (press the "P" key on the keyboard to stop refreshing for copying dashboard information, and press "P" again to resume refreshing). For example:
+After executing the AISBench command, the task management interface will display task execution status in real-time on the command line (press the "P" key to pause/resume refreshing for copying dashboard information, press "P" again to continue refreshing). The task management interface supports simultaneous monitoring of detailed execution status for multiple tasks, including task name, progress, time cost, status, log path, extended parameters and other information. For example:
 ```
 Base path of result&log : outputs/default/20250628_151326
 Task Progress Table (Updated at: 2025-11-06 10:08:21)
@@ -256,13 +264,9 @@ For more tutorials, please refer to our 👉[Documentation](https://ais-bench-be
 
 
 ## 🔜 Coming Soon
-- [ ] **\[2025.10\]** Complete a full refactoring of AISBench to support plug-and-play integration of cutting-edge testing benchmarks within the AISBench framework, addressing the increasingly complex and diverse testing tasks in the industry; while significantly improving usability.
-- [ ] **\[2025.11\]** Provide industry-leading multimodal evaluation capabilities.
-- [ ] **\[2025.12\]** Provide evaluation capabilities for mainstream industry Agents.
-- [x] **\[2025.9\]** Support simulating real task traffic.
-- [x] **\[2025.8\]** Add support for performance evaluation of multi-turn dialogue datasets such as ShareGPT and BFCL.
-- [x] **\[2025.8\]** Optimize the calculation efficiency of the eval phase in performance evaluation, reduce the tool’s memory usage, and supplement specifications for tool usage.
-- [x] **\[2025.7\]** Enable the use of custom datasets in performance evaluation scenarios, supporting the definition of maximum output length limits for individual data entries.
+- [x] **\[Completed\]** ✅ AISBench has completed comprehensive refactoring, supporting plug-and-play integration of cutting-edge testing benchmarks within the AISBench framework to address the increasingly complex and diverse testing tasks in the industry; while significantly improving usability.
+- [ ] **\[Planned\]** Continue to expand industry-leading multimodal evaluation capabilities, supporting more multimodal datasets and evaluation scenarios.
+- [ ] **\[Planned\]** Provide evaluation capabilities for mainstream industry Agents, supporting Agent task chains and tool calling in complex scenarios.
 
 
 ## 🤝 Acknowledgements
