@@ -132,6 +132,7 @@ class TestBaseApiInferencer(unittest.TestCase):
         """测试_get_single_data方法从共享内存读取数据"""
         m_build.return_value = DummyModel()
         inf = ConcreteApiInferencer(model_cfg={})
+        inf.set_data_count(1)
 
         test_data = {"test": "data"}
         pickled_data = pickle.dumps(test_data)
@@ -157,6 +158,8 @@ class TestBaseApiInferencer(unittest.TestCase):
         """测试_get_single_data方法从共享内存读取多个数据"""
         m_build.return_value = DummyModel()
         inf = ConcreteApiInferencer(model_cfg={})
+        # 设置 total_data_count，否则在非 pressure 模式下会提前返回 None
+        inf.set_data_count(2)
 
         test_data1 = {"test": "data1"}
         test_data2 = {"test": "data2"}

@@ -26,6 +26,7 @@ class TestRunSingleInferencer(unittest.TestCase):
         message_shm_name = "test_message_shm"
         max_concurrency = 10
         indexes = {0: (0, 0, 100)}
+        total_data_num = 1
 
         from multiprocessing import BoundedSemaphore
         token_bucket = BoundedSemaphore(10)
@@ -37,7 +38,8 @@ class TestRunSingleInferencer(unittest.TestCase):
             message_shm_name,
             max_concurrency,
             indexes,
-            token_bucket
+            token_bucket,
+            total_data_num
         )
 
         mock_inferencers.build.assert_called_once()

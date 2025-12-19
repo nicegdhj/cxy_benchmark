@@ -44,6 +44,7 @@ def run_single_inferencer(
     max_concurrency: int,
     indexes: Dict,
     token_bucket: BoundedSemaphore,
+    total_data_num: int,
     global_index: mp.RawValue = None,
     global_lock: mp.Lock = None,
 ):
@@ -64,6 +65,7 @@ def run_single_inferencer(
     inferencer = ICL_INFERENCERS.build(inferencer_cfg)
     inferencer.set_global_index(global_index)
     inferencer.set_global_lock(global_lock)
+    inferencer.set_data_count(total_data_num)
     # pressure mode each process has a copy of the data list
 
     inferencer.inference_with_shm(
@@ -256,6 +258,46 @@ class OpenICLApiInferTask(BaseTask):
         )
         return per_worker_concurrency
 
+    def _deliver_data_num_for_workers(self, per_worker_concurrency: List[int], total_data_count: int = None):
+        """Split total data number across worker processes as evenly as possible.
+        Args:
+            per_worker_concurrency: List of concurrency values for each worker process
+            total_data_count: Total number of data items to distribute. If None, will try to infer from indexes.
+        Returns:
+            List[int]: List of data number values for each worker process
+        """
+        num_workers = len(per_worker_concurrency)
+        if num_workers == 0:
+            return []
+
+        # If total_data_count is not provided, we need to get it from indexes
+        # This will be handled by modifying the call site
+        if total_data_count is None:
+            # Try to get from indexes if available in self (for backward compatibility)
+            # But ideally, total_data_count should be passed as parameter
+            return [0] * num_workers
+        per_worker_data_num = []
+        total_concurrency = sum(per_worker_concurrency)
+        for i in range(num_workers):
+            per_worker_data_num.append(int(total_data_count / total_concurrency * per_worker_concurrency[i]))
+        remainder = total_data_count - sum(per_worker_data_num)
+        while remainder < 0:
+            for i in range(num_workers):
+                per_worker_data_num[i] -= 1
+                remainder += 1
+                if remainder == 0:
+                    break
+        while remainder > 0:
+            for i in range(num_workers - 1, -1, -1):
+                per_worker_data_num[i] += 1
+                remainder -= 1
+                if remainder == 0:
+                    break
+        self.logger.info(
+            f"Total data num: {total_data_count}, per worker data num: {per_worker_data_num}"
+        )
+        return per_worker_data_num
+
     def _run_debug(
         self,
         dataset_shm: shared_memory.SharedMemory,
@@ -281,6 +323,7 @@ class OpenICLApiInferTask(BaseTask):
             )
         else:
             self.logger.info(f"Debug mode, run with concurrency: {self.concurrency}")
+        self.inferencer.set_data_count(len(indexes))
         self.inferencer.inference_with_shm(dataset_shm.name, message_shm.name, indexes, token_bucket)
 
     def _run_multi_process(
@@ -305,6 +348,9 @@ class OpenICLApiInferTask(BaseTask):
         global_index = mp.RawValue("i", 0)
         global_lock = mp.Lock()
         per_worker_concurrency = self._deliver_concurrency_for_workers()
+        # Get total data count from indexes
+        total_data_count = len(indexes) if self.pressure else len(indexes) - 1
+        per_worker_data_num = self._deliver_data_num_for_workers(per_worker_concurrency, total_data_count)
         if not per_worker_concurrency:
             return []
 
@@ -329,6 +375,7 @@ class OpenICLApiInferTask(BaseTask):
                         concurrency,
                         indexes,
                         token_bucket,
+                        per_worker_data_num[i],
                         global_index,
                         global_lock,
                     ),
