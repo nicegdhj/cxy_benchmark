@@ -214,6 +214,23 @@ class BaseAPIModel(BaseModel):
             input_data, max_out_len, output, **args
         )
         self.logger.debug(f"Request body: {request_body}")
+
+        # --- Debug: Print cURL command for inspection ---
+        is_debug = self.verbose
+        if not is_debug and hasattr(self.logger, 'logger'):
+            is_debug = self.logger.logger.getEffectiveLevel() <= 10  # logging.DEBUG
+
+        if is_debug:
+            try:
+                import shlex
+                header_str = " ".join([f"-H {shlex.quote(f'{k}: {v}')}" for k, v in self.headers.items()])
+                body_str = shlex.quote(json.dumps(request_body, ensure_ascii=False))
+                curl_cmd = f"curl -X POST {shlex.quote(self.url)} {header_str} -d {body_str}"
+                print(f"\n[DEBUG] Raw Request cURL:\n{curl_cmd}\n")
+            except Exception as e:
+                self.logger.warning(f"Failed to generate debug cURL: {e}")
+        # ------------------------------------------------
+
         retry_count = 0
         for _ in range(self.retry):
             try:

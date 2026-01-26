@@ -1,0 +1,1 @@
+ais_bench --models maas --datasets gsm8k_gen_0_shot_noncot_chat_prompt --debug

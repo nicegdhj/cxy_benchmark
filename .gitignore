@@ -1,8 +1,44 @@
+# Python
 __pycache__
-.vscode
-**/build
-**/dist
-test_reports
 .venv
 .eggs
+*.egg-info
+*.pyc
+*.pyo
+*.pyd
+
+# Build & Distribution
+**/build
+**/dist
 ais_bench_benchmark.egg-info
+
+# Testing
+test_reports
+.pytest_cache
+.coverage
+htmlcov/
+.tox/
+
+# IDE & Editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# Project Specific - Data & Outputs
+# Ignore datasets directory but keep the .gitkeep or README if they exist to maintain structure
+ais_bench/datasets/*
+!ais_bench/datasets/README.md
+!ais_bench/datasets/.gitkeep
+
+# Ignore output directories
+outputs/
+logs/
+results/
+predictions/
+summary/
+
+# Ignore temporary files
+tmp/
+*.log
+*.tmp

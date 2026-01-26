@@ -25,7 +25,9 @@ from ais_bench.benchmark.utils.config.message_constants import (
     MESSAGE_SIZE,
     FMT,
 )
-from ais_bench.benchmark.utils.visualization.rps_distribution_plot import plot_rps_distribution
+from ais_bench.benchmark.utils.visualization.rps_distribution_plot import (
+    plot_rps_distribution,
+)
 
 MAX_VIRTUAL_MEMORY_USAGE_PERCENT = 80
 INDEX_READ_FLAG = -1
@@ -45,11 +47,14 @@ def create_message_share_memory():
     shm = shared_memory.SharedMemory(create=True, size=MESSAGE_SIZE)
     buf = shm.buf
     # Set flag to 2, indicating child process is ready for first batch data deserialization
-    buf[:] = struct.pack(FMT, 0, 0, 0, 0, 0, 0)
+    # Use struct.pack_into to avoid memoryview assignment issues on macOS
+    struct.pack_into(FMT, buf, 0, 0, 0, 0, 0, 0, 0)
     return shm
 
 
-def check_virtual_memory_usage(dataset_bytes: int, threshold_percent: int = MAX_VIRTUAL_MEMORY_USAGE_PERCENT) -> None:
+def check_virtual_memory_usage(
+    dataset_bytes: int, threshold_percent: int = MAX_VIRTUAL_MEMORY_USAGE_PERCENT
+) -> None:
     """Check current virtual memory usage and raise exception if threshold is exceeded.
 
     Uses psutil library for cross-platform memory monitoring.
@@ -83,11 +88,16 @@ def check_virtual_memory_usage(dataset_bytes: int, threshold_percent: int = MAX_
             f"Available: {available_mem / (1024**3):.2f} GB, "
             f"Dataset needed memory size: {dataset_bytes / (1024**2):.8f} MB)"
         )
-        raise AISBenchRuntimeError(TINFER_CODES.VIRTUAL_MEMORY_USAGE_TOO_HIGH, error_msg)
+        raise AISBenchRuntimeError(
+            TINFER_CODES.VIRTUAL_MEMORY_USAGE_TOO_HIGH, error_msg
+        )
 
     logger.info(f"Dataset needed memory size: {dataset_bytes / (1024**2):.8f} MB")
-    logger.info(f"Memory usage check passed: {usage_percent:.2f}% < {threshold_percent}% "
-                f"(Available: {available_mem / (1024**3):.2f} GB)")
+    logger.info(
+        f"Memory usage check passed: {usage_percent:.2f}% < {threshold_percent}% "
+        f"(Available: {available_mem / (1024**3):.2f} GB)"
+    )
+
 
 class ProgressBar:
     """Progress monitor reading per-worker SharedMemory objects.
@@ -350,7 +360,9 @@ class ProgressBar:
         """
         self.logger.debug(f"Set all message status to {flag}")
         for _, shm in self.per_pid_shms.items():
-            shm.buf[MESSAGE_INFO.STATUS[0]:MESSAGE_INFO.STATUS[1]] = struct.pack("I", flag)
+            shm.buf[MESSAGE_INFO.STATUS[0] : MESSAGE_INFO.STATUS[1]] = struct.pack(
+                "I", flag
+            )
 
     def display(self, task_state_manager: TaskStateManager):
         """Display progress monitoring.
@@ -396,11 +408,16 @@ class TokenProducer:
         if self.pressure_mode:
             try:
                 from ais_bench.benchmark.global_consts import CONNECTION_ADD_RATE
-                self.logger.warning("`CONNECTION_ADD_RATE` config in global_consts is deprecated, please set `request_rate` in model config instead.")
+
+                self.logger.warning(
+                    "`CONNECTION_ADD_RATE` config in global_consts is deprecated, please set `request_rate` in model config instead."
+                )
                 if CONNECTION_ADD_RATE >= 0:
                     self.request_rate = CONNECTION_ADD_RATE
                 else:
-                    self.logger.warning(f"CONNECTION_ADD_RATE is invalid, using `request_rate` = {request_rate} of model config instead.")
+                    self.logger.warning(
+                        f"CONNECTION_ADD_RATE is invalid, using `request_rate` = {request_rate} of model config instead."
+                    )
             except ImportError:
                 pass
         self.perf_mode = self.pressure_mode or mode == "perf"
@@ -410,7 +427,9 @@ class TokenProducer:
         if self.request_rate < FINAL_RPS_MINIMUM_THRESHOLD:
             self.token_bucket = None
             if self.pressure_mode:
-                self.logger.warning("Pressure mode with no request rate applied, concurrency will increase rapidly")
+                self.logger.warning(
+                    "Pressure mode with no request rate applied, concurrency will increase rapidly"
+                )
         else:
             self.token_bucket = BoundedSemaphore(request_num + 1)
             # First release all tokens in token_bucket to make it empty
@@ -528,7 +547,9 @@ class TokenProducer:
             delay_ts = [d * normalize_factor for d in delay_ts]
 
         # If final RPS (either fixed or ramp end) is extremely low -> treat as simultaneous sends
-        rate_to_check = ramp_up_end_rps if ramp_up_strategy else float(self.request_rate)
+        rate_to_check = (
+            ramp_up_end_rps if ramp_up_strategy else float(self.request_rate)
+        )
         if rate_to_check < FINAL_RPS_MINIMUM_THRESHOLD:
             self.logger.info(
                 f"Request rate ({float(self.request_rate)}) or ramp end rps ({ramp_up_end_rps}) "
@@ -557,7 +578,12 @@ class TokenProducer:
 
             # interval deviations
             interval_deviations = np.zeros_like(inter_arrivals)
-            interval_deviations[non_zero_mask] = np.abs(inter_arrivals[non_zero_mask] - expected_intervals[non_zero_mask]) / expected_intervals[non_zero_mask]
+            interval_deviations[non_zero_mask] = (
+                np.abs(
+                    inter_arrivals[non_zero_mask] - expected_intervals[non_zero_mask]
+                )
+                / expected_intervals[non_zero_mask]
+            )
 
             # burstiness anomalies: deviation > 50%
             burstiness_anomaly_mask = interval_deviations > 0.5
@@ -568,7 +594,9 @@ class TokenProducer:
                 timing_set = set(timing_anomaly_indices.tolist())
                 burst_set = set(burstiness_anomaly_indices.tolist())
                 burst_set = burst_set - timing_set
-                burstiness_anomaly_indices = np.array(sorted(list(burst_set)), dtype=np.int64)
+                burstiness_anomaly_indices = np.array(
+                    sorted(list(burst_set)), dtype=np.int64
+                )
 
             # If burstiness == 0, clear burstiness anomalies
             if burstiness == 0:
@@ -581,7 +609,7 @@ class TokenProducer:
             inter_arrivals = np.array(delay_ts)
 
         # ---------- Visualization (only when performance flag enabled) ----------
-        if  len(delay_ts) > 0 and self.perf_mode:
+        if len(delay_ts) > 0 and self.perf_mode:
             self.logger.info("Begin to draw RPS distribution plot...")
             # build output path (keep existing behavior: append suffix if necessary)
             model_path = os.path.dirname(self.work_dir)
@@ -602,10 +630,11 @@ class TokenProducer:
             )
             self.logger.info(f"RPS distribution charts saved to {rps_plot_path}")
 
-
         return delay_ts
 
-    def produce_token(self, stop_evt: Event, per_pid_shms: Dict[int, shared_memory.SharedMemory]):
+    def produce_token(
+        self, stop_evt: Event, per_pid_shms: Dict[int, shared_memory.SharedMemory]
+    ):
         """Produce tokens for request pacing.
 
         Args:
@@ -624,7 +653,7 @@ class TokenProducer:
                 )
                 stop_evt.clear()
                 for shm in per_pid_shms.values():
-                    struct.pack_into("I", shm.buf, 0, 0) # set sync flag to 0
+                    struct.pack_into("I", shm.buf, 0, 0)  # set sync flag to 0
                 break
             time.sleep(SYNC_MAIN_PROCESS_INTERVAL)
         if not self.token_bucket:
@@ -710,7 +739,9 @@ def format_dict_as_table(
         table_lines.append(title)
 
     # Table header separator
-    header_separator = "+" + "-" * (max_key_len + 2) + "+" + "-" * (max_value_len + 2) + "+"
+    header_separator = (
+        "+" + "-" * (max_key_len + 2) + "+" + "-" * (max_value_len + 2) + "+"
+    )
     table_lines.append(header_separator)
 
     # Table header

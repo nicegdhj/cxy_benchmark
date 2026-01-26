@@ -39,6 +39,11 @@ def get_command_template(gpu_ids: List[int]) -> str:
     return tmpl
 
 
+def monitor_process(task_names, output_path, is_debug, refresh_interval=0.5):
+    tasks_monitor = TasksMonitor(task_names, output_path, is_debug, refresh_interval)
+    tasks_monitor.launch_state_board()
+
+
 @RUNNERS.register_module()
 class LocalRunner(BaseRunner):
     """Local runner. Start tasks by local python.
@@ -79,9 +84,6 @@ class LocalRunner(BaseRunner):
         self.logger.debug(f"LocalRunner.launch called with {len(tasks)} task(s)")
         task_names = [task_abbr_from_cfg(task) for task in tasks]
 
-        def monitor_process(task_names, output_path, is_debug, refresh_interval=0.5):
-            tasks_monitor = TasksMonitor(task_names, output_path, is_debug, refresh_interval)
-            tasks_monitor.launch_state_board()
         monitor_p = multiprocessing.Process(
             target=monitor_process,
             args=(task_names, tasks[0]['work_dir'], self.debug, 0.5)
