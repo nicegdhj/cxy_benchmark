@@ -42,3 +42,6 @@ summary/
 tmp/
 *.log
 *.tmp
+
+mydata
+data
