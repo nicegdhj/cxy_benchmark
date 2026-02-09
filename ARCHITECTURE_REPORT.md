@@ -591,3 +591,17 @@ ais_bench --models vllm_api_general_chat --datasets custom_eval_suite
 ```bash
 ais_bench --models vllm_api_general_chat --datasets custom_eval_suite --debug
 ```
+
+
+
+# 激活环境
+conda activate ais_bench
+
+# 运行单个任务
+ais_bench --models maas --datasets task_1_suite
+
+# 运行多个任务
+ais_bench --models maas --datasets task_1_suite,task_2_suite,task_3_suite
+
+# 带调试信息
+ais_bench --models maas --datasets task_2_suite --debug

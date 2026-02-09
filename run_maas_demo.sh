@@ -6,5 +6,8 @@
 #     --custom-dataset-data-type qa \
 #     --mode all
 
-ais_bench --models maas --datasets task_1_suite
+
 # ais_bench --models maas --datasets custom_eval_suite --debug
+
+
+ais_bench --models maas --datasets task_2_suite --debug
