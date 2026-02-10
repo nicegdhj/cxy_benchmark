@@ -8,7 +8,22 @@ from ais_bench.benchmark.datasets.custom import CustomDataset
 # Metric: AST
 
 # 该任务固定的系统提示词
-SYSTEM_INSTRUCTION = '这个工具可以查询某些部门/单位的工作亮点和不足的工作内心\n\n接口调用说明：\ncurl -X POST http://188.108.12.72:65532/worksheet/getFilteredData \\\n -H \'Content-Type: application/json\' \\\n -d \'{\n    "id": "xsydgzdp",\n      "params": [\n        {\n            "key": "danwei",\n            "value": ["椒江分公司"]        },#从用户的问题中完成实体抽取，该字段表示分公司的名字，例如椒江分公司、黄岩分公司\n{\n            "key": "riqi",\n            "value": ["2025-12-01"] # 该字段表示指标月度日期，取每个月的第一天，例如数据样例2025-11-01表示2025年11月的数据     }\n    ]\n}\''
+SYSTEM_INSTRUCTION = """这个工具可以查询某些部门/单位的工作亮点和不足的工作内心
+
+接口调用说明：
+curl -X POST http://188.108.12.72:65532/worksheet/getFilteredData \
+ -H 'Content-Type: application/json' \
+ -d '{
+    "id": "xsydgzdp",
+      "params": [
+        {
+            "key": "danwei",
+            "value": ["椒江分公司"]        },#从用户的问题中完成实体抽取，该字段表示分公司的名字，例如椒江分公司、黄岩分公司
+{
+            "key": "riqi",
+            "value": ["2025-12-01"] # 该字段表示指标月度日期，取每个月的第一天，例如数据样例2025-11-01表示2025年11月的数据     }
+    ]
+}'"""
 
 task_79_reader_cfg = dict(
     input_columns=['input'],

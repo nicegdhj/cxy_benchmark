@@ -1,7 +1,7 @@
 from ais_bench.benchmark.openicl.icl_prompt_template import PromptTemplate
 from ais_bench.benchmark.openicl.icl_retriever import ZeroRetriever
 from ais_bench.benchmark.openicl.icl_inferencer import GenInferencer
-from ais_bench.benchmark.openicl.icl_evaluator import RougeEvaluator
+from ais_bench.benchmark.openicl.icl_evaluator import JiebaRougeEvaluator
 from ais_bench.benchmark.datasets.custom import CustomDataset
 
 # task_52: 自定义评测任务
@@ -29,7 +29,7 @@ task_52_infer_cfg = dict(
 )
 
 task_52_eval_cfg = dict(
-    evaluator=dict(type=RougeEvaluator),
+    evaluator=dict(type=JiebaRougeEvaluator),
 )
 
 # 导出数据集配置

@@ -20,3 +20,11 @@ from ais_bench.benchmark.openicl.icl_evaluator.code_ast_evaluator import (
 from ais_bench.benchmark.openicl.icl_evaluator.custom_pass_k_evaluator import (
     CustomPassAtKEvaluator,
 )
+from ais_bench.benchmark.openicl.icl_evaluator.json_field_evaluator import (
+    JsonFieldEvaluator,
+    JsonValueMatchEvaluator,
+    BusinessClassificationEvaluator,
+)
+from ais_bench.benchmark.openicl.icl_evaluator.sql_esm_evaluator import (
+    SqlExactSetMatchEvaluator,
+)

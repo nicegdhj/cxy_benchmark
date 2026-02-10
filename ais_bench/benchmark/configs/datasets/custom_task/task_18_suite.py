@@ -8,7 +8,20 @@ from ais_bench.benchmark.datasets.custom import CustomDataset
 # Metric: Acc
 
 # 该任务固定的系统提示词
-SYSTEM_INSTRUCTION = '[角色] 请担任语音质检专家\n[任务] 对输入[录音文本]进行“离网倾向”质检，**基于录音内容**判断是否存在离网倾向。\n[要求] \n参考关键词：[<关键词>]\n[输出格式] 请将识别结果和依据用json格式输出，注意\n1、result字段输出字符串"是"或"否"（中文），若result为"否"，则basis字段输出空字符串""。\n2、basis字段输出字符串，必须使用[录音文本]中的原文片段。\n3、格式示例：\n{\n   "result": "是",\n   "basis": "用户说\'我不要了\'"\n}\n[录音文本]\n0'
+SYSTEM_INSTRUCTION = """[角色] 请担任语音质检专家
+[任务] 对输入[录音文本]进行“离网倾向”质检，**基于录音内容**判断是否存在离网倾向。
+[要求] 
+参考关键词：[<关键词>]
+[输出格式] 请将识别结果和依据用json格式输出，注意
+1、result字段输出字符串"是"或"否"（中文），若result为"否"，则basis字段输出空字符串""。
+2、basis字段输出字符串，必须使用[录音文本]中的原文片段。
+3、格式示例：
+{
+   "result": "是",
+   "basis": "用户说'我不要了'"
+}
+[录音文本]
+0"""
 
 task_18_reader_cfg = dict(
     input_columns=['input'],

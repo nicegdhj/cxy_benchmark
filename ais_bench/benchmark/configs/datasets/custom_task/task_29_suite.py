@@ -8,7 +8,23 @@ from ais_bench.benchmark.datasets.custom import CustomDataset
 # Metric: EM
 
 # 该任务固定的系统提示词
-SYSTEM_INSTRUCTION = '/no_think\n结合上下文信息，提取当前施工点位接入方案的点位Id 以及用户需要的方案编号\n\n你需要的返回的json格式如下：\n\n{  \n "positionId": "提取到的当前施工点位接入方案的点位Id"  ,\n  "id": "方案编号,只需要是数值，int类型"  \n}  \n\\`\\`\\`json和\\`\\`\\`是JSON开始和结束的标志，不要省略。  \n\n历史信息\n{history}\n\n用户输入\n{user}\n\'\'\''
+SYSTEM_INSTRUCTION = """/no_think
+结合上下文信息，提取当前施工点位接入方案的点位Id 以及用户需要的方案编号
+
+你需要的返回的json格式如下：
+
+{  
+ "positionId": "提取到的当前施工点位接入方案的点位Id"  ,
+  "id": "方案编号,只需要是数值，int类型"  
+}  
+\`\`\`json和\`\`\`是JSON开始和结束的标志，不要省略。  
+
+历史信息
+{history}
+
+用户输入
+{user}
+'''"""
 
 task_29_reader_cfg = dict(
     input_columns=['input'],

@@ -45,9 +45,9 @@ def normalize_metric(metric: str) -> tuple:
     ):
         return "AccEvaluator", "AccEvaluator"
 
-    # ROUGE 类
+    # ROUGE 类 - 使用 JiebaRougeEvaluator 支持中文
     if "rouge" in metric_lower:
-        return "RougeEvaluator", "RougeEvaluator"
+        return "JiebaRougeEvaluator", "JiebaRougeEvaluator"
 
     # AST 类
     if "ast" in metric_lower:
@@ -75,7 +75,7 @@ def generate_config_file(task_id: str, task_data: dict) -> str:
     # 根据评估器类型确定导入
     evaluator_imports = {
         "AccEvaluator": "AccEvaluator",
-        "RougeEvaluator": "RougeEvaluator",
+        "JiebaRougeEvaluator": "JiebaRougeEvaluator",
         "CodeASTEvaluator": "CodeASTEvaluator",
         "CustomPassAtKEvaluator": "CustomPassAtKEvaluator",
     }
@@ -84,11 +84,11 @@ def generate_config_file(task_id: str, task_data: dict) -> str:
 
     # 生成模板部分
     if has_system_instruction:
-        # 使用 repr 来安全处理字符串中的特殊字符
-        safe_instruction = repr(system_instruction)
-        template_section = f"""
+        # 转义三引号，使用多行字符串格式
+        escaped_instruction = system_instruction.replace('"""', r'\"\"\"')
+        template_section = f'''
 # 该任务固定的系统提示词
-SYSTEM_INSTRUCTION = {safe_instruction}"""
+SYSTEM_INSTRUCTION = """{escaped_instruction}"""'''
 
         infer_template = """dict(
             begin=[

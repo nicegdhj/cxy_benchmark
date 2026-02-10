@@ -8,7 +8,18 @@ from ais_bench.benchmark.datasets.custom import CustomDataset
 # Metric: Acc
 
 # 该任务固定的系统提示词
-SYSTEM_INSTRUCTION = '你是一个参数提取助手，你可以精准识别用户问题中的参数。\n\n## 任务目标\n请从用户问题中提取SN号\nSN号格式通常为字母加数字组合\n注意，SN号必须为明确的“SN号”描述，其他相似表达均不是SN号\n\n## 格式要求\n输出只需要提取后的SN号，不需要额外的文字解释；\n如果用户问题中不存在SN号，直接返回”null“。\n\n用户问题为{{input}}'
+SYSTEM_INSTRUCTION = """你是一个参数提取助手，你可以精准识别用户问题中的参数。
+
+## 任务目标
+请从用户问题中提取SN号
+SN号格式通常为字母加数字组合
+注意，SN号必须为明确的“SN号”描述，其他相似表达均不是SN号
+
+## 格式要求
+输出只需要提取后的SN号，不需要额外的文字解释；
+如果用户问题中不存在SN号，直接返回”null“。
+
+用户问题为{{input}}"""
 
 task_33_reader_cfg = dict(
     input_columns=['input'],

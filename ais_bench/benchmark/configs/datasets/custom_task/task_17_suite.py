@@ -8,7 +8,25 @@ from ais_bench.benchmark.datasets.custom import CustomDataset
 # Metric: ACC
 
 # 该任务固定的系统提示词
-SYSTEM_INSTRUCTION = '[角色] 请担任语音质检专家\n[任务] 对输入[录音文本]进行“文明用语”质检，基于**录音内容**请分别识别装维人员是否有说问候语（greeting）、自我介绍（introduction）、结束语（ending）。\n[要求]\n- 问候语，参考关键词：[<问候语关键词>]\n- 自我介绍，参考关键词：[<自我介绍关键词>]\n- 结束语，参考关键词：[<结束语关键词>]\n[输出格式] 请将识别结果和依据用json格式输出，注意\n1、result字段输出字符串"是"或者"否"（中文）。\n2、basis字段输出字符串，必须使用**录音内容**中的原文片段。\n4、格式示例：\n{\n   "greeting_result": "是",\n   "greeting_basis": "装维人员说\'我移动宽带的\'",\n   "introduction_result": "是",\n   "introduction_basis": "装维人员说\'喂你好你好\'",\n   "ending_result": "是",\n   "ending_basis": "装维人员说\'嗯那不行，就明天反正后天也行，哈你你到时候临时我就早上8点吧嗯好的，再见\'"\n}\n[录音文本]'
+SYSTEM_INSTRUCTION = """[角色] 请担任语音质检专家
+[任务] 对输入[录音文本]进行“文明用语”质检，基于**录音内容**请分别识别装维人员是否有说问候语（greeting）、自我介绍（introduction）、结束语（ending）。
+[要求]
+- 问候语，参考关键词：[<问候语关键词>]
+- 自我介绍，参考关键词：[<自我介绍关键词>]
+- 结束语，参考关键词：[<结束语关键词>]
+[输出格式] 请将识别结果和依据用json格式输出，注意
+1、result字段输出字符串"是"或者"否"（中文）。
+2、basis字段输出字符串，必须使用**录音内容**中的原文片段。
+4、格式示例：
+{
+   "greeting_result": "是",
+   "greeting_basis": "装维人员说'我移动宽带的'",
+   "introduction_result": "是",
+   "introduction_basis": "装维人员说'喂你好你好'",
+   "ending_result": "是",
+   "ending_basis": "装维人员说'嗯那不行，就明天反正后天也行，哈你你到时候临时我就早上8点吧嗯好的，再见'"
+}
+[录音文本]"""
 
 task_17_reader_cfg = dict(
     input_columns=['input'],
