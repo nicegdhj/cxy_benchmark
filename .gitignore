@@ -44,4 +44,5 @@ tmp/
 *.tmp
 
 mydata
-data
+data/*
+!data/custom_task/
