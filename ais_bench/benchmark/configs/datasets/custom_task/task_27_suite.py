@@ -1,7 +1,8 @@
 from ais_bench.benchmark.openicl.icl_prompt_template import PromptTemplate
 from ais_bench.benchmark.openicl.icl_retriever import ZeroRetriever
 from ais_bench.benchmark.openicl.icl_inferencer import GenInferencer
-from ais_bench.benchmark.openicl.icl_evaluator import AccEvaluator
+from ais_bench.benchmark.openicl.icl_evaluator import LEvalEMEvaluator
+from ais_bench.benchmark.datasets.gsm8k import gsm8k_postprocess
 from ais_bench.benchmark.datasets.custom import CustomDataset
 
 # task_27: 自定义评测任务
@@ -41,7 +42,9 @@ task_27_infer_cfg = dict(
 )
 
 task_27_eval_cfg = dict(
-    evaluator=dict(type=AccEvaluator),
+    evaluator=dict(type=LEvalEMEvaluator),
+    dataset_postprocessor=dict(type=gsm8k_postprocess),
+    pred_postprocessor=dict(type=gsm8k_postprocess),
 )
 
 # 导出数据集配置

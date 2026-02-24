@@ -1,11 +1,11 @@
 from ais_bench.benchmark.openicl.icl_prompt_template import PromptTemplate
 from ais_bench.benchmark.openicl.icl_retriever import ZeroRetriever
 from ais_bench.benchmark.openicl.icl_inferencer import GenInferencer
-from ais_bench.benchmark.openicl.icl_evaluator import BusinessClassificationEvaluator
+from ais_bench.benchmark.openicl.icl_evaluator import JsonFieldEvaluator
 from ais_bench.benchmark.datasets.custom import CustomDataset
 
 # task_1: 自定义评测任务
-# Metric: EM
+# Evaluator: JsonFieldEvaluator (字段级评估)
 
 # 该任务固定的系统提示词
 SYSTEM_INSTRUCTION = """system_instruction: str = '''
@@ -62,8 +62,8 @@ SYSTEM_INSTRUCTION = """system_instruction: str = '''
     '''"""
 
 task_1_reader_cfg = dict(
-    input_columns=['input'],
-    output_column='output',
+    input_columns=["input"],
+    output_column="output",
 )
 
 task_1_infer_cfg = dict(
@@ -71,11 +71,11 @@ task_1_infer_cfg = dict(
         type=PromptTemplate,
         template=dict(
             begin=[
-                dict(role='SYSTEM', fallback_role='HUMAN', prompt=SYSTEM_INSTRUCTION),
+                dict(role="SYSTEM", fallback_role="HUMAN", prompt=SYSTEM_INSTRUCTION),
             ],
             round=[
-                dict(role='HUMAN', prompt='{input}'),
-                dict(role='BOT', prompt=''),
+                dict(role="HUMAN", prompt="{input}"),
+                dict(role="BOT", prompt=""),
             ],
         ),
     ),
@@ -83,16 +83,27 @@ task_1_infer_cfg = dict(
     inferencer=dict(type=GenInferencer),
 )
 
+# 字段级评估配置:
+# - 业务类别: exact (精确匹配, 权重 1.0)
+# - 信息提取: value_only (值匹配，忽略键名差异, 权重 1.0)
 task_1_eval_cfg = dict(
-    evaluator=dict(type=BusinessClassificationEvaluator),
+    evaluator=dict(
+        type=JsonFieldEvaluator,
+        field_config={
+            "业务类别": {"match_type": "exact", "weight": 1.0},
+            "信息提取": {"match_type": "value_only", "weight": 1.0},
+        },
+        default_match_type="flexible",
+        return_details=True,
+    ),
 )
 
 # 导出数据集配置
 task_1_datasets = [
     dict(
         type=CustomDataset,
-        abbr='task_1',
-        path='data/custom_task/task_1.jsonl',
+        abbr="task_1",
+        path="data/custom_task/task_1.jsonl",
         reader_cfg=task_1_reader_cfg,
         infer_cfg=task_1_infer_cfg,
         eval_cfg=task_1_eval_cfg,

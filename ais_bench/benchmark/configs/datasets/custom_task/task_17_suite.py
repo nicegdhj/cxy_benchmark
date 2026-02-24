@@ -1,11 +1,11 @@
 from ais_bench.benchmark.openicl.icl_prompt_template import PromptTemplate
 from ais_bench.benchmark.openicl.icl_retriever import ZeroRetriever
 from ais_bench.benchmark.openicl.icl_inferencer import GenInferencer
-from ais_bench.benchmark.openicl.icl_evaluator import AccEvaluator
+from ais_bench.benchmark.openicl.icl_evaluator import JsonFieldEvaluator
 from ais_bench.benchmark.datasets.custom import CustomDataset
 
 # task_17: 自定义评测任务
-# Metric: ACC
+# Evaluator: JsonFieldEvaluator (字段级评估)
 
 # 该任务固定的系统提示词
 SYSTEM_INSTRUCTION = """[角色] 请担任语音质检专家
@@ -26,7 +26,8 @@ SYSTEM_INSTRUCTION = """[角色] 请担任语音质检专家
    "ending_result": "是",
    "ending_basis": "装维人员说'嗯那不行，就明天反正后天也行，哈你你到时候临时我就早上8点吧嗯好的，再见'"
 }
-[录音文本]"""
+[录音文本]
+"""
 
 task_17_reader_cfg = dict(
     input_columns=['input'],
@@ -50,8 +51,41 @@ task_17_infer_cfg = dict(
     inferencer=dict(type=GenInferencer),
 )
 
+# 字段级评估配置:
+# - result 类字段: exact (精确匹配, 权重 1.0)
+# - basis 类字段: rouge (ROUGE 评分, 权重 0.5)
 task_17_eval_cfg = dict(
-    evaluator=dict(type=AccEvaluator),
+    evaluator=dict(
+        type=JsonFieldEvaluator,
+        field_config={
+            "greeting_result": {
+                        "match_type": "exact",
+                        "weight": 1.0
+            },
+            "greeting_basis": {
+                        "match_type": "rouge",
+                        "weight": 0.5
+            },
+            "introduction_result": {
+                        "match_type": "exact",
+                        "weight": 1.0
+            },
+            "introduction_basis": {
+                        "match_type": "rouge",
+                        "weight": 0.5
+            },
+            "ending_result": {
+                        "match_type": "exact",
+                        "weight": 1.0
+            },
+            "ending_basis": {
+                        "match_type": "rouge",
+                        "weight": 0.5
+            }
+},
+        default_match_type="exact",
+        return_details=True,
+    ),
 )
 
 # 导出数据集配置

@@ -10,7 +10,9 @@ from ais_bench.benchmark.registry import MODELS
 from ais_bench.benchmark.utils.prompt import PromptList
 from ais_bench.benchmark.models import BaseAPIModel, APITemplateParser
 from ais_bench.benchmark.models.output import RequestOutput, Output
-from ais_bench.benchmark.openicl.icl_inferencer.output_handler.ppl_inferencer_output_handler import PPLRequestOutput
+from ais_bench.benchmark.openicl.icl_inferencer.output_handler.ppl_inferencer_output_handler import (
+    PPLRequestOutput,
+)
 
 PromptType = Union[PromptList, str]
 
@@ -29,21 +31,21 @@ class MaaSAPI(BaseAPIModel):
     is_chat_api: bool = True
 
     def __init__(
-            self,
-            path: str = "",
-            model: str = "",
-            stream: bool = False,
-            max_out_len: int = 4096,
-            retry: int = 2,
-            api_key: str = "",
-            host_ip: str = "localhost",
-            host_port: int = 8080,
-            url: str = "",
-            trust_remote_code: bool = False,
-            generation_kwargs: Optional[Dict] = None,
-            meta_template: Optional[Dict] = None,
-            enable_ssl: bool = False,
-            verbose: bool = False,
+        self,
+        path: str = "",
+        model: str = "",
+        stream: bool = False,
+        max_out_len: int = 4096,
+        retry: int = 2,
+        api_key: str = "",
+        host_ip: str = "localhost",
+        host_port: int = 8080,
+        url: str = "",
+        trust_remote_code: bool = False,
+        generation_kwargs: Optional[Dict] = None,
+        meta_template: Optional[Dict] = None,
+        enable_ssl: bool = False,
+        verbose: bool = False,
     ):
         super().__init__(
             path=path,
@@ -84,7 +86,7 @@ class MaaSAPI(BaseAPIModel):
         return url
 
     async def get_request_body(
-            self, input: PromptType, max_out_len: int, output: RequestOutput, **args
+        self, input: PromptType, max_out_len: int, output: RequestOutput, **args
     ):
         if max_out_len <= 0:
             return ""
@@ -96,7 +98,9 @@ class MaaSAPI(BaseAPIModel):
                 msg = {"content": item["prompt"]}
                 # Use hash table (dict) driven approach for role mapping
                 role = item.get("role", "")
-                msg["role"] = ROLE_MAP.get(role, role)  # Use original role if not in map
+                msg["role"] = ROLE_MAP.get(
+                    role, role
+                )  # Use original role if not in map
                 for key, value in item.items():  # copy all other items to msg
                     if key not in ["role", "prompt"]:
                         msg[key] = value
@@ -141,8 +145,12 @@ class MaaSAPI(BaseAPIModel):
         self.logger.debug(f"Output content: {output.content}")
         self.logger.debug(f"Output reasoning content: {output.reasoning_content}")
 
-    async def get_ppl_request_body(self, input_data: PromptType, max_out_len: int, output: PPLRequestOutput, **args):
-        request_body = await self.get_request_body(input_data, max_out_len, output, **args)
+    async def get_ppl_request_body(
+        self, input_data: PromptType, max_out_len: int, output: PPLRequestOutput, **args
+    ):
+        request_body = await self.get_request_body(
+            input_data, max_out_len, output, **args
+        )
         request_body.update({"prompt_logprobs": 0})
         return request_body
 

@@ -1,11 +1,11 @@
 from ais_bench.benchmark.openicl.icl_prompt_template import PromptTemplate
 from ais_bench.benchmark.openicl.icl_retriever import ZeroRetriever
 from ais_bench.benchmark.openicl.icl_inferencer import GenInferencer
-from ais_bench.benchmark.openicl.icl_evaluator import AccEvaluator
+from ais_bench.benchmark.openicl.icl_evaluator import JsonFieldEvaluator
 from ais_bench.benchmark.datasets.custom import CustomDataset
 
 # task_19: 自定义评测任务
-# Metric: ACC
+# Evaluator: JsonFieldEvaluator (字段级评估)
 
 # 该任务固定的系统提示词
 SYSTEM_INSTRUCTION = """[角色] 请担任语音质检专家
@@ -26,7 +26,10 @@ SYSTEM_INSTRUCTION = """[角色] 请担任语音质检专家
    "cause": "用户原因",
    "basis": "用户说'不需要安装'"
 }
-[录音文本]"""
+[录音文本]
+
+
+"""
 
 task_19_reader_cfg = dict(
     input_columns=['input'],
@@ -50,8 +53,25 @@ task_19_infer_cfg = dict(
     inferencer=dict(type=GenInferencer),
 )
 
+# 字段级评估配置:
+# - result 类字段: exact (精确匹配, 权重 1.0)
+# - basis 类字段: rouge (ROUGE 评分, 权重 0.5)
 task_19_eval_cfg = dict(
-    evaluator=dict(type=AccEvaluator),
+    evaluator=dict(
+        type=JsonFieldEvaluator,
+        field_config={
+            "result": {
+                        "match_type": "exact",
+                        "weight": 1.0
+            },
+            "basis": {
+                        "match_type": "rouge",
+                        "weight": 0.5
+            }
+},
+        default_match_type="exact",
+        return_details=True,
+    ),
 )
 
 # 导出数据集配置
