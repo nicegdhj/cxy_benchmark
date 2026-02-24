@@ -1,11 +1,12 @@
 from ais_bench.benchmark.openicl.icl_prompt_template import PromptTemplate
 from ais_bench.benchmark.openicl.icl_retriever import ZeroRetriever
 from ais_bench.benchmark.openicl.icl_inferencer import GenInferencer
-from ais_bench.benchmark.openicl.icl_evaluator import AccEvaluator
+from ais_bench.benchmark.openicl.icl_evaluator import JsonFieldEvaluator
 from ais_bench.benchmark.datasets.custom import CustomDataset
 
 # task_28: 自定义评测任务
 # Metric: EM
+# Evaluator: JsonFieldEvaluator (字段级评估)
 
 # 该任务固定的系统提示词
 SYSTEM_INSTRUCTION = """\no_think
@@ -60,8 +61,8 @@ arguments: 调用工具的参数。
 - \`\`\`json和\`\`\`是JSON开始和结束的标志，不要省略。"""
 
 task_28_reader_cfg = dict(
-    input_columns=['input'],
-    output_column='output',
+    input_columns=["input"],
+    output_column="output",
 )
 
 task_28_infer_cfg = dict(
@@ -69,11 +70,11 @@ task_28_infer_cfg = dict(
         type=PromptTemplate,
         template=dict(
             begin=[
-                dict(role='SYSTEM', fallback_role='HUMAN', prompt=SYSTEM_INSTRUCTION),
+                dict(role="SYSTEM", fallback_role="HUMAN", prompt=SYSTEM_INSTRUCTION),
             ],
             round=[
-                dict(role='HUMAN', prompt='{input}'),
-                dict(role='BOT', prompt=''),
+                dict(role="HUMAN", prompt="{input}"),
+                dict(role="BOT", prompt=""),
             ],
         ),
     ),
@@ -81,16 +82,31 @@ task_28_infer_cfg = dict(
     inferencer=dict(type=GenInferencer),
 )
 
+# 字段级评估配置:
+# - call_ready: exact (布尔值精确匹配, 权重 1.0)
+# - interaction: rouge (交互文本使用 ROUGE 评估相似度, 权重 0.5)
+# - tool: exact (工具名称精确匹配, 权重 1.0)
+# - arguments: rouge (参数值使用 ROUGE 评估，支持格式差异, 权重 2.0)
 task_28_eval_cfg = dict(
-    evaluator=dict(type=AccEvaluator),
+    evaluator=dict(
+        type=JsonFieldEvaluator,
+        field_config={
+            "call_ready": {"match_type": "exact", "weight": 1.0},
+            "interaction": {"match_type": "rouge", "weight": 0.5},
+            "tool": {"match_type": "exact", "weight": 1.0},
+            "arguments": {"match_type": "rouge", "weight": 2.0},
+        },
+        default_match_type="exact",
+        return_details=True,
+    ),
 )
 
 # 导出数据集配置
 task_28_datasets = [
     dict(
         type=CustomDataset,
-        abbr='task_28',
-        path='data/custom_task/task_28.jsonl',
+        abbr="task_28",
+        path="data/custom_task/task_28.jsonl",
         reader_cfg=task_28_reader_cfg,
         infer_cfg=task_28_infer_cfg,
         eval_cfg=task_28_eval_cfg,

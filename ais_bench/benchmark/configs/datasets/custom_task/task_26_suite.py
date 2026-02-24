@@ -1,11 +1,12 @@
 from ais_bench.benchmark.openicl.icl_prompt_template import PromptTemplate
 from ais_bench.benchmark.openicl.icl_retriever import ZeroRetriever
 from ais_bench.benchmark.openicl.icl_inferencer import GenInferencer
-from ais_bench.benchmark.openicl.icl_evaluator import AccEvaluator
+from ais_bench.benchmark.openicl.icl_evaluator import JsonFieldEvaluator
 from ais_bench.benchmark.datasets.custom import CustomDataset
 
 # task_26: 自定义评测任务
 # Metric: M + 字段级F1
+# Evaluator: JsonFieldEvaluator (字段级评估)
 
 # 该任务固定的系统提示词
 SYSTEM_INSTRUCTION = """"messages": [
@@ -73,8 +74,8 @@ SYSTEM_INSTRUCTION = """"messages": [
   }"""
 
 task_26_reader_cfg = dict(
-    input_columns=['input'],
-    output_column='output',
+    input_columns=["input"],
+    output_column="output",
 )
 
 task_26_infer_cfg = dict(
@@ -82,11 +83,11 @@ task_26_infer_cfg = dict(
         type=PromptTemplate,
         template=dict(
             begin=[
-                dict(role='SYSTEM', fallback_role='HUMAN', prompt=SYSTEM_INSTRUCTION),
+                dict(role="SYSTEM", fallback_role="HUMAN", prompt=SYSTEM_INSTRUCTION),
             ],
             round=[
-                dict(role='HUMAN', prompt='{input}'),
-                dict(role='BOT', prompt=''),
+                dict(role="HUMAN", prompt="{input}"),
+                dict(role="BOT", prompt=""),
             ],
         ),
     ),
@@ -94,16 +95,24 @@ task_26_infer_cfg = dict(
     inferencer=dict(type=GenInferencer),
 )
 
+# 字段级评估配置:
+# - 对于 function calling 格式，使用 value_only 模式比较嵌套结构
+# - 输出是数组格式，整体使用 flexible 匹配策略
 task_26_eval_cfg = dict(
-    evaluator=dict(type=AccEvaluator),
+    evaluator=dict(
+        type=JsonFieldEvaluator,
+        field_config={},
+        default_match_type="value_only",  # 嵌套 function 对象，只比较值
+        return_details=True,
+    ),
 )
 
 # 导出数据集配置
 task_26_datasets = [
     dict(
         type=CustomDataset,
-        abbr='task_26',
-        path='data/custom_task/task_26.jsonl',
+        abbr="task_26",
+        path="data/custom_task/task_26.jsonl",
         reader_cfg=task_26_reader_cfg,
         infer_cfg=task_26_infer_cfg,
         eval_cfg=task_26_eval_cfg,

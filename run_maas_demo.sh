@@ -10,7 +10,7 @@
 # ais_bench --models maas --datasets custom_eval_suite --debug
 
 
-ais_bench --models maas --datasets task_9_suite --debug
+# ais_bench --models maas --datasets task_11_suite --debug
 
 
-# python scripts/run_all_tasks.py --start 1 --end 5
+python scripts/run_all_tasks.py --start 24 --end 29
