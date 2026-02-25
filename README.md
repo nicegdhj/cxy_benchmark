@@ -1,185 +1,196 @@
-<div align="center">
-  <br />
-  <br />
+# AISBench
 
-  # **AISBench 评测工具**
-  #### 面向人工智能领域的测试基准工具
-  <!-- 用分隔线替代背景 -->
-  ---
+### 本项目fork自[AISBench](https://github.com/AISBench/benchmark)进行修改, 详情请见原始项目
+---
 
-[![][github-release-shield]][github-release-link]
-[![][github-releasedate-shield]][github-releasedate-link]
-[![][github-contributors-shield]][github-contributors-link]<br>
-[![][github-forks-shield]][github-forks-link]
-[![][github-stars-shield]][github-stars-link]
-[![][github-issues-shield]][github-issues-link]
-[![License](https://img.shields.io/badge/license-Apache--2.0-red?logo=apache)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/AISBench/benchmark)
-<br><br>
-[🌐官方网站](https://www.aisbench.com) |
-[📖工具文档](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/) |
-[👨‍💻开发者文档](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/develop_guide/contributing.html) |
-[🔥最新进展](#-最新进展)|
-[🤔报告问题](https://github.com/AISBench/benchmark/issues/new/choose)
-<br><br>简体中文 | [English](README_en.md)
-</div>
+## 1. 项目概览
 
-> ❗<span style="color: red;"><b>重要</b></span>
->
-> **⭐️收藏项目**，你将能第一时间获取 AISBench评测工具 的最新动态～
+**AISBench Benchmark** 是一个面向大模型（LLM）的综合评测工具，主要基于 [OpenCompass](https://github.com/open-compass/opencompass) 构建，但在其基础上进行了深度定制，特别增强了对**服务化模型（Service-oriented Models）**的支持。
 
-## 🔥 最新进展
-- **\[2025.12.19\]** 🎉 **AISBench 架构全面重构完成！**
-  - ✨ **架构升级**：对cli、models、inferencer、tasks组件进行了全面重构，支持快速接入新的测试基准，参考📚 [开发者文档](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/develop_guide/contributing.html)了解详情！
-  - 🖥️ **任务管理界面**：全新的任务UI管理界面，支持同时监控每个任务的详细执行状态，包括任务名称、进度、时间成本、状态、日志路径、扩展参数等，让任务执行状态一目了然！
-  - ⚡ **并行执行增强**：扩展了多任务并行功能，支持多个性能或精度测评任务并行执行，大幅提升评测效率！
-  - 📊 **新增15+测评基准**：新增docvqa、infovqa、ocrbench_v2、omnidocbench、mmmu、mmmu_pro、mmstar、videomme、FewCLUE系列、dapo_math、leval等多模态和文本测评基准！
-  - 🤖 **新增模型支持**：新增vllm/vllm-ascend VL 离线推理模型支持！
-  - 🔧 **功能增强**：新增流式推理开关、自定义URL路径、API key配置；支持API模型推理warmup；支持自定义多模态数据集性能测评；部分数据集支持服务化PPL（困惑度）测评等多项功能！
-  - 🏗️ **基础设施优化**：重构local models和api models组件，统一流式和非流式实现；重构inferencer组件，采用多进程+协程调用方式，提高并发能力；测试结果数据格式优化为jsonl，降低IO压力；采用错误码统一管理错误信息等！
-- **\[2025.11.25\]** 支持服务化模型PPL(Perplexity-based，困惑度)模式精度测评。🔥🔥🔥
-- **\[2025.9.08\]** 支持📚[模拟真实业务流量](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/advanced_tutorials/rps_distribution.html)：通过控制请求发送速率波动，感知在模拟真实场景下服务化的性能测评结果！🔥🔥🔥
+### 核心特性
 
-- **\[2025.8.28\]** 支持📚[多次独立重复推理精度场景](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/scenes_intro/accuracy_benchmark.html#id12)，计算pass@k/cons@k/avg@n等不同维度的精度指标！🔬🔬🔬
+- **双重模式**：支持**精度评测**（基于数据集的问答准确率）和**性能评测**（吞吐量、延迟、RPS等）。
+- **高并发架构**：针对服务化推理场景，底层采用多进程+共享内存机制，支持高并发请求发送。
+- **插件化设计**：通过 Registry 机制管理模型、数据集、运行器等组件，易于扩展。
+- **全面兼容**：支持 VLLM, Triton, TGI 等主流推理服务框架。
 
-- **\[2025.8.19\]**
-  - 新增Function Call专用模型配置 [vllm_api_function_call_chat](ais_bench/benchmark/configs/models/vllm_api/vllm_api_function_call_chat.py)，支持 [BFCL 函数调用能力评估](ais_bench/benchmark/configs/datasets/BFCL/README.md) 🔥🔥🔥
-  - 提供工具支持的[性能测试规格说明](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/scenes_intro/performance_benchmark.html#id25)，优化推理集群场景工具内存占用及性能计算。最大规格场景（250K条请求，输入/输出token 4K/4K）内存占用降低60%，内存占用小于64GB；性能结果计算效率提升20倍。🚀🚀🚀
-- **\[2025.7.15\]**
-  - 支持[sharegpt](ais_bench/benchmark/configs/datasets/sharegpt/README.md)和[mtbench](ais_bench/benchmark/configs/datasets/mtbench/README.md)多轮对话数据集服务化性能测评和可视化，测评方式见📚[多轮对话测评指南](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/advanced_tutorials/multiturn_benchmark.html)！🔥🔥🔥
-  - 性能评测场景使用[自定义数据集](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/advanced_tutorials/custom_dataset.html)，支持按请求粒度指定最大输出长度！🔥🔥🔥
+---
 
-- **\[2025.6.19\]** 支持📚[性能评测结果可视化](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/results_intro/performance_visualization.html)，辅助定位推理服务性能瓶颈！🔥🔥🔥
-- **\[2025.6.12\]** 支持[textvqa](ais_bench/benchmark/configs/datasets/textvqa/README.md)、[videobench](ais_bench/benchmark/configs/datasets/videobench/README.md)和[vocalsound](ais_bench/benchmark/configs/datasets/vocalsound/README.md)等多模态数据集的精度和性能评测！🔥🔥🔥
+## 2. 系统架构设计
 
-- **\[2025.6.6\]** AISBench支持稳态性能评测，获取系统真实最佳性能，参考📚 [服务化稳定状态性能测试](doc/users_guide/stable_stage.md)进行快速上手! 🔥🔥🔥
+本项目采用分层架构，数据流从 CLI 入口层层传递至底层的模型执行单元。
 
-- **\[2025.5.16\]** 支持3W+高并发服务化性能评测，📚 [性能指标](doc/users_guide/performance_metric.md)对齐🔗 [vllm benchmark](https://github.com/vllm-project/vllm/tree/main/benchmarks)，参考📚 [服务化性能测评指南](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/scenes_intro/performance_benchmark.html)了解详情！🔥🔥🔥
+### 2.1 核心层级流转图
 
-- **\[2025.4.30\]** 精度评测支持断点续测和失败用例重测，大幅提高精度评测鲁棒性，参考📚 [中断续测 & 失败用例重测](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/scenes_intro/accuracy_benchmark.html#id10)进行快速上手! 🔥🔥🔥
+```mermaid
+graph TD
+    User[用户] --> CLI["CLI 入口 (main.py)"]
+    CLI --> TM[Task Manager]
+    TM --> CM["Config Manager (加载/合并配置)"]
+    TM --> WF["WorkFlow Executor (工作流执行器)"]
+    
+    subgraph WorkFlow_Workers ["WorkFlow (Workers)"]
+        InferWorker[Infer Worker]
+        EvalWorker[Eval Worker]
+        VizWorker[Summarizer/Visualizer]
+    end
 
-- **\[2025.4.15\]** 优化固定batch发送请求的方式为continuous batch模式发送请求，大幅提高精度评测效率! 🔥🔥🔥
+    WF --> |"Mode: infer/perf"| InferWorker
+    WF --> |"Mode: eval"| EvalWorker
+    WF --> |"Mode: viz"| VizWorker
 
-- **\[2025.4.12\]** 支持合并MMLU、Ceval等所有多文件数据集为单个数据集任务进行精度评测，参考📚 [合并多文件数据集](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/scenes_intro/accuracy_benchmark.html#id11)了解详情！ 🔥🔥🔥
+    subgraph Execution_Layer ["Execution Layer"]
+        Partitioner["Partitioner (任务切分)"]
+        Runner[LocalRunner]
+        TaskProcess["Task Script (openicl_api_infer.py)"]
+    end
 
+    InferWorker --> Partitioner
+    Partitioner --> |Task Configs| Runner
+    Runner --> |Subprocess| TaskProcess
 
-## 🌏 简介
-AISBench Benchmark 是基于 [OpenCompass](https://github.com/open-compass/opencompass) 构建的模型评测工具，兼容 OpenCompass 的配置体系、数据集结构与模型后端实现，并在此基础上扩展了对服务化模型的支持能力。
-
-当前，AISBench 支持两大类推理任务的评测场景：
-
-🔍 [精度测评](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/scenes_intro/home.html#id2)：支持对服务化模型和本地模型在各类问答、推理基准数据集上的精度验证，覆盖文本、多模态等多种场景。
-
-🚀 [性能测评](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/scenes_intro/home.html#id5)：支持对服务化模型的延迟与吞吐率评估，并可进行压测场景下的极限性能测试，支持稳态性能评测和真实业务流量模拟。
-
-## 🛠️ 工具安装
-✅ 环境要求
-
-**Python 版本**：仅支持 Python **3.10**、 **3.11** 或 **3.12**
-
-不支持 Python 3.9 及以下版本，也不兼容 Python 3.13 及以上版本
-
-**推荐使用 Conda 管理环境**，以避免依赖冲突
-```shell
-conda create --name ais_bench python=3.10 -y
-conda activate ais_bench
+    subgraph Inference_Core ["Inference Core (Multiprocessing)"]
+        SharedData[共享内存数据集]
+        Inferencer[OpenICL Inferencer]
+        Service["大模型推理服务 (VLLM/Triton)"]
+    end
+    
+    TaskProcess --> |Shared Memory| SharedData
+    TaskProcess --> Inferencer
+    Inferencer --> |Http/Grpc| Service
+    
+    InferWorker --> Output["Predictions (JSONL)"]
+    EvalWorker --> Metrics[Accuracy Scores]
+    VizWorker --> Report[Summary Report]
 ```
 
-📦 安装方式（源码安装）
+### 2.2 核心流程解析
 
-AISBench 当前仅提供源码安装方式，请确保安装环境联网：
-```shell
-git clone https://github.com/AISBench/benchmark.git
-cd benchmark/
-pip3 install -e ./ --use-pep517
-```
-该命令会自动安装核心依赖。
-执行`ais_bench -h`，如果打印出AISBench评测工具的所有命令行的帮助信息，说明安装成功
+1. **配置解析 (CLI & Config)**:
+    - 用户通过 `ais_bench --models ... --datasets ...` 启动。
+    - `TaskManager` 调用 `ConfigManager` 加载对应的 Python 配置文件。
+    - 系统根据运行模式（`infer`, `eval`, `perf`）组装工作流（Workflow）。
 
-⚙️ 服务化框架支持（可选）
+2. **任务调度 (Workers & Runners)**:
+    - `Worker`（如 `Infer`）负责准备具体的任务配置，并调用 `Partitioner`（默认 `NaivePartitioner`）将大任务切分为子任务。
+    - `LocalRunner` 接收任务列表，使用线程池（ThreadPoolExecutor）管理任务的并发提交。
+    - **关键机制**：`LocalRunner` 不会直接在当前进程执行模型代码，而是将配置 dump 为临时文件，然后通过 `subprocess.Popen` 启动一个新的 Python 进程来执行具体的 Task 脚本（如 `ais_bench/benchmark/tasks/openicl_api_infer.py`）。
 
-若需评估服务化模型（如 vLLM、Triton 等），需额外安装相关依赖：
-```shell
-pip3 install -r requirements/api.txt
-pip3 install -r requirements/extra.txt
-```
-⚙️ Huggingface多模态模型/vllm多模态离线推理支持（可选）
-```shell
-pip3 install -r requirements/hf_vl_dependency.txt
-```
-🔗 Berkeley Function Calling Leaderboard (BFCL) 测评支持
+3. **高并发推理 (Tasks & Inferencer)**:
+    - 在子进程中，`OpenICLApiInferTask` 启动。
+    - **性能优化**：为了支持高并发压测，Task 使用 `multiprocessing` 启动多个 Worker 进程。
+    - **数据共享**：主进程将数据集序列化到 **Shared Memory (共享内存)**，子进程直接从共享内存读取数据，避免了进程间通信的大量开销。
+    - `TokenProducer` 负责控制请求速率（Rate Limiting），模拟真实流量压力。
 
-```shell
-pip3 install -r requirements/datasets/bfcl_dependencies.txt --no-deps
-```
+---
 
-**重要提示**：由于 `bfcl_eval` 会自动安装 `pathlib` 库，而 Python 3.5+ 环境已内置该库，为避免版本冲突，请务必使用 `--no-deps` 参数跳过额外依赖的自动安装。
+## 3. 核心模块说明
 
-🔗 OCRBench_v2数据集测评支持（可选）
-```shell
-pip3 install -r requirements/datasets/ocrbench_v2.txt
-```
+| 模块 | 路径 | 作用 |
+| :--- | :--- | :--- |
+| **Registry** | `ais_bench/benchmark/registry.py` | 核心注册中心，管理所有插件（Models, Datasets, Runners）。基于 `mmengine.registry`。 |
+| **CLI** | `ais_bench/benchmark/cli/` | 程序入口，负责参数解析、工作流编排 (`workers.py`)。 |
+| **Runners** | `ais_bench/benchmark/runners/` | 任务执行器。`LocalRunner` 负责本地多任务调度，核心是管理 GPU/NPU 资源并启动子进程。 |
+| **Tasks** | `ais_bench/benchmark/tasks/` | 具体的执行逻辑。`OpenICLApiInferTask` 是服务化推理的核心，实现了多进程共享内存架构。 |
+| **Models** | `ais_bench/benchmark/models/` | 模型接口抽象。分为 `local_models` (HuggingFace) 和 `api_models` (VLLM, Triton)。 |
+| **Inferencer** | `ais_bench/benchmark/openicl/` | 推理核心逻辑，负责将 Dataset 中的数据转换为 Prompt 并发送给 Model。 |
+| **Calculators** | `ais_bench/benchmark/calculators/` | 性能指标计算（TPS, Latency, TTFT 等）。 |
+| **Summarizers** | `ais_bench/benchmark/summarizers/` | 结果汇总，生成 CSV/Markdown 报告。 |
 
-如需进一步配置、使用 CLI 或 Python 脚本发起评测任务，请参考[快速入门指南](#快速入门)。
+---
 
-## ❌ 工具卸载
-如需卸载 AISBench Benchmark，可执行以下命令：
-```shell
-pip3 uninstall ais_bench_benchmark
-```
+## 4. 核心 Worker 机制解析
 
-## 🚀 快速入门
-### 命令含义
-AISBench命令执行的单个或多个评测任务是由模型任务（单个或多个）、数据集任务（单个或多个）和结果呈现任务（单个）的组合定义的，AISBench的其他命令行则规定了评测任务的场景（精度评测场景、性能评测场景等）。以如下AISBench命令为例：
-```shell
-ais_bench --models vllm_api_general_chat --datasets demo_gsm8k_gen_4_shot_cot_chat_prompt --summarizer example
-```
-此命令没有指定其他命令行，默认是一个精度评测场景的任务，其中：
-- `--models`指定了模型任务，即`vllm_api_general_chat`模型任务。
+`ais_bench/benchmark/cli/workers.py` 定义了评测流程中的核心执行单元。`WorkFlowExecutor` 根据运行模式（如 `infer` 或 `perf`）调度这些 Worker。
 
-- `--datasets`指定了数据集任务，即`demo_gsm8k_gen_4_shot_cot_chat_prompt`数据集任务。
+### 4.1 核心 Worker 详解
 
-- `--summarizer`指定了结果呈现任务，即`example`结果呈现任务(不指定`--summarizer`精度评测场景默认使用`example`任务)，一般使用默认，不需要在命令行中指定，后续命令不指定。
+#### 1. `Infer` (推理工作者)
 
-多任务测评请参考：📚 精度场景的[多任务测评](./docs/source_zh_cn/base_tutorials/scenes_intro/accuracy_benchmark.md#多任务测评) 和 性能场景的[多任务测评](./docs/source_zh_cn/base_tutorials/scenes_intro/performance_benchmark.md#多任务测评)。
+**核心职责**：调用模型进行数据推理，生成预测结果。
 
-如需自行组合测评任务，实现更灵活的测评方式，可参考：📚 [自定义配置文件运行AISBench](./docs/source_zh_cn/advanced_tutorials/run_custom_config.md#自定义配置文件运行AISBench)。
+- **任务类型判断**：检查配置中的模型属性。若为服务化模型 (`attr="service"`)，使用 `OpenICLApiInferTask`（支持多进程+共享内存高并发）；本地模型则使用 `OpenICLInferTask`。
+- **任务切分与执行**：调用 `Partitioner` 切分任务，通过 `Runner` 调度执行。
+- **性能评测优化**：在 `perf` 模式下，执行 `_merge_datasets`，将相同配置的数据集任务合并，以消除任务切换开销，确保持续高并发压力。
 
-### 任务含义查询(可选)
-所选模型任务`vllm_api_general_chat`、数据集任务`demo_gsm8k_gen_4_shot_cot_chat_prompt`和结果呈现任务`example`的具体信息(简介，使用约束等)可以分别从如下链接中查询含义：
-- `--models`: 📚 [服务化推理后端](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/all_params/models.html#id2)
+#### 2. `Eval` (评估工作者)
 
-- `--datasets`: 📚 [开源数据集](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/all_params/datasets.html#id3) → 📚 [详细介绍](ais_bench/benchmark/configs/datasets/demo/README.md)
+**核心职责**：对推理生成的预测结果与标准答案进行比对。
 
-- `--summarizer`: 📚 [结果汇总任务](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/all_params/summarizer.html)
+- **流程**：配置 `OpenICLEvalTask`，生成中间评估结果（存放在 `results/` 目录）。
+- **注意**：在性能评测模式下通常跳过此步骤。
 
-### 运行命令前置准备
-- `--models`: 使用`vllm_api_general_chat`模型任务，需要准备支持`v1/chat/completions`子服务的推理服务，可以参考🔗 [VLLM启动OpenAI 兼容服务器](https://docs.vllm.com.cn/en/latest/getting_started/quickstart.html#openai-compatible-server)启动推理服务
-- `--datasets`: 使用`demo_gsm8k_gen_4_shot_cot_chat_prompt`数据集任务，需要准备gsm8k数据集，可以从🔗 [opencompass
-提供的gsm8k数据集压缩包](http://opencompass.oss-cn-shanghai.aliyuncs.com/datasets/data/gsm8k.zip)下载。将解压后的`gsm8k/`文件夹部署到AISBench评测工具根路径下的`ais_bench/datasets`文件夹下。
+#### 3. `AccViz` (精度结果汇总)
 
-### 任务对应配置文件修改
-每个模型任务、数据集任务和结果呈现任务都对应一个配置文件，运行命令前需要修改这些配置文件的内容。这些配置文件路径可以通过在原有AISBench命令基础上加上`--search`来查询，例如：
-```shell
-ais_bench --models vllm_api_general_chat --datasets demo_gsm8k_gen_4_shot_cot_chat_prompt --search
-```
-> ⚠️ **注意**： 执行带search命令会打印出任务对应的配置文件的绝对路径。
+**核心职责**：汇总 `Eval` 阶段数据，生成精度报告。
 
-执行查询命令可以得到如下查询结果：
-```shell
-╒══════════════╤═══════════════════════════════════════╤════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╕
-│ Task Type    │ Task Name                             │ Config File Path                                                                                                               │
-╞══════════════╪═══════════════════════════════════════╪════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╡
-│ --models     │ vllm_api_general_chat                 │ /your_workspace/benchmark/ais_bench/benchmark/configs/models/vllm_api/vllm_api_general_chat.py                                 │
-├──────────────┼───────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ --datasets   │ demo_gsm8k_gen_4_shot_cot_chat_prompt │ /your_workspace/benchmark/ais_bench/benchmark/configs/datasets/demo/demo_gsm8k_gen_4_shot_cot_chat_prompt.py                   │
-╘══════════════╧═══════════════════════════════════════╧════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╛
+- **产出**：CSV/Markdown 报告，计算 Accuracy, F1 Score 等指标。
+- **支持**：包含对主观评测（Subjective Evaluation）的特殊汇总逻辑。
 
-```
+#### 4. `PerfViz` (性能结果汇总)
 
-- 快速入门中数据集任务配置文件`demo_gsm8k_gen_4_shot_cot_chat_prompt.py`不需要做额外修改，数据集任务配置文件内容介绍可参考📚 [配置开源数据集](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/base_tutorials/all_params/datasets.html#id6)
+**核心职责**：计算和展示性能评测指标（仅在 `perf` 模式下工作）。
 
-模型配置文件`vllm_api_general_chat.py`中包含了模型运行相关的配置内容，是需要依据实际情况修改的。快速入门中需要修改的内容用注释标明。
+- **产出**：计算 **TPS** (Tokens Per Second), **TTFT**, **Latency**, **RPS** 等关键指标，生成性能分析报告。
+
+### 4.2 工作流编排 (WorkFlow)
+
+| 模式 (`--mode`) | 执行链 (Pipeline) | 说明 |
+| :--- | :--- | :--- |
+| **all** (默认) | `Infer` -> `Eval` -> `AccViz` | 完整精度评测流程 |
+| **perf** | `Infer` -> `PerfViz` | 性能评测流程（跳过算分） |
+| **infer** | `Infer` | 仅执行推理 |
+| **eval** | `Eval` -> `AccViz` | 仅算分和汇总 |
+
+---
+
+## 5. 精度评测 vs 性能评测
+
+在 AISBench 中，两者的目标、关注点及底层逻辑存在本质区别：
+
+| 维度 | 精度测量 (Accuracy) | 性能测量 (Performance) |
+| :--- | :--- | :--- |
+| **核心问题** | **“模型回答得对不对？”** | **“模型回答得快不快？系统能抗多大压？”** |
+| **关注指标** | Accuracy, Pass@k, ROUGE, BLEU | TPS, TTFT, Latency, QPS/RPS |
+| **是否合并任务** | **否** (独立计算各数据集分数) | **是** (合并以维持持续压力，测出峰值性能) |
+| **对服务端压力** | 较低 (关注单条质量) | **极高** (模拟真实高并发流量) |
+| **执行流程** | `Infer` -> `Eval` -> `AccViz` | `Infer` -> `PerfViz` (跳过 `Eval`) |
+| **启动命令** | `ais_bench ...` | `ais_bench --mode perf ...` |
+
+---
+
+## 6. 模型加载与配置机制
+
+AISBench 采用 **Configuration as Code** 的设计模式，将模型实现与配置分离。
+
+### 6.1 目录职责
+
+- **实现层 (`benchmark/models/`)**: 定义模型的 Python 类（如 `VLLMCustomAPIChat`, `HuggingFace`），实现具体的推理逻辑。
+
+- **配置层 (`configs/models/`)**: 定义具体的 Python 配置文件（如 `qwen.py`），实例化模型类并填充参数（如 IP、端口、并发数）。
+
+### 6.2 动态加载流程
+
+当执行 `ais_bench --models qwen` 时：
+
+1. **搜索**: 系统在 `configs/models/` 下查找 `qwen.py`。
+2. **执行**: 动态运行该 Python 脚本。
+3. **注入**: 提取脚本中定义的 `models` 列表，将其注入到 `ConfigManager` 中。
+4. **实例化**: 根据配置中的 `type` 字段（如 `type=MaaSAPI`）实例化对应的模型类。
+
+这种机制允许用户在配置文件中使用 Python 代码（如循环生成配置、环境变量读取），极大地提升了灵活性。
+
+---
+
+## 7. 如何运行一个新的测评任务
+
+如果你想测试一个新的大模型测评任务，请遵循以下步骤：
+
+### 第一步：准备模型配置
+
+在 `ais_bench/benchmark/configs/models/` 下创建或复用配置文件。
+例如 `vllm_api_new.py`:
+
 ```python
 from ais_bench.benchmark.models import VLLMCustomAPIChat
 
@@ -187,121 +198,413 @@ models = [
     dict(
         attr="service",
         type=VLLMCustomAPIChat,
-        abbr='vllm-api-general-chat',
-        path="",                    # 指定模型序列化词表文件绝对路径（精度测试场景一般不需要配置）
-        model="",        # 指定服务端已加载模型名称，依据实际VLLM推理服务拉取的模型名称配置（配置成空字符串会自动获取）
-        stream=False,
-        request_rate=0,           # 请求发送频率，每1/request_rate秒发送1个请求给服务端，小于0.1则一次性发送所有请求
-        retry=2,                  # 每个请求最大重试次数
-        api_key="",               # 自定义API key，默认是空字符串
-        host_ip="localhost",      # 指定推理服务的IP
-        host_port=8080,           # 指定推理服务的端口
-        url="",                     # 自定义访问推理服务的URL路径(当base url不是http://host_ip:host_port的组合时需要配置, 配置后host_ip和host_port会被忽略)
-        max_out_len=512,          # 推理服务输出的token的最大数量
-        batch_size=1,               # 请求发送的最大并发数
-        trust_remote_code=False,    # tokenizer是否信任远程代码，默认False;
-        generation_kwargs=dict(   # 模型推理参数，参考VLLM文档配置，AISBench评测工具不做处理，在发送的请求中附带
-            temperature=0.01,
-            ignore_eos=False,
-        )
+        abbr='vllm-new-model',
+        host_ip="127.0.0.1",
+        host_port=8000,
+        batch_size=16,  # 并发数
+        generation_kwargs=dict(temperature=0.0)
     )
 ]
 ```
-### 执行命令
-修改好配置文件后，执行命令启动服务化精度评测：
+
+### 第二步：准备数据集
+
+确保数据集已在 `ais_bench/benchmark/configs/datasets/` 中定义。如果是自定义数据集，需要配置加载器和评估指标。
+
+### 第三步：启动推理服务
+
+确保你的大模型服务（如 VLLM）已经启动并监听在配置文件指定的端口。
+
+### 第四步：执行命令
+
+使用 CLI 启动评测：
+
 ```bash
-ais_bench --models vllm_api_general_chat --datasets demo_gsm8k_gen_4_shot_cot_chat_prompt
-```
-#### 查看任务执行细节
-执行AISBench命令后，任务管理界面会在命令行实时刷新显示任务执行状态（键盘按"P"键可以暂停/恢复刷新，用于复制看板信息，再按"P"键可以继续刷新）。任务管理界面支持同时监控多个任务的详细执行状态，包括任务名称、进度、时间成本、状态、日志路径、扩展参数等信息，例如：
-```
-Base path of result&log : outputs/default/20250628_151326
-Task Progress Table (Updated at: 2025-11-06 10:08:21)
-Page: 1/1  Total 2 rows of data
-Press Up/Down arrow to page,  'P' to PAUZE/RESUME screen refresh, 'Ctrl + C' to exit
+# 精度评测 (默认)
+ais_bench --models vllm_api_new --datasets demo_gsm8k_chat
 
-+----------------------------------+-----------+-------------------------------------------------+-------------+-------------+-------------------------------------------------+------------------------------------------------+
-| Task Name                        |   Process | Progress                                        | Time Cost   | Status      | Log Path                                        | Extend Parameters                              |
-+==================================+===========+=================================================+=============+=============+=================================================+================================================+
-| vllm-api-general-chat/demo_gsm8k |    547141 | [###############               ] 4/8 [0.5 it/s] | 0:00:11     | inferencing | logs/infer/vllm-api-general-chat/demo_gsm8k.out | {'POST': 5, 'RECV': 4, 'FINISH': 4, 'FAIL': 0} |
-+----------------------------------+-----------+-------------------------------------------------+-------------+-------------+-------------------------------------------------+------------------------------------------------+
-
+# 性能评测 (指定 --mode perf)
+ais_bench --mode perf --models vllm_api_new --datasets demo_gsm8k_chat
 ```
 
-任务执行的细节日志会不断落盘在默认的输出路径，这个输出路径在实时刷新的看板上显示，即`Log Path`。`Log Path`（`logs/infer/vllm-api-general-chat/demo_gsm8k.out`）是在`Base path`（`outputs/default/20250628_151326`）下的路径，以上述的看板信息为例，任务执行的详细日志路径为：
-```shell
-# {Base path}/{Log Path}
-outputs/default/20250628_151326/logs/infer/vllm-api-general-chat/demo_gsm8k.out
+### 第五步：查看结果
+
+执行完成后，结果位于 `outputs/default/{timestamp}/` 目录下：
+
+- `logs/`: 运行日志。
+- `predictions/`: 模型输出的原始 JSONL 文件。
+- `results/`: 精度计算结果。
+- `summary/`: 最终的性能或精度汇总报告。
+
+## 8. 数据集配置详解
+
+### 8.1 配置文件结构
+
+AISBench 的数据集配置采用 Python 字典结构，包含以下几个核心部分：
+
+```python
+dataset = dict(
+    # 基础配置
+    abbr="数据集缩写名称",
+    type=数据集类型,
+    path="数据文件路径",
+    
+    # 数据读取配置
+    reader_cfg=dict(...),
+    
+    # 推理配置
+    infer_cfg=dict(...),
+    
+    # 评估配置
+    eval_cfg=dict(...)
+)
 ```
 
-> 💡 如果希望执行过程中将详细日志直接打印，执行命令时可以加上 `--debug`:
-`ais_bench --models vllm_api_general_chat --datasets demo_gsm8k_gen_4_shot_cot_chat_prompt --debug`
+### 8.2 配置参数详解
 
+以 `custom_eval_suite.py` 中的 `nlp_eval_acc_dataset` 为例：
 
-
-
-`Base path`（`outputs/default/20250628_151326`）下包含了所有任务的执行细节，命令执行结束后所有的执行细节如下：
-```shell
-20250628_151326/
-├── configs # 模型任务、数据集任务和结构呈现任务对应的配置文件合成的一个配置
-│   └── 20250628_151326_29317.py
-├── logs # 执行过程中日志，命令中如果加--debug，不会有过程日志落盘（都直接打印出来了）
-│   ├── eval
-│   │   └── vllm-api-general-chat
-│   │       └── demo_gsm8k.out # 基于predictions/文件夹下的推理结果的精度评测过程的日志
-│   └── infer
-│       └── vllm-api-general-chat
-│           └── demo_gsm8k.out # 推理过程日志
-├── predictions
-│   └── vllm-api-general-chat
-│       └── demo_gsm8k.json # 推理结果（推理服务返回的所有输出）
-├── results
-│   └── vllm-api-general-chat
-│       └── demo_gsm8k.json # 精度评测计算的原始分数
-└── summary
-    ├── summary_20250628_151326.csv # 最终精度分数呈现（表格格式）
-    ├── summary_20250628_151326.md # 最终精度分数呈现（markdown格式）
-    └── summary_20250628_151326.txt # # 最终精度分数呈现（文本格式）
+```python
+nlp_eval_acc_dataset = dict(
+    # ========== 基础配置 ==========
+    abbr="demo_nlp_eval_acc",
+    # 数据集的缩写名称，用于：
+    # - 日志输出显示
+    # - 结果文件命名（predictions/qwen-plus-api/demo_nlp_eval_acc.jsonl）
+    # - 在汇总报告中作为数据集标识符
+    
+    type=CustomDataset,
+    # 数据集类型（类对象，非字符串）
+    # 指定用哪个 Dataset 类来加载数据
+    # 常见类型：CustomDataset, HumanEvalDataset, GSM8KDataset 等
+    
+    path="data/demo/nlp_eval.jsonl",
+    # 数据文件路径（相对于项目根目录）
+    # 支持格式：.jsonl, .json, .csv 等
+    # 数据格式示例：{"question": "What is 1+1?", "answer": "2"}
+    
+    # ========== 数据读取配置 ==========
+    reader_cfg=dict(
+        input_columns=["question"],
+        # 输入字段列表：从数据文件中读取哪些字段作为输入
+        # 这些字段会被传递给 prompt_template 进行填充
+        # 例如：数据中的 "question" 字段会替换模板中的 {question}
+        
+        output_column="answer"
+        # 输出字段（标准答案/参考答案）
+        # 用于评估阶段与模型预测结果进行对比
+        # 例如：数据中的 "answer" 字段是正确答案
+    ),
+    
+    # ========== 推理配置 ==========
+    infer_cfg=dict(
+        # 1. Prompt 模板配置
+        prompt_template=dict(
+            type="PromptTemplate",
+            # 模板类型：定义如何构造发送给模型的 prompt
+            
+            template=dict(
+                round=[
+                    # round：多轮对话结构（即使是单轮也用列表表示）
+                    
+                    dict(role="HUMAN", prompt="{question}"),
+                    # role="HUMAN"：用户/人类的提问
+                    # prompt="{question}"：模板字符串
+                    #   - {question} 会被 input_columns 中的 "question" 字段值替换
+                    #   - 例如：实际发送 "What is 1+1?"
+                    
+                    dict(role="BOT", prompt=""),
+                    # role="BOT"：模型/机器人的回复
+                    # prompt=""：空字符串表示这是需要模型生成的部分
+                    #   - 这是占位符，告诉框架"这里等待模型输出"
+                ]
+            ),
+        ),
+        
+        # 2. 检索器配置
+        retriever=dict(type="ZeroRetriever"),
+        # ZeroRetriever：零样本推理（不提供示例）
+        # 其他选项：
+        #   - FewShotRetriever：少样本推理（从数据集中检索类似样本作为示例）
+        #   - FixedRetriever：固定示例推理
+        
+        # 3. 推理器配置
+        inferencer=dict(type="GenInferencer"),
+        # GenInferencer：生成式推理器
+        #   - 调用模型的生成接口（如 chat/completions）
+        #   - 获取模型生成的文本作为预测结果
+        # 其他选项：
+        #   - PPLInferencer：困惑度推理器（用于选择题等判别任务）
+        #   - FunctionCallInferencer：函数调用推理器
+    ),
+    
+    # ========== 评估配置 ==========
+    eval_cfg=dict(
+        evaluator=dict(type=AccEvaluator)
+        # AccEvaluator：准确率评估器（精确匹配）
+        # 功能：比较预测结果和参考答案是否完全一致
+        # 计算指标：accuracy = 正确数量 / 总数量
+        # 
+        # 其他评估器：
+        #   - RougeEvaluator：ROUGE 分数（文本生成质量）
+        #   - CodeASTEvaluator：代码 AST 结构匹配
+        #   - CustomPassAtKEvaluator：代码执行 Pass@k
+    ),
+)
 ```
-> ⚠️ **注意**： 不同评测场景落盘任务执行细节内容不同，具体请参考具体评测场景的指南。
 
-#### 输出结果
-因为只有8条数据，会很快跑出结果，结果显示的示例如下
+### 8.3 数据流转流程
+
+```mermaid
+graph TD
+    A[数据文件 nlp_eval.jsonl] -->|reader_cfg 读取| B[提取字段]
+    B -->|input_columns: question| C[输入: What is 1+1?]
+    B -->|output_column: answer| D[参考答案: 2]
+    
+    C -->|infer_cfg 推理| E[Prompt 模板]
+    E -->|构造对话| F[HUMAN: What is 1+1?<br/>BOT: 等待生成]
+    F -->|发送给模型| G[模型推理]
+    G -->|返回结果| H[prediction: The answer is 2]
+    
+    H -->|eval_cfg 评估| I[AccEvaluator]
+    D -->|参考答案| I
+    I -->|比对| J{完全匹配?}
+    J -->|是| K[correct: True]
+    J -->|否| L[correct: False]
+    K --> M[计算 accuracy]
+    L --> M
+```
+
+文字描述版数据流转：
+
+```
+┌─────────────────────────────────────────────────┐
+│ 步骤 1: 数据读取 (reader_cfg)                    │
+├─────────────────────────────────────────────────┤
+│ 数据文件: {"question": "What is 1+1?", "answer": "2"} │
+│ ↓                                                │
+│ input_columns → "What is 1+1?"                   │
+│ output_column → "2" (保留作为参考答案)            │
+└─────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────┐
+│ 步骤 2: 构造 Prompt (infer_cfg)                  │
+├─────────────────────────────────────────────────┤
+│ prompt_template:                                 │
+│   HUMAN: "What is 1+1?"                          │
+│   BOT: (等待模型生成)                             │
+└─────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────┐
+│ 步骤 3: 模型推理 (inferencer)                    │
+├─────────────────────────────────────────────────┤
+│ 使用 GenInferencer 调用模型                      │
+│ 返回: "The answer is 2"                          │
+└─────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────┐
+│ 步骤 4: 评估对比 (eval_cfg)                      │
+├─────────────────────────────────────────────────┤
+│ AccEvaluator 比较:                               │
+│   prediction: "The answer is 2"                  │
+│   reference:  "2"                                │
+│ 结果: correct = False (不完全匹配)               │
+│                                                  │
+│ 最终指标: accuracy = 正确数 / 总数               │
+└─────────────────────────────────────────────────┘
+```
+
+### 8.4 配置要点总结
+
+| 配置项 | 用途 | 常用选项 |
+|--------|------|----------|
+| **abbr** | 数据集唯一标识符 | 建议使用 `数据集名_任务类型` 格式 |
+| **type** | 数据集加载器类 | `CustomDataset`, `HumanEvalDataset`, `GSM8KDataset` |
+| **path** | 数据文件路径 | 支持 `.jsonl`, `.json`, `.csv` |
+| **reader_cfg.input_columns** | 输入字段列表 | 根据数据格式定义，如 `["question"]`, `["prompt", "context"]` |
+| **reader_cfg.output_column** | 参考答案字段 | 通常为 `"answer"`, `"target"`, `"canonical_solution"` |
+| **infer_cfg.retriever** | 示例检索策略 | `ZeroRetriever` (零样本), `FewShotRetriever` (少样本) |
+| **infer_cfg.inferencer** | 推理方式 | `GenInferencer` (生成), `PPLInferencer` (困惑度) |
+| **eval_cfg.evaluator** | 评估方法 | `AccEvaluator`, `RougeEvaluator`, `CodeASTEvaluator` |
+
+### 8.5 适用场景
+
+不同配置适用于不同的评测场景：
+
+**零样本生成任务**（如当前配置）：
+
+- ✅ 简单问答任务（数学题、常识问答）
+- ✅ 需要精确答案匹配的场景
+- ✅ 快速评估模型基础能力
+
+**需要修改的场景**：
+
+- **少样本学习**：修改 `retriever` 为 `FewShotRetriever`
+- **模糊匹配**：修改 `evaluator` 为 `RougeEvaluator`
+- **多轮对话**：在 `template.round` 中添加更多轮次
+- **选择题评测**：使用 `PPLInferencer` 替代 `GenInferencer`
+- **代码生成**：使用 `CustomPassAtKEvaluator` 进行执行测试
+
+## 9. 总结
+
+AISBench 的架构设计非常适合**生产环境的模型服务评测**。它通过**进程隔离**保证了评测任务的独立性，通过**共享内存**保证了高并发下的数据吞吐能力，能够真实模拟线上流量对大模型服务进行压力测试。
+
+## 10. 评估器类型详解 (Evaluators)
+
+AISBench 在 `ais_bench/benchmark/openicl/icl_evaluator` 目录下内置了极其丰富的评估器，涵盖了从通用 NLP 指标到特定领域复杂推理的各类评测需求。
+
+### 10.1 通用基础类 (General NLP Metrics)
+
+这些评估器主要基于 HuggingFace 的 `evaluate` 库封装，适用于大多数通用的 NLP 任务。
+
+| 评估器类名 | 适用场景 | 功能描述 |
+| :--- | :--- | :--- |
+| **`AccEvaluator`** | **文本分类/选择题** | 基础**准确率**。检查预测结果是否完全匹配标准答案（Exact Match）。 |
+| **`RougeEvaluator`** | **文本摘要/生成** | 计算 **ROUGE-1/2/L** 分数，衡量生成文本与参考文本的重合度（适合英文）。 |
+| **`JiebaRougeEvaluator`** | **中文文本生成** | **中文版 ROUGE**。在计算前先使用 Jieba 进行分词，专用于中文摘要或生成任务。 |
+| **`BleuEvaluator`** | **机器翻译** | 计算 **BLEU** 分数（SacreBLEU），衡量翻译质量。 |
+| **`SquadEvaluator`** | **阅读理解 (QA)** | 计算 **F1 Score** 和 **EM (Exact Match)**，常用于 SQuAD 格式的抽取式问答。 |
+| **`MccEvaluator`** | **二分类/多分类** | 计算 **Matthews 相关系数**，比单纯的准确率更能反映不平衡数据集上的分类性能。 |
+| **`EDAccEvaluator`** | **模糊匹配** | **基于编辑距离的准确率**。如果预测结果与答案的编辑距离极小（fuzzy match），也判定为正确。 |
+
+### 10.2 特定领域类 (Domain Specific)
+
+针对数学、代码等需要特殊解析逻辑的任务。
+
+| 评估器类名 | 适用场景 | 功能描述 |
+| :--- | :--- | :--- |
+| **`MATHEvaluator`** | **复杂数学推理** | 专门用于 MATH 数据集。它不只是比对字符串，而是**解析 LaTeX 公式**，进行语义级的数学等价性验证（例如 `1/2` 等于 `0.5`）。 |
+| **`Gsm8kEvaluator`** | **小学数学 (GSM8K)** | 从复杂的 CoT（思维链）推理过程中提取最终数字答案，并与标准答案比对。 |
+| **`CodeUEvaluator`** | **代码生成** | 针对 L-Eval Code U 任务，提取生成的代码输出并与预期结果比对。 |
+| **`HumanEvalEvaluator`** | **Python 代码生成** | (在扩展目录中) 真正执行生成的 Python 代码，并通过单元测试来验证正确性 (Pass@k)。 |
+
+### 10.3 高级与定制类 (Advanced & Custom)
+
+针对特定测试集或复杂场景的定制评估器。
+
+| 评估器类名 | 适用场景 | 功能描述 |
+| :--- | :--- | :--- |
+| **`AccContaminationEvaluator`** | **去污染评估** | 在计算准确率的同时，区分“干净样本”和“可能被训练集污染的样本”，提供更客观的指标。 |
+| **`AccwithDetailsEvaluator`** | **调试/分析** | 计算准确率的同时，详细记录每一个 Case 的 Prompt、预测值和真值，方便排查错误。 |
+| **`OptionSimAccEvaluator`** | **自定义选择题** | 专门用于自定义 MCQ 数据集。如果模型没有输出 "A/B/C"，它会计算输出内容与选项内容的相似度，选取最像的那个作为预测结果。 |
+| **`SciFiEvaluator`** | **长文本理解** | 针对 L-Eval Sci-Fi 任务，专门提取 "Loyalty"（忠实度）判断。 |
+| **`LEvalEMEvaluator`** | **长文本匹配** | L-Eval 任务的精确匹配评估器，包含特定的后处理逻辑。 |
+
+### 10.4 新增自定义评估器 (Custom Extensions)
+
+针对特定业务场景扩展的自定义评估器。
+
+| 评估器类名 | 适用场景 | 功能描述 |
+| :--- | :--- | :--- |
+| **`CodeASTEvaluator`** | **代码结构一致性** | 比较预测代码与参考代码的 **抽象语法树 (AST)**。忽略空格、注释等格式差异，仅验证代码逻辑结构是否一致。适用于代码风格不敏感的生成任务。 |
+| **`CustomPassAtKEvaluator`** | **代码执行正确性 (Pass@k)** | 通用的 **Pass@k** 评估器。支持在自定义数据集上动态生成测试用例并执行隔离沙箱测试。需要数据集包含 `test` (单元测试) 和 `entry_point` 字段。 |
+
+## 11. 常用评估模式指南
+
+### 11.1 精确匹配 (Exact Match / EM) 的选择
+
+根据任务类型，AISBench 提供了多种 EM 实现：
+
+- **通用分类/简答 (`AccEvaluator`)**: 最基础的字符串完全相等匹配。适用于选择题 (A/B/C/D) 或固定短语回答。
+- **阅读理解 QA (`SquadEvaluator`)**: 计算 **F1** 和 **EM**。EM 模式下会进行标准化处理（去除标点、文章列表符等），比基础 `AccEvaluator` 略微宽松，适合抽取式问答。
+- **长文本/生成式匹配 (`LEvalEMEvaluator`)**: 包含 `general_postprocess`，支持检测答案是否包含在生成内容中，适用于生成内容较长的场景。
+
+### 11.2 自定义评估器的配置示例
+
+在数据集配置文件中 (`ais_bench/benchmark/configs/datasets/...`)，通过 `eval_cfg` 字段指定：
+
+```python
+# AST 结构评估示例
+eval_cfg=dict(
+    evaluator=[
+        dict(type=CodeASTEvaluator)
+    ]
+)
+
+# Pass@k 执行评估示例 (k=[1, 5])
+eval_cfg=dict(
+    evaluator=[
+        dict(type=CustomPassAtKEvaluator, k=[1, 5])
+    ]
+)
+```
+
+## 12. 自定义评测套件使用指南 (Custom Evaluation Suite Usage)
+
+本节介绍如何使用已实现的自定义评测套件（包含 NLP、CodeAST 和 Pass@k 任务）。
+
+### 12.1 快速启动命令
+
+运行自定义评测任务集合（`custom_eval_suite`），需指定模型配置文件（如 `vllm_api_general_chat`）：
+
 ```bash
-dataset                 version  metric   mode  vllm_api_general_chat
------------------------ -------- -------- ----- ----------------------
-demo_gsm8k              401e4c   accuracy gen                   62.50
+ais_bench --models vllm_api_general_chat --datasets custom_eval_suite
 ```
 
-更多教程请查看我们的👉[文档](https://ais-bench-benchmark-rf.readthedocs.io/zh-cn/latest/)
+### 12.2 数据格式说明
+
+`custom_eval_suite.py` 定义了三个子任务，依赖 `data/demo/` 下的 JSONL 文件。
+
+#### A. 通用 NLP 任务 (Acc / Rouge)
+
+- **对应配置**: `nlp_eval_dataset`
+
+- **数据文件**: `data/demo/nlp_eval.jsonl`
+- **格式要求**:
+
+    ```json
+    {"question": "What is 1+1?", "answer": "2"}
+    ```
+
+#### B. 代码 AST 结构匹配任务 (CodeASTEvaluator)
+
+- **对应配置**: `ast_eval_dataset`
+
+- **数据文件**: `data/demo/ast_eval.jsonl`
+- **评估逻辑**: 比较生成代码与 `target_code` 的抽象语法树（AST），忽略变量名和格式差异，仅关注逻辑结构。
+- **格式要求**:
+
+    ```json
+    {"code_snippet": "assign 1 to x", "target_code": "x = 1"}
+    ```
+
+#### C. 代码执行 Pass@k 任务 (CustomPassAtKEvaluator)
+
+- **对应配置**: `codegen_eval_dataset`
+
+- **数据文件**: `data/demo/codegen_eval.jsonl`
+- **评估逻辑**: 真正执行生成的代码，并运行提供的单元测试。
+- **关键字段**: 必须包含 `task_id`, `entry_point` (函数名), `test` (测试用例代码)。
+- **格式要求**:
+
+    ```json
+    {
+      "task_id": "test/0",
+      "prompt": "def add(a, b):\n    return a + b",
+      "entry_point": "add",
+      "test": "def check(candidate):\n    assert candidate(1, 2) == 3\ncheck(add)",
+      "canonical_solution": "    return a + b"
+    }
+    ```
+
+### 12.3 验证与调试
+
+添加 `--debug` 参数可直接在终端打印详细日志：
+
+```bash
+ais_bench --models vllm_api_general_chat --datasets custom_eval_suite --debug
+```
 
 
-## 🔜 即将推出
-- [x] **\[已完成\]** ✅ AISBench完成全面重构，支持在AISBench框架下🔌插件化集成前沿测试基准，以应对业界愈发复杂多样化的测试任务；并且显著提高易用性。
-- [ ] **\[规划中\]** 持续扩展业界前沿的多模态测评能力，支持更多多模态数据集和评测场景。
-- [ ] **\[规划中\]** 提供业界主流Agent测评能力，支持Agent任务链和工具调用等复杂场景的评测。
 
-## 🤝 致谢
-- 本项目代码基于🔗 [OpenCompass](https://github.com/open-compass/opencompass)做拓展开发。
-- 本项目部分数据集和提示词实现修改自[simple-evals](https://github.com/openai/simple-evals)。
-- 本项目代码中打点的性能指标与[VLLM Benchmark](https://github.com/vllm-project/vllm/tree/main/benchmarks)对齐。
-- 本项目的BFCL函数调用能力评估功能基于 [Berkeley Function Calling Leaderboard (BFCL)](https://github.com/ShishirPatil/gorilla/tree/main/berkeley-function-call-leaderboard) 实现。
+# 激活环境
+conda activate ais_bench
 
-<p align="right"><a href="#top">🔝Back to top</a></p>
+# 运行单个任务
+ais_bench --models maas --datasets task_1_suite
 
-[github-contributors-link]: https://github.com/AISBench/benchmark/graphs/contributors
-[github-contributors-shield]: https://img.shields.io/github/contributors/AISBench/benchmark?color=c4f042&labelColor=black&style=flat-square
-[github-forks-link]: https://github.com/AISBench/benchmark/network/members
-[github-forks-shield]: https://img.shields.io/github/forks/AISBench/benchmark?color=8ae8ff&labelColor=black&style=flat-square
-[github-issues-link]: https://github.com/AISBench/benchmark/issues
-[github-issues-shield]: https://img.shields.io/github/issues/AISBench/benchmark?color=ff80eb&labelColor=black&style=flat-square
-[github-license-link]: https://github.com/AISBench/benchmark/blob/main/LICENSE
-[github-license-shield]: https://img.shields.io/github/license/AISBench/benchmark?color=white&labelColor=black&style=flat-square
-[github-release-link]: https://github.com/AISBench/benchmark/releases
-[github-release-shield]:  https://img.shields.io/github/v/release/AISBench/benchmark?color=369eff&labelColor=black&logo=github&style=flat-square
-[github-releasedate-link]: https://github.com/AISBench/benchmark/releases
-[github-releasedate-shield]: https://img.shields.io/github/release-date/AISBench/benchmark?labelColor=black&style=flat-square
-[github-stars-link]: https://github.com/AISBench/benchmark/stargazers
-[github-stars-shield]: https://img.shields.io/github/stars/AISBench/benchmark?color=ffcb47&labelColor=black&style=flat-square
-[github-trending-shield]: https://trendshift.io/api/badge/repositories/6630
-[github-trending-url]: https://trendshift.io/repositories/6630
+# 运行多个任务
+ais_bench --models maas --datasets task_1_suite,task_2_suite,task_3_suite
+
+# 带调试信息
+ais_bench --models maas --datasets task_2_suite --debug
