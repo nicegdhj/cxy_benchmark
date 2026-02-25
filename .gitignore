@@ -44,7 +44,7 @@ tmp/
 *.tmp
 
 mydata
-data/*
+data/
 
 # Secrets
 .env
