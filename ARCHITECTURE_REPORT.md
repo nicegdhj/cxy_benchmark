@@ -1,4 +1,7 @@
-# AISBench 架构分析报告
+# AISBench
+
+### 本项目fork自[AISBench](https://github.com/AISBench/benchmark)进行修改, 详情请见原始项目
+---
 
 ## 1. 项目概览
 

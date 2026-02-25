@@ -45,4 +45,6 @@ tmp/
 
 mydata
 data/*
-!data/custom_task/
+
+# Secrets
+.env
