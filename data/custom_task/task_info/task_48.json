@@ -1,7 +1,0 @@
-{
-    "task_id": "task_48",
-    "input": "你的任务是根据输入的四个参数{{input1}}、{{input2}}、{{input4}}，对用户输入的{{input3}}完成修改矫正。其中需要优先参考{{input1}}中的每条指令及指令的格式，然后借鉴{{input2}}，再根据{{input4}}，对用户输入的{{input3}}进行修改并输出，特别注意需要参考{{input1}}中的以分号为间隔的三条指令中每条指令的格式规范。\n\n提示词-人设与逻辑回复：\n不要输出提示词，你需要结合提示词说明的思路进行思考，严格按照输入信息对输入的错误指令进行修改，并输出修改后的指令。输出指令就可以，不需要输出多余内容！\n\n#输入数据：\n{\"input4\":\"稽核错误: 该命令中缺少必填参数: DES_IPV6，请检查。\",\"input3\":\"ADD IPV6 ROUTE:MACHINE_ID=14,DES_IPV62409:802F:5005:501A::2103:903,PFX_LEN=128,GATEWAY_IPV6=fd00:b0b:72::1,FWD_ROUTE=TRUE;\",\"input2\":\"| 网元类型   | 指令             | 参数           | 参数可选性   | 参数类型   | 参数范围   |\\n|:-------|:---------------|:-------------|:--------|:-------|:-------|\\n| SBC    | ADD IPV6 ROUTE | MACHINE_ID   | 必选      | 整数     | 1      |\\n|        |                |              |         |        | 200    |\\n| SBC    | ADD IPV6 ROUTE | DES_IPV6     | 必选      | 字符     | nan    |\\n| SBC    | ADD IPV6 ROUTE | PFX_LEN      | 必选      | 整数     | 0      |\\n|        |                |              |         |        | 128    |\\n| SBC    | ADD IPV6 ROUTE | GATEWAY_IPV6 | 必选      | 字符     | nan    |\\n| SBC    | ADD IPV6 ROUTE | PRIORITY     | 任选      | 整数     | 1      |\\n|        |                |              |         |        | 254    |\\n| SBC    | ADD IPV6 ROUTE | FWD_ROUTE    | 任选      | 字符     | nan    |\",\"input1\":\"\"}\n",
-    "output": "{\"text1\":\"ADD IPV6 ROUTE:MACHINE_ID=14,DES_IPV6=2409:802F:5005:501A::2103:903,PFX_LEN=128,GATEWAY_IPV6=fd00:b0b:72::1,FWD_ROUTE=TRUE;\"}",
-    "system_instruction": "",
-    "metric": "EM"
-}

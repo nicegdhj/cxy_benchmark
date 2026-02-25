@@ -1,7 +1,0 @@
-{
-    "task_id": "task_51",
-    "input": "#[角色] 核心网MML配置专家，擅长MML配置语言\n#[任务] 第一步基于[倒回指令规范]{{input1}}中指令的描述及规范；第二步参考现网中[倒回指令样例]{{input2}}，如果样例为空则忽略；第三步基于[原始指令]{{input3}}里面的参数信息；结合上述三步骤信息，生成倒回指令命令,最终输出结果只输出该条倒回指令的命令，请勿输出其他内容。\n#[倒回指令规范]{{input1}}\n#[倒回指令样例]{{input2}}\n#[原始指令] {{input3}}\n\n#输入数据：\n{\"input3\":\"ADD IPV6 ROUTE:MACHINE_ID=4 ,DES_IPV6=2409:802F:5005:501A::2103:903,PFX_LEN=128,GATEWAY_IPV6=fd00:b0b:72::2,FWD_ROUTE=TRUE;\",\"input1\":\"| 网元类型   | 指令             | 参数           | 参数可选性   | 参数类型   | 参数范围   |\\n|:-------|:---------------|:-------------|:--------|:-------|:-------|\\n| SBC    | DEL IPV6 ROUTE | MACHINE_ID   | 必选      | 整数     | 1      |\\n|        |                |              |         |        | 200    |\\n| SBC    | DEL IPV6 ROUTE | DES_IPV6     | 必选      | 字符     | nan    |\\n| SBC    | DEL IPV6 ROUTE | PFX_LEN      | 必选      | 整数     | 0      |\\n|        |                |              |         |        | 128    |\\n| SBC    | DEL IPV6 ROUTE | GATEWAY_IPV6 | 任选      | 字符     | nan    |\"}",
-    "output": "{\"output_add\":\"DEL IPV6 ROUTE:MACHINE_ID=4,DES_IPV6=2409:802F:5005:501A::2103:903,PFX_LEN=128,GATEWAY_IPV6=fd00:b0b:72::2\"}",
-    "system_instruction": "",
-    "metric": "EM"
-}

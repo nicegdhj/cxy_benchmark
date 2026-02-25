@@ -1,1 +1,0 @@
-{"input": "前天4G 5G用户占比", "output": "{\n\"category\": \"indicator\",\n\"indicator_lsit\": [\"4G网络峰值注册用户数\", \"5G网络峰值注册用户数\"],\n\"time\": [\"2025-11-09\"],\n\"query\": \"11月09日4G 5G用户占比\"\n}"}

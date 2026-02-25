@@ -1,1 +1,0 @@
-{"input": "杭州市西湖区进行中的售中工单有哪些?", "output": "[{\"function\":{\"name\":\"query_work_order_data\",\"arguments\":\"{\\\"data_query_type\\\": \\\"工单信息\\\", \\\"order_type\\\": 1, \\\"region_name\\\": \\\"杭州市\\\", \\\"county_name\\\": \\\"西湖区\\\", \\\"order_status\\\": \\\"进行中\\\", \\\"date_type\\\": 1}\"},\"id\":\"call_4asC1Tmj\",\"type\":\"function\"}]"}

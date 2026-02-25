@@ -1,1 +1,0 @@
-{"input": "已认证ONU数据查询，sn为RCOM54040EB7", "output": "{\"need_tool\":true,\"tools\":[{\"call_ready\":true,\"interaction\":\"\",\"arguments\":{\"data_query_type\":\"数据自服务001-ONU\",\"sn_status\":2,\"SN\":[\"RCOM54040EB7\"],\"tool\":\"已认证ONU数据查询\"},\"tool\":\"已认证ONU数据查询\"}]}}"}

@@ -1,7 +1,0 @@
-{
-    "task_id": "task_36",
-    "input": "'Act as a cybersecurity analyst who is skilled in identifying and assessing potential threats in textual data. \nPlease analyze the following request payload to determine if it represents a web attack. \nHere is the given payload of the request: \n{}\nRespond only with 'Yes' if it is a web attack, or 'No' if it is not.'''",
-    "output": "yes",
-    "system_instruction": "",
-    "metric": "ACC"
-}

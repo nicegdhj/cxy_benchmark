@@ -1,7 +1,0 @@
-{
-    "task_id": "task_71",
-    "input": "{\"role\": \"user\", \"content\": \"帮我查一下工单进度\"}",
-    "output": "{\"role\": \"assistant\", \"content\": \"\", \"tool_calls\": [{\"id\": \"tool_call_8Od7ejnL\", \"type\": \"function\", \"function\": {\"name\": \"onway_workorder\", \"arguments\": \"{\\\"dialog_id\\\": \\\"2ff86bd6-7936-47b2-80ab-c7320a7c3a7c\\\", \\\"phone\\\": \\\"18247602588\\\", \\\"account\\\": null, \\\"tokenStr\\\": \\\"d54ce77a-d74d-4599-a61d-e12010b5a06b\\\", \\\"requestId\\\": \\\"2ff86bd6-7936-47b2-80ab-c7320a7c3a7c\\\"}\"}}]}",
-    "system_instruction": "",
-    "metric": "EM + 工具调用成功率"
-}

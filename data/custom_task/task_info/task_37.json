@@ -1,7 +1,0 @@
-{
-    "task_id": "task_37",
-    "input": "\"\"\"你是一名资深网络安全分析师。请分析以下告警数据并输出结构化的安全事件判定结果：\n\n**要求:输出JSON格式，包含以下字段：**\n\n{{\n  \"event_decision\": \"是否生成攻击事件(true/false)\",\n  \"is_attack_success\":\"是否攻击成功(true/false)\",\n  \"analyze_reason\":\"分析攻击成功或失败的原因\",\n  \"threat_level\": \"威胁等级(低/中/高/严重)\",\n  \"event_type\": [\"事件类型分类\"],\n  \"analysis_summary\": \"分析摘要\",\n  \"technical_details\": {{\n    \"indicators\": [\"威胁指标列表\"]\n  }},\n  \"response_actions\": {{\n    \"immediate\": [\"立即处置措施\"]\n  }},\n  \"context\": {{\n    \"timeline\": \"时间线分析\"\n  }}\n}}\n",
-    "output": "{\n  \"event_decision\": \"true\",\n  \"is_attack_success\": \"false\",\n  \"analyze_reason\": \"攻击尝试未能成功获取目标系统的访问权限。所有尝试均被要求指定密码，表明目标系统正确地响应了未经验证的访问请求。\",\n  \"threat_level\": \"中\",\n  \"event_type\": [\n    \"暴力破解\",\n    \"口令猜测\"\n  ],\n  \"analysis_summary\": \"在2025年12月10日20:00至20:04之间，IP地址10.179.69.13对多个内部网络设备进行了疑似口令猜测攻击尝试。这些尝试没有成功，因为目标系统正确地返回了要求指定密码的响应。\",\n  \"technical_details\": {\n    \"indicators\": [\n      \"10.179.69.13\",\n      \"10.70.105.236\",\n      \"10.70.105.230\",\n      \"10.70.105.224\",\n      \"331 Please specify the password.\\n0.0\"\n    ]\n  },\n  \"response_actions\": {\n    \"immediate\": [\n      \"检查并强化所有受影响系统的登录凭据。\",\n      \"监控来自10.179.69.13的后续活动，并考虑将其加入黑名单。\",\n      \"审查系统日志，以确定是否有其他未记录的攻击尝试。\"\n    ]\n  },\n  \"context\": {\n    \"timeline\": \"2025-12-10T20:00:07 - 2025-12-10T20:04:44\"\n  }\n}",
-    "system_instruction": "",
-    "metric": "rouge/llm"
-}
