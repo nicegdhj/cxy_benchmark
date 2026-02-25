@@ -23,11 +23,11 @@ curl -X POST http://188.108.12.72:65532/worksheet/getFilteredData \
             "key": "riqi",
             "value": ["2025-12-01"] # 该字段表示指标月度日期，取每个月的第一天，例如数据样例2025-11-01表示2025年11月的数据     }
     ]
-}'"""
+}' """
 
 task_79_reader_cfg = dict(
-    input_columns=['input'],
-    output_column='output',
+    input_columns=["input"],
+    output_column="output",
 )
 
 task_79_infer_cfg = dict(
@@ -35,11 +35,11 @@ task_79_infer_cfg = dict(
         type=PromptTemplate,
         template=dict(
             begin=[
-                dict(role='SYSTEM', fallback_role='HUMAN', prompt=SYSTEM_INSTRUCTION),
+                dict(role="SYSTEM", fallback_role="HUMAN", prompt=SYSTEM_INSTRUCTION),
             ],
             round=[
-                dict(role='HUMAN', prompt='{input}'),
-                dict(role='BOT', prompt=''),
+                dict(role="HUMAN", prompt="{input}"),
+                dict(role="BOT", prompt=""),
             ],
         ),
     ),
@@ -55,8 +55,8 @@ task_79_eval_cfg = dict(
 task_79_datasets = [
     dict(
         type=CustomDataset,
-        abbr='task_79',
-        path='data/custom_task/task_79.jsonl',
+        abbr="task_79",
+        path="data/custom_task/task_79.jsonl",
         reader_cfg=task_79_reader_cfg,
         infer_cfg=task_79_infer_cfg,
         eval_cfg=task_79_eval_cfg,
