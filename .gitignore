@@ -48,3 +48,6 @@ data/
 
 # Secrets
 .env
+
+# GitHub workflows / CI config
+.github/
