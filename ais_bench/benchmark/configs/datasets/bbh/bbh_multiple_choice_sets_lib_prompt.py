@@ -6,7 +6,7 @@ We know that:
 Emily woke up at 1pm.
 Elizabeth saw Emily reading at the library from 2pm to 4pm.
 Jessica saw Emily watching a movie at the theater from 4pm to 5pm.
-Leslie saw Emily waiting at the 9airport from 5pm to 6pm.
+Leslie saw Emily waiting at the airport from 5pm to 6pm.
 William saw Emily buying clothes at the mall from 6pm to 7pm.
 The museum was closed after 7pm.
 Between what times could Emily have gone to the museum?

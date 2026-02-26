@@ -51,3 +51,6 @@ data/
 
 # GitHub workflows / CI config
 .github/
+
+# Smoke tests
+smoke_tests/

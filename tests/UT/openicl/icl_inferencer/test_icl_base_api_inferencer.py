@@ -867,9 +867,8 @@ class TestBaseApiInferencer(unittest.TestCase):
     @mock.patch("ais_bench.benchmark.openicl.icl_inferencer.icl_base_inferencer.build_model_from_cfg")
     @mock.patch("ais_bench.benchmark.openicl.icl_inferencer.icl_base_inferencer.model_abbr_from_cfg", return_value="mabbr")
     @mock.patch("os.makedirs")
-    @mock.patch("os.path.join")
     @mock.patch("uuid.uuid4")
-    def test_inference_with_shm(self, m_uuid, m_join, m_makedirs, m_abbr, m_build):
+    def test_inference_with_shm(self, m_uuid, m_makedirs, m_abbr, m_build):
         """测试inference_with_shm方法使用共享内存进行推理"""
         import janus
         import uuid as uuid_module
@@ -899,9 +898,6 @@ class TestBaseApiInferencer(unittest.TestCase):
         mock_uuid_obj = mock.Mock()
         mock_uuid_obj.hex = "12345678abcdef01"
         m_uuid.return_value = mock_uuid_obj
-
-        # Mock os.path.join
-        m_join.side_effect = lambda *args: "/".join(args)
 
         with mock.patch('multiprocessing.shared_memory.SharedMemory', side_effect=[mock_dataset_shm, mock_message_shm]):
             with mock.patch('threading.Thread') as mock_thread:
