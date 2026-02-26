@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# @Time    : 2026/1/21 17:48
+# @Author  : jia
+# @File    : maas_api.py
+# @Desc    :
 import urllib
 from typing import Dict, Optional, Union
 
@@ -91,8 +96,10 @@ class MaaSAPI(BaseAPIModel):
                 msg = {"content": item["prompt"]}
                 # Use hash table (dict) driven approach for role mapping
                 role = item.get("role", "")
-                msg["role"] = ROLE_MAP.get(role, role)  # Use original role if not in map
-                for key, value in item.items(): # copy all other items to msg
+                msg["role"] = ROLE_MAP.get(
+                    role, role
+                )  # Use original role if not in map
+                for key, value in item.items():  # copy all other items to msg
                     if key not in ["role", "prompt"]:
                         msg[key] = value
                 messages.append(msg)
@@ -135,9 +142,9 @@ class MaaSAPI(BaseAPIModel):
 
     async def parse_text_response(self, json_content, output):
         for item in json_content.get("choices", []):
-            if content:=item["message"].get("content"):
+            if content := item["message"].get("content"):
                 output.content += content
-            if reasoning_content:=item["message"].get("reasoning_content"):
+            if reasoning_content := item["message"].get("reasoning_content"):
                 output.reasoning_content += reasoning_content
         if json_content.get("usage"):
             output.output_tokens = json_content["usage"]["completion_tokens"]
@@ -145,13 +152,14 @@ class MaaSAPI(BaseAPIModel):
         self.logger.debug(f"Output content: {output.content}")
         self.logger.debug(f"Output reasoning content: {output.reasoning_content}")
 
-    async def get_ppl_request_body(self, input_data:PromptType, max_out_len: int, output: PPLRequestOutput, **args):
-        request_body = await self.get_request_body(input_data, max_out_len, output, **args)
+    async def get_ppl_request_body(
+        self, input_data: PromptType, max_out_len: int, output: PPLRequestOutput, **args
+    ):
+        request_body = await self.get_request_body(
+            input_data, max_out_len, output, **args
+        )
         request_body.update({"prompt_logprobs": 0})
         return request_body
 
     def get_prompt_logprobs(self, data: dict):
         return data.get("prompt_logprobs", [])
-
-
-
