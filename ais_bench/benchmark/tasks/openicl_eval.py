@@ -276,6 +276,8 @@ class OpenICLEvalTask(BaseTask):
             #TODO Configure eval in a more elegant way
             if 'returns_tool_calls' in self.model_cfg.keys():
                 self.eval_cfg['evaluator'].update({'is_fc_model':self.model_cfg.get('returns_tool_calls')})
+            if 'LLMJudgeEvaluator' in self.eval_cfg['evaluator']['type']:
+                self.eval_cfg['evaluator'].update({'model_cfg': self.model_cfg})
             icl_evaluator: BaseEvaluator = ICL_EVALUATORS.build(self.eval_cfg['evaluator'])
             # need results dir to save other files
             out_path = get_infer_output_path(

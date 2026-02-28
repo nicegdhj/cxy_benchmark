@@ -409,7 +409,13 @@ class OpenICLApiInferTask(BaseTask):
         self.logger.info(f"Available inferencers: {list(ICL_INFERENCERS.module_dict.keys())}")
         warm_up_inferencer: BaseApiInferencer = ICL_INFERENCERS.build(self.inferencer_cfg)
         self.logger.info(f"Full class path: {type(warm_up_inferencer)}")
-        self.logger.info(f"模型推理参数: {self.inferencer_cfg}")
+        cfg_to_log = self.inferencer_cfg.copy()
+
+        # 如果存在 api_key，删除或替换
+        if 'api_key' in cfg_to_log.get('model_cfg', {}):
+            cfg_to_log['model_cfg']['api_key'] = "****"
+
+        self.logger.info(f"模型推理参数: {cfg_to_log}")
         # warmup
         if self.warmup_size > 0:
             task_state_manager.update_task_state({"status": "warmup"})

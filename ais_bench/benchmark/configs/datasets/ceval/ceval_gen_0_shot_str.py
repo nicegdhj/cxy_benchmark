@@ -93,7 +93,7 @@ for _split in ['val']:
                     output_column='answer',
                     train_split='dev',
                     test_split=_split,
-                    test_range='[:3]'),
+                    ),
                 infer_cfg=ceval_infer_cfg,
                 eval_cfg=ceval_eval_cfg,
             ))

@@ -8,7 +8,7 @@ from ais_bench.benchmark.datasets import (
 )
 
 
-aime2025_reader_cfg = dict(input_columns=["question"], output_column="answer", test_range='[:3]')
+aime2025_reader_cfg = dict(input_columns=["question"], output_column="answer",)
 
 
 aime2025_infer_cfg = dict(

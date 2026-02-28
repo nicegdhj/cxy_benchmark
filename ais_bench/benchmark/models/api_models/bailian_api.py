@@ -6,7 +6,7 @@ from ais_bench.benchmark.utils.prompt import PromptList
 from ais_bench.benchmark.models import BaseAPIModel, APITemplateParser
 from ais_bench.benchmark.models.output import RequestOutput, Output
 from ais_bench.benchmark.openicl.icl_inferencer.output_handler.ppl_inferencer_output_handler import PPLRequestOutput
-
+import os
 PromptType = Union[PromptList, str]
 
 # Role mapping for converting internal role names to API role names

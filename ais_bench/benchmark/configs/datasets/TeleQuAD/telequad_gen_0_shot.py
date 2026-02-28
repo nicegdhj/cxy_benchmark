@@ -3,7 +3,7 @@ from ais_bench.benchmark.openicl.icl_retriever import ZeroRetriever
 from ais_bench.benchmark.openicl.icl_inferencer import GenInferencer
 
 from ais_bench.benchmark.datasets import TeleQuADDataset
-from ais_bench.benchmark.openicl.icl_evaluator import RougeEvaluator
+from ais_bench.benchmark.openicl.icl_evaluator import LLMJudgeEvaluator
 
 telequad_datasets=[
     "extractive",
@@ -14,7 +14,6 @@ for _name in telequad_datasets:
     telequad_reader_cfg = dict(
         input_columns=['question'],
         output_column='answer',
-        test_range='[:3]',
     )
 
     # Inference configuration
@@ -29,7 +28,7 @@ for _name in telequad_datasets:
 
     # Evaluation configuration
     telequad_eval_cfg = dict(
-        evaluator=dict(type=RougeEvaluator),
+        evaluator=dict(type=LLMJudgeEvaluator),
     )
 
     # Dataset configuration
@@ -37,7 +36,7 @@ for _name in telequad_datasets:
         dict(
             abbr = f'telequad_{_name}',
             type=TeleQuADDataset,
-            path='benchmark/ais_bench/datasets/telequad',
+            path='ais_bench/datasets/telequad',
             name=_name,
             reader_cfg=telequad_reader_cfg,
             infer_cfg=telequad_infer_cfg,

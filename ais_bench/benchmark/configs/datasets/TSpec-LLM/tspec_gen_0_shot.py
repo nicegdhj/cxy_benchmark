@@ -10,7 +10,6 @@ from ais_bench.benchmark.utils.postprocess.text_postprocessors import first_opti
 teleqna_reader_cfg = dict(
     input_columns=['question', 'A', 'B', 'C', 'D'],
     output_column='answer',
-    test_range='[:3]',
 )
 
 # Inference configuration
@@ -34,7 +33,7 @@ tspec_datasets = [
     dict(
         type=TeleQnADataset,
         abbr='teleqna',
-        path='benchmark/ais_bench/datasets/TSpec-LLM',
+        path='ais_bench/datasets/TSpec-LLM',
         file_name='Sampled_3GPP_TR_Questions.json',
         reader_cfg=teleqna_reader_cfg,
         infer_cfg=teleqna_infer_cfg,
