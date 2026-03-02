@@ -4,7 +4,7 @@ from ais_bench.benchmark.openicl.icl_inferencer import GenInferencer
 
 from ais_bench.benchmark.datasets import CustomDataset
 from ais_bench.benchmark.openicl.icl_evaluator import MATHEvaluator
-math_reader_cfg = dict(input_columns=['problem'], output_column='solution', test_range='[:3]')
+math_reader_cfg = dict(input_columns=['problem'], output_column='solution',)
 
 math_infer_cfg = dict(
     prompt_template=dict(

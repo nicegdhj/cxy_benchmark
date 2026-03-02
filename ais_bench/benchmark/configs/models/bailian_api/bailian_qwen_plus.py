@@ -1,5 +1,5 @@
 from ais_bench.benchmark.models import BailianAPI
-
+import os
 models = [
     dict(
         attr="service",
@@ -20,3 +20,4 @@ models = [
         ),
     )
 ]
+

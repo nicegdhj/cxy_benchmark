@@ -1,6 +1,6 @@
 from ais_bench.benchmark.models import MaaSAPI
 from ais_bench.benchmark.utils.postprocess.model_postprocessors import extract_non_reasoning_content
-
+import os
 models = [
     dict(
         attr="service",
@@ -14,7 +14,7 @@ models = [
         api_key=os.environ["MAAS_API_KEY"],
         host_ip=os.environ["MAAS_HOST_IP"],
         host_port=30175,
-        url=["MAAS_URL"],
+        url=os.environ["MAAS_URL"],
         max_out_len=512,
         batch_size=1,
         trust_remote_code=False,

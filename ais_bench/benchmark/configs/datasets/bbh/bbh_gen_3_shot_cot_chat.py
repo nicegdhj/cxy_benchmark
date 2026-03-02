@@ -9,7 +9,7 @@ with read_base():
     from .bbh_multiple_choice_sets_lib_prompt import bbh_multiple_choice_sets_dict
     from .bbh_free_form_sets_lib_prompt import bbh_free_form_sets_dict
 
-bbh_reader_cfg = dict(input_columns=['input'], output_column='target',test_range="[:3]")
+bbh_reader_cfg = dict(input_columns=['input'], output_column='target',)
 
 bbh_multiple_choice_sets = [
     'temporal_sequences',
