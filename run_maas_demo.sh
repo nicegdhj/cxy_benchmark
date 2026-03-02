@@ -10,7 +10,9 @@ set -a; source "$(dirname "$0")/.env"; set +a
 #     --mode all
 
 
-ais_bench --models maas --datasets task_38_suite --debug
+# ais_bench --models maas --datasets task_36_suite --debug
+
+ais_bench --models maas --datasets task_60_suite --debug
 
 
 # python scripts/run_all_tasks.py --start 37 --end 85
