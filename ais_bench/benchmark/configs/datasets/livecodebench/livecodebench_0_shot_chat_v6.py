@@ -19,7 +19,6 @@ lcb_code_generation_reader_cfg = dict(
         'format_prompt',
     ],
     output_column='question_id',
-    test_range='[:3]',
 )
 
 SYSTEM_MESSAGE_GENERIC = f'You are an expert Python programmer. You will be given a question (problem specification) and will generate a correct Python program that matches the specification and passes all tests. You will NOT return anything except for the program.'

@@ -6,6 +6,8 @@ from ais_bench.benchmark.datasets.utils.datasets import get_data_path
 from .base import BaseDataset
 from ais_bench.benchmark.utils.logging.error_codes import DSET_CODES
 from ais_bench.benchmark.utils.logging.exceptions import AISBenchDataContentError
+from ais_bench.benchmark.utils.logging.logger import AISLogger
+logger = AISLogger()
 def _fix_record(record: dict) -> dict:
     """
     根据 MMLU-Redux 的 error_type 修正 choices 和 answer。
@@ -74,11 +76,9 @@ def _fix_record(record: dict) -> dict:
                     if p_clean in choices:
                         indices.append(choices.index(p_clean))
                 if not indices:
-                    raise AISBenchDataContentError(
-                        DSET_CODES.DATA_INVALID_CONTENT,
-                        f"None of the parts in correct_answer '{correct_answer}' found in choices"
-                    )
-                target_index = indices
+                    target_index = ''
+                else:
+                    target_index = indices
 
     return {
         'question': question,
@@ -116,6 +116,19 @@ class MMLUReduxDataset(BaseDataset):
                     f"Row {row_idx} in {name} has {len(row['choices'])} columns, expected 4"
                 )
             fixed = _fix_record(row)
+            if not fixed or not isinstance(fixed, dict):
+                question_snippet = repr(row.get('question', ''))[:200]  # 截断长问题
+                choices_repr = [repr(c) for c in row.get('choices', [])]
+                correct_answer = row.get('correct_answer', '<missing>')
+                
+                logger.warning(
+                    f"Skipping invalid record in {name} at row {row_idx}:\n"
+                    f"  - Question: {question_snippet}\n"
+                    f"  - Choices: {choices_repr}\n"
+                    f"  - Raw correct_answer: {repr(correct_answer)}\n"
+                    f"  - _fix_record returned: {repr(fixed)}"
+                )
+                continue          
             letters = ['ABCD'[i] for i in fixed['answer'] if 0 <= i < 4]
             answer_letter = ' '.join(letters)
             raw_data.append({

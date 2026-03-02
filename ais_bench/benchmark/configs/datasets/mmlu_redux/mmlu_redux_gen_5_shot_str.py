@@ -48,7 +48,6 @@ for _name in mmlu_redux_all_sets:
         input_columns=['input', 'A', 'B', 'C', 'D'],
         output_column='target',  
         test_split='test',
-        test_range='[:3]',
     )
 
     mmlu_redux_infer_cfg = dict(

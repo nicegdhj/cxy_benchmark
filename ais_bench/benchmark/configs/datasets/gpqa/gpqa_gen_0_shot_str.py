@@ -7,7 +7,7 @@ from ais_bench.benchmark.utils.postprocess.text_postprocessors import first_opti
 gpqa_reader_cfg = dict(
     input_columns=['question', 'A', 'B', 'C', 'D'],
     output_column='answer',
-    test_range='[:3]')
+    )
 
 gpqa_infer_cfg = dict(
     prompt_template=dict(

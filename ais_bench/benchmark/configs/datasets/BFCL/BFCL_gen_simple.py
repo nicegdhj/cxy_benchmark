@@ -9,7 +9,6 @@ bfcl_category = "simple"
 bfcl_reader_cfg = dict(
     input_columns=["id", "question", "function"],
     output_column="ground_truth",
-    test_range='[:3]',
 )
 
 bfcl_infer_cfg = dict(

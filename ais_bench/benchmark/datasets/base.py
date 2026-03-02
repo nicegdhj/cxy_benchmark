@@ -60,7 +60,7 @@ class BaseDataset:
             index_gen_batch_size = max(min(base_size // 10, 50000), 1000) # Batch size for index generation (prevent memory peaks).
 
             dataset = self.reader.dataset.map(
-                lambda x, idx: {'subdivision': abbr, 'idx': idx},
+                lambda x, idx: {**x, 'subdivision': x.get('subdivision', abbr), 'idx': idx},
                 with_indices=True,
                 writer_batch_size=writer_batch_size,
                 load_from_cache_file=False
@@ -83,7 +83,7 @@ class BaseDataset:
                 writer_batch_size = max(min(base_size // 100, 1000), 16)
                 index_gen_batch_size = max(min(base_size // 10, 50000), 1000)
                 mapped_ds = self.reader.dataset[key].map(
-                    lambda x, idx: {'subdivision': f'{abbr}_{key}', 'idx': idx},
+                    lambda x, idx: {**x, 'subdivision': x.get('subdivision', f'{abbr}_{key}'), 'idx': idx},
                     with_indices=True,
                     writer_batch_size=writer_batch_size,
                     load_from_cache_file=False

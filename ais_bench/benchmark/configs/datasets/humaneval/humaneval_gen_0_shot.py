@@ -3,7 +3,7 @@ from ais_bench.benchmark.openicl.icl_retriever import ZeroRetriever
 from ais_bench.benchmark.openicl.icl_inferencer import GenInferencer
 from ais_bench.benchmark.datasets import HumanevalDataset, HumanEvalEvaluator, humaneval_postprocess_v2
 
-humaneval_reader_cfg = dict(input_columns=['prompt'], output_column='task_id', train_split='test', test_range='[:3]')
+humaneval_reader_cfg = dict(input_columns=['prompt'], output_column='task_id', train_split='test')
 
 HUMANEVAL_TEMPLATE = 'You are an intelligent programming assistant to produce Python algorithmic solutions.\nCan you complete the following Python function?\n```python\n{prompt}\n```'
 
