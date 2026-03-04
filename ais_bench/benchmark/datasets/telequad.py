@@ -123,5 +123,14 @@ class TeleQuADDataset(BaseDataset):
                                 "question": question,
                                 "answer": answer
                             })
-                dataset = Dataset.from_list(raw_data) 
+        # --- 新增逻辑：处理数据量大于 10000 的情况 ---
+        num_samples = len(raw_data)
+        if num_samples > 10000:
+            import random
+            random.seed(42)  # 固定种子保证可复现
+            random.shuffle(raw_data)  # 随机打乱
+            raw_data = raw_data[:400] # 截取前 400 条
+            logger.info(f"TeleQuAD dataset size {num_samples} > 10000, sampled 400 items.")
+        # ----------------------------------------------
+        dataset = Dataset.from_list(raw_data) 
         return dataset

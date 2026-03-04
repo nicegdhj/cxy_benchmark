@@ -5,7 +5,8 @@ from datasets import Dataset
 
 from ais_bench.benchmark.registry import LOAD_DATASET
 from ais_bench.benchmark.datasets.base import BaseDataset
-
+from ais_bench.benchmark.utils.logging.logger import AISLogger
+logger = AISLogger()
 def extract_option_letter(answer_str):
     # 使用正则提取 "option X" 中的数字 X
     match = re.search(r'option[_\s]*(\d+)', answer_str, re.IGNORECASE)
@@ -107,5 +108,16 @@ class TeleQnADataset(BaseDataset):
             item.update(options)
             
             data_list.append(item)
+        num_samples = len(data_list)
+        if num_samples > 1000:
+            import random
+            random.seed(42)  # 固定种子
+            random.shuffle(data_list)  # 原地随机打乱
+            
+            # 计算 40% 的数量
+            target_size = int(num_samples * 0.4)
+            data_list = data_list[:target_size]
+            
+            logger.debug(f"TeleQnA dataset size {num_samples} > 1000, sampled 40%: {len(data_list)}")
         
         return Dataset.from_list(data_list)

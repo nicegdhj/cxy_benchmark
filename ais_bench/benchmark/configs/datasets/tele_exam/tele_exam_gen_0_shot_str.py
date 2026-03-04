@@ -4,7 +4,9 @@ from ais_bench.benchmark.openicl.icl_inferencer import GenInferencer
 from ais_bench.benchmark.openicl.icl_evaluator import LLMJudgeEvaluator
 
 from ais_bench.benchmark.datasets import TeleExamSubDataset
-from ais_bench.benchmark.utils.postprocess.text_postprocessors import first_option_postprocess
+from ais_bench.benchmark.utils.postprocess.text_postprocessors import (
+    first_option_postprocess,
+)
 
 # -----------------------------------------------------------------------
 # 子科目列表
@@ -13,28 +15,26 @@ from ais_bench.benchmark.utils.postprocess.text_postprocessors import first_opti
 # -----------------------------------------------------------------------
 tele_exam_sub_sets = [
     # '交换技术',
-    # '传输与接入（无线）',
+    "传输与接入（无线）",
     # '传输与接入（有线）',
     # '终端与业务',
-    '互联网技术',
-    # '设备环境',
+    "互联网技术",
+    "设备环境",
 ]
 
 tele_exam_sub_datasets = []
 
 for _name in tele_exam_sub_sets:
-
     _reader_cfg = dict(
-        input_columns=['question'],
-        output_column='answer',
-        test_range='[:2]',
+        input_columns=["question"],
+        output_column="answer",
     )
 
     _infer_cfg = dict(
         prompt_template=dict(
             type=PromptTemplate,
             # 主观题：直接呈现题目，请模型给出答案
-            template='{question}\n请根据题型简洁作答：填空题只写答案，选择题只写字母，问答题简要回答。：\n答：',
+            template="{question}\n请根据题型简洁作答：填空题只写答案，选择题只写字母，问答题简要回答。：\n答：",
         ),
         retriever=dict(type=ZeroRetriever),
         inferencer=dict(type=GenInferencer),
@@ -48,8 +48,8 @@ for _name in tele_exam_sub_sets:
     tele_exam_sub_datasets.append(
         dict(
             type=TeleExamSubDataset,
-            abbr=f'tele_exam_{_name}',
-            path='data/telecom-intermediate-exam',
+            abbr=f"tele_exam_{_name}_2023",
+            path="data/telecom-intermediate-exam",
             name=_name,
             reader_cfg=_reader_cfg,
             infer_cfg=_infer_cfg,

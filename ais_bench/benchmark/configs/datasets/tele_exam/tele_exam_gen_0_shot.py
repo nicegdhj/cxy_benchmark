@@ -4,7 +4,9 @@ from ais_bench.benchmark.openicl.icl_inferencer import GenInferencer
 
 from ais_bench.benchmark.datasets import TeleExamDataset
 from ais_bench.benchmark.openicl.icl_evaluator import AccEvaluator
-from ais_bench.benchmark.utils.postprocess.text_postprocessors import first_option_postprocess
+from ais_bench.benchmark.utils.postprocess.text_postprocessors import (
+    first_option_postprocess,
+)
 
 # -----------------------------------------------------------------------
 # 年份列表
@@ -12,21 +14,19 @@ from ais_bench.benchmark.utils.postprocess.text_postprocessors import first_opti
 # 若对应年份下缺少“综合”文件夹，会自动跳过。
 # -----------------------------------------------------------------------
 tele_exam_years = [
-    '2022',
-    '2023',
+    # '2022',
+    "2023",
 ]
 
 tele_exam_datasets = []
 
 for _year in tele_exam_years:
-
     # Reader configuration
     # The question field already contains the answer choices inline (A/B/C/D),
     # so only 'question' is needed as input.
     _reader_cfg = dict(
-        input_columns=['question'],
-        output_column='answer',
-        test_range='[:1]'
+        input_columns=["question"],
+        output_column="answer",
     )
 
     # Inference configuration
@@ -34,7 +34,7 @@ for _year in tele_exam_years:
     _infer_cfg = dict(
         prompt_template=dict(
             type=PromptTemplate,
-            template='{question}\\n请选择正确答案（只输出选项字母）：\\n答案：',
+            template="{question}\\n请选择正确答案（只输出选项字母）：\\n答案：",
         ),
         retriever=dict(type=ZeroRetriever),
         inferencer=dict(type=GenInferencer),
@@ -43,15 +43,15 @@ for _year in tele_exam_years:
     # Evaluation configuration
     _eval_cfg = dict(
         evaluator=dict(type=AccEvaluator),
-        pred_postprocessor=dict(type=first_option_postprocess, options='ABCD'),
+        pred_postprocessor=dict(type=first_option_postprocess, options="ABCD"),
     )
 
     # Dataset configuration
     tele_exam_datasets.append(
         dict(
             type=TeleExamDataset,
-            abbr=f'tele_exam_{_year}',
-            path='data/telecom-intermediate-exam',
+            abbr=f"tele_exam_{_year}",
+            path="data/telecom-intermediate-exam",
             year=_year,
             reader_cfg=_reader_cfg,
             infer_cfg=_infer_cfg,
