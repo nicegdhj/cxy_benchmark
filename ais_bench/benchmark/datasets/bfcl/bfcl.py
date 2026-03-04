@@ -126,6 +126,7 @@ class BFCLDataset(BaseDataset):
             ]
             
         # Validate that dataset and ground truth have matching lengths
+        logger.info(f"dataset length: {len(dataset)}")
         if len(dataset) != len(ground_truth):
             raise ValueError(
                 f"Dataset and ground truth have different lengths: {len(dataset)} != {len(ground_truth)}"
@@ -593,9 +594,10 @@ class BFCLSingleTurnEvaluator(BFCLEvaluator):
                 details.append(temp)
 
         score = correct_count / len(predictions)
+        formatted_score = round(score * 100, 1) 
         return {
-            "accuracy": score,
-            "correct_count": correct_count,
-            "total_count": len(predictions),
+            "accuracy": formatted_score,
+            # "correct_count": correct_count,
+            # "total_count": len(predictions),
             "details": details,
         }

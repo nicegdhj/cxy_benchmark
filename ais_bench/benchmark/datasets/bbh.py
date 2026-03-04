@@ -2,6 +2,7 @@ import json
 import os.path as osp
 import re
 from os import environ
+import random
 
 from datasets import Dataset
 
@@ -9,9 +10,10 @@ from ais_bench.benchmark.openicl.icl_evaluator import BaseEvaluator
 from ais_bench.benchmark.registry import (ICL_EVALUATORS, LOAD_DATASET,
                                   TEXT_POSTPROCESSORS)
 from ais_bench.benchmark.datasets.utils.datasets import get_data_path
+from ais_bench.benchmark.utils.logging.logger import AISLogger
 
 from .base import BaseDataset
-
+logger = AISLogger()
 
 @LOAD_DATASET.register_module()
 class BBHDataset(BaseDataset):
@@ -26,6 +28,23 @@ class BBHDataset(BaseDataset):
             with open(osp.join(path, f'{name}.json'), 'r') as f:
                 data = json.load(f)['examples']
             dataset = Dataset.from_list(data)
+# --- 新增：随机抽取 2/13 的数据 ---
+        num_samples = len(dataset)
+        if num_samples > 0:
+            # 计算需要抽取的样本数量
+            target_size = max(1, (num_samples * 2) // 13)
+            
+            # 生成固定种子的随机索引
+            indices = list(range(num_samples))
+            random.seed(42)  # 固定种子保证结果可复现
+            random.shuffle(indices)
+            
+            # 选取前 2/13 的索引并重新构建数据集
+            selected_indices = indices[:target_size]
+            dataset = dataset.select(selected_indices).flatten_indices()
+            
+            logger.info(f"BBH '{name}' sampled: {num_samples} -> {len(dataset)} (2/13)")
+        # -------------------------------
         return dataset
 
 

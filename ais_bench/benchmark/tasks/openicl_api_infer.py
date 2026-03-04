@@ -415,7 +415,7 @@ class OpenICLApiInferTask(BaseTask):
         if 'api_key' in cfg_to_log.get('model_cfg', {}):
             cfg_to_log['model_cfg']['api_key'] = "****"
 
-        self.logger.info(f"模型推理参数: {cfg_to_log}")
+        # self.logger.info(f"模型推理参数: {cfg_to_log}")
         # warmup
         if self.warmup_size > 0:
             task_state_manager.update_task_state({"status": "warmup"})
