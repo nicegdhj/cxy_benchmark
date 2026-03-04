@@ -84,7 +84,7 @@ for _split in ['val']:
         ceval_datasets.append(
             dict(
                 type=CEvalDataset,
-                path='ais_bench/datasets/ceval/formal_ceval',  # 数据集路径，使用相对路径时相对于源码根路径，支持绝对路径
+                path='data/ceval/formal_ceval',  # 数据集路径，使用相对路径时相对于源码根路径，支持绝对路径
                 name=_name,
                 abbr='ceval-' + _name if _split == 'val' else 'ceval-test-' +
                 _name,

@@ -51,7 +51,7 @@ for _year in tele_exam_years:
         dict(
             type=TeleExamDataset,
             abbr=f'tele_exam_{_year}',
-            path='ais_bench/datasets/telecom-intermediate-exam',
+            path='data/telecom-intermediate-exam',
             year=_year,
             reader_cfg=_reader_cfg,
             infer_cfg=_infer_cfg,

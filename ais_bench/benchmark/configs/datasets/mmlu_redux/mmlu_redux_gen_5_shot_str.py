@@ -73,7 +73,7 @@ for _name in mmlu_redux_all_sets:
         dict(
             abbr=f'mmlu_redux_{_name}',
             type=MMLUReduxDataset,
-            path='ais_bench/datasets/mmlu_redux',  # 路径下有 anatomy/、astronomy/ 等子目录
+            path='data/mmlu_redux',  # 路径下有 anatomy/、astronomy/ 等子目录
             name=_name,
             reader_cfg=mmlu_redux_reader_cfg,
             infer_cfg=mmlu_redux_infer_cfg,

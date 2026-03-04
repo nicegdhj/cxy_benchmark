@@ -33,7 +33,7 @@ tspec_datasets = [
     dict(
         type=TeleQnADataset,
         abbr='teleqna',
-        path='ais_bench/datasets/TSpec-LLM',
+        path='data/TSpec-LLM',
         file_name='Sampled_3GPP_TR_Questions.json',
         reader_cfg=teleqna_reader_cfg,
         infer_cfg=teleqna_infer_cfg,

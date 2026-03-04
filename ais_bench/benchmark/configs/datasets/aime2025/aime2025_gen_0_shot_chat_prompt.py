@@ -36,7 +36,7 @@ aime2025_datasets = [
     dict(
         abbr="aime2025",
         type=Aime2025Dataset,
-        path="ais_bench/datasets/aime2025/aime2025.jsonl",
+        path="data/aime2025/aime2025.jsonl",
         reader_cfg=aime2025_reader_cfg,
         infer_cfg=aime2025_infer_cfg,
         eval_cfg=aime2025_eval_cfg,

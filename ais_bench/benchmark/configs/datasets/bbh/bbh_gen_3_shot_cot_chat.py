@@ -42,7 +42,7 @@ bbh_free_form_sets = [
     'causal_judgement',
     'web_of_lies',
 ]
-dataset_path = "ais_bench/datasets/BBH/data" # 数据集路径
+dataset_path = "data/BBH/data" # 数据集路径
 
 bbh_datasets = []
 for _name in bbh_multiple_choice_sets:
@@ -68,7 +68,7 @@ for _name in bbh_multiple_choice_sets:
     bbh_datasets.append(
         dict(
             type=BBHDataset,
-            path='ais_bench/datasets/BBH/data',
+            path='data/BBH/data',
             name=_name,
             abbr='bbh-' + _name,
             reader_cfg=bbh_reader_cfg,

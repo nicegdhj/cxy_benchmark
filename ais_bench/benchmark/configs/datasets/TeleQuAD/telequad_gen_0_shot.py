@@ -36,7 +36,7 @@ for _name in telequad_datasets:
         dict(
             abbr = f'telequad_{_name}',
             type=TeleQuADDataset,
-            path='ais_bench/datasets/telequad',
+            path='data/TeleQuAD',
             name=_name,
             reader_cfg=telequad_reader_cfg,
             infer_cfg=telequad_infer_cfg,

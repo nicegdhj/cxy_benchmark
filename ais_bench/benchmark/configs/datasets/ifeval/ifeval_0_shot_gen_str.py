@@ -22,7 +22,7 @@ ifeval_datasets = [
     dict(
         abbr='ifeval',
         type=IFEvalDataset,
-        path='ais_bench/datasets/ifeval/input_data.jsonl',
+        path='data/ifeval/input_data.jsonl',
         reader_cfg=ifeval_reader_cfg,
         infer_cfg=ifeval_infer_cfg,
         eval_cfg=ifeval_eval_cfg)
