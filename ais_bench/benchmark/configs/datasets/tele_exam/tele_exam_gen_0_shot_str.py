@@ -49,7 +49,7 @@ for _name in tele_exam_sub_sets:
         dict(
             type=TeleExamSubDataset,
             abbr=f'tele_exam_{_name}',
-            path='ais_bench/datasets/telecom-intermediate-exam',
+            path='data/telecom-intermediate-exam',
             name=_name,
             reader_cfg=_reader_cfg,
             infer_cfg=_infer_cfg,

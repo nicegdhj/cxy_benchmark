@@ -31,7 +31,7 @@ teledata_datasets = [
     dict(
         abbr = f'teledata',
         type=TeleQuADDataset,
-        path='ais_bench/datasets/Tele-Data',
+        path='data/Tele-Data',
         name='Tele-Eval.jsonl',
         reader_cfg=teledata_reader_cfg,
         infer_cfg=teledata_infer_cfg,

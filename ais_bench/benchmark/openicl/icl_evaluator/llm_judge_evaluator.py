@@ -75,8 +75,13 @@ class LLMJudgeEvaluator(BaseEvaluator):
         # }
         eval_results={}
         for subdiv in subdivision_scores:
-            eval_results[f'{subdiv}/llm_judge_score_sum'] = round(subdivision_scores[subdiv], 2)
-            eval_results[f'{subdiv}/llm_judge_max_score_sum'] = round(subdivision_max_scores[subdiv], 2)
+            score = subdivision_scores[subdiv]
+            max_score = subdivision_max_scores[subdiv]
+            if max_score == 0:
+                percentage = 0.0     
+            else:
+                percentage = (score / max_score) * 100
+            eval_results[f'{subdiv}/llm_judge_percentage'] = round(percentage, 2)
                 
         eval_results['details'] = details
         return eval_results

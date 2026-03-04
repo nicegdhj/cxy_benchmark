@@ -33,7 +33,7 @@ teleqna_datasets = [
     dict(
         type=TeleQnADataset,
         abbr='teleqna',
-        path='ais_bench/datasets/teleqna',
+        path='data/teleqna',
         file_name='TeleQnA.txt',
         reader_cfg=teleqna_reader_cfg,
         infer_cfg=teleqna_infer_cfg,
