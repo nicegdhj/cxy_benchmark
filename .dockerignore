@@ -24,3 +24,15 @@ logs/
 # ── 文档与测试（不影响运行）────────────────────────────────────────
 docs/
 smoke_tests/
+tests/
+img/
+tools/
+plugin_examples/
+
+# ── 版本控制与 IDE ────────────────────────────────────────────────
+.git/
+.pytest_cache/
+.coveragerc
+.DS_Store
+*.md
+!README.md

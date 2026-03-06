@@ -9,6 +9,7 @@
 - **配置解耦**：测试数据 (`data`)、评测结果 (`outputs`)、API 密钥 (`.env`) 全部提取到宿主机，运行时动态挂载，无需修改镜像。
 - **本地自部署模型**：不仅支持私域 MaaS，还新增了本地直接部署推理（local_qwen）支持，并优化了并发调度。
 - **自动化流水线接入**：通过自定义的 `eval_entry.py` 脚本，每次评测指定唯一的 `task-id`，混合跑自定义与通用数据集，输出结构化的 `report.json`。
+- **SSH 断连持久化**：`run_mixed_benchmark.sh` 内置 nohup 后台模式，SSH 断开后评测进程持续运行，日志自动落盘。
 
 ---
 
@@ -87,19 +88,76 @@ EVAL_VERBOSE=false
 ## 4. 混合任务评测最佳实践
 
 本框架支持两种类别的任务：
+
 1. **自定义任务 (`--tasks`)**: 从 `data/custom_task/task_XX.jsonl` 中读取。
 2. **内置通用数据集 (`--generic-datasets`)**: 读取 `data/` 目录下同名的内置数据集源文件。
 
-在 Docker 中执行，我们采用 **统一调用 `eval_entry.py` 的方式**，这会**串行执行每个任务**，从而保证单任务能够独享 API 满配并发，并在最终输出单一融合报告格式（`report.json`），非常适合流水线整合：
+### 推荐：使用 `run_mixed_benchmark.sh` 一键启动
 
-### 最佳推荐：流水线一键混合评估
+项目提供了 `run_mixed_benchmark.sh` 脚本，封装了完整的评测流程，**支持 SSH 断连后后台持续运行**，无需手写 docker 命令。
+
+**基本用法（使用默认工作目录 `/opt/eval_workspace`）：**
+
+```bash
+bash run_mixed_benchmark.sh
+```
+
+**指定自定义工作目录：**
+
+```bash
+bash run_mixed_benchmark.sh --workspace /data/myproject/eval
+```
+
+工作目录须包含以下结构（与第 3.2 节一致）：
+
+```text
+<workspace>/
+├── .env          # API 密钥与基础配置（必须存在，缺失时脚本报错退出）
+├── data/         # 统一数据挂载根目录
+└── outputs/      # (自动创建) 评测结果
+```
+
+执行后终端立即返回，日志自动写入 `<workspace>/logs/<task-id>.log`：
+
+```text
+🔄 以后台模式启动（SSH 断开后进程将持续运行）
+📂 工作目录: /opt/eval_workspace
+📄 日志文件: /opt/eval_workspace/logs/mixed_eval_20260305_160000.log
+👀 实时查看日志: tail -f /opt/eval_workspace/logs/mixed_eval_20260305_160000.log
+🛑 终止任务: docker stop $(docker ps -q --filter ancestor=benchmark-eval:latest)
+---------------------------------------------------
+✅ 后台 PID: 12345，安全断开 SSH 即可。
+```
+
+**重连后查看进度：**
+
+```bash
+# 实时跟踪日志
+tail -f /opt/eval_workspace/logs/mixed_eval_*.log
+
+# 确认容器仍在运行
+docker ps
+```
+
+### 控制评测条数（快速冒烟测试）
+
+修改脚本中的 `--num-prompts` 参数，限制每个任务最多评测 N 条数据：
+
+```bash
+# 脚本中对应行：
+        --num-prompts 5    # 改为 5 条，用于验证环境连通性
+```
+
+### 直接调用 docker run（高级用法）
+
+如需临时调整参数，也可以绕过脚本直接调用：
 
 ```bash
 docker run --rm \
+    -e PYTHONUNBUFFERED=1 \
     --env-file /opt/eval_workspace/.env \
     -e LOCAL_CONCURRENCY=100 \
-    # 注意：挂载的是整个 data 文件夹到 /app/data
-    -v /opt/eval_workspace/data:/app/data \  
+    -v /opt/eval_workspace/data:/app/data \
     -v /opt/eval_workspace/outputs:/app/outputs \
     benchmark-eval:latest \
     python eval_entry.py \
@@ -109,26 +167,7 @@ docker run --rm \
         --model-config local_qwen
 ```
 
-**并发效率解读：**
-- `.env` 中 `LOCAL_CONCURRENCY=100` **决定了 API 请求吞吐量**。
-- `eval_entry.py` 会逐个调度队列中的任务：`task_34` → `task_36` → `telequad_gen_0_shot`... 
-- 此模式下，每个独立任务都能拥有完整的 **100 并发量**，不会互相抢占带宽！当所有任务跑完后，会进行总体汇总。
-
-### 控制评测条数（快速冒烟测试）
-
-支持通过 `--num-prompts N` 参数限制每个任务最多评测 **N 条**数据：
-
-```bash
-docker run --rm \
-    # ... 其他参数
-    benchmark-eval:latest \
-    python eval_entry.py \
-        --task-id smoke_test \
-        --tasks 34 36 \
-        --generic-datasets telequad_gen_0_shot \
-        --model-config local_qwen \
-        --num-prompts 5    # 每个任务只测前 5 条，用于验证环境连通性
-```
+> **注意**：直接 `docker run` 为前台模式，SSH 断开后进程会终止。如需后台运行，请使用 `run_mixed_benchmark.sh` 脚本或在命令前加 `nohup ... &`。
 
 ---
 
@@ -149,6 +188,7 @@ docker run --rm \
         --datasets task_34_suite task_36_suite \
         --max-num-workers 2    # ← 开启此开关：让 2 个任务同时开跑
 ```
+
 这种场景下，`LOCAL_CONCURRENCY=100` 的资源会被这 `2` 个 task 瓜分并用。
 
 ---
@@ -199,6 +239,7 @@ docker run --rm \
 ```
 
 在训练流水线中可以通过检测返回码和解析 `avg_accuracy` 等字段：
+
 ```bash
 python eval_entry.py ...
 if [ $? -eq 0 ]; then

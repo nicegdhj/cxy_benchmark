@@ -1,3 +1,4 @@
+import os
 from ais_bench.benchmark.models import BailianAPI
 
 models = [
@@ -10,7 +11,7 @@ models = [
         stream=False,
         request_rate=0,
         retry=2,
-        api_key=os.environ["QWEN_PLUS_API_KEY"],  # Set your DASHSCOPE_API_KEY here
+        api_key="sk-113a66cc6c464374a4d6f06b7306132f",  # Set your DASHSCOPE_API_KEY here
         url=os.environ["QWEN_PLUS_URL"],
         max_out_len=2048,
         batch_size=1,

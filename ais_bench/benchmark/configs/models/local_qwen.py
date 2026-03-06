@@ -14,7 +14,7 @@ models = [
     dict(
         attr="service",
         type=MaaSAPI,
-        abbr="maas-api",
+        abbr="local_qwen",
         path="",
         model=os.environ.get("LOCAL_MODEL_NAME", "qwen3-14b"),
         stream=False,

@@ -132,5 +132,11 @@ class TeleQuADDataset(BaseDataset):
             raw_data = raw_data[:400] # 截取前 400 条
             logger.info(f"TeleQuAD dataset size {num_samples} > 10000, sampled 400 items.")
         # ----------------------------------------------
+        elif num_samples > 800:
+            import random
+            random.seed(42)  # 固定种子保证可复现
+            random.shuffle(raw_data)  # 随机打乱
+            raw_data = raw_data[:536] 
+            logger.info(f"TeleQuAD dataset size {num_samples} > 800, sampled items.")            
         dataset = Dataset.from_list(raw_data) 
         return dataset

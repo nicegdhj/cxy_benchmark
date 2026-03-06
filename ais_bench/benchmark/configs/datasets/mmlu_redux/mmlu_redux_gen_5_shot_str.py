@@ -25,6 +25,8 @@ mmlu_redux_all_sets = [
     "global_facts",
     "high_school_chemistry",
     "high_school_geography",
+    "high_school_macroeconomics",
+    "high_school_mathematics",    
     "high_school_physics",
     "high_school_statistics",
     "high_school_us_history",
