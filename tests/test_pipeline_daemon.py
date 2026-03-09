@@ -164,3 +164,107 @@ def test_unload_model_success(daemon_mod):
     with patch("requests.post", return_value=mock_resp):
         daemon_mod.unload_model("http://188.109.35.159:8080", "2378437c")
         # 不抛异常即通过
+
+
+def test_read_report_accuracy_returns_none_when_missing(tmp_path, daemon_mod):
+    """report.json 不存在时返回 None"""
+    result = daemon_mod.read_report_accuracy(tmp_path / "nonexistent.json")
+    assert result is None
+
+
+def test_read_report_accuracy_parses_correctly(tmp_path, daemon_mod):
+    """正确解析 avg_accuracy 字段"""
+    import json
+    report = {"avg_accuracy": 78.5, "tasks": []}
+    report_path = tmp_path / "report.json"
+    report_path.write_text(json.dumps(report))
+    result = daemon_mod.read_report_accuracy(report_path)
+    assert result == 78.5
+
+
+def test_eval_worker_success(tmp_path, daemon_mod):
+    """正常流程：load → docker run(成功) → unload → 返回 done"""
+    from unittest.mock import patch, MagicMock
+    import json, argparse
+
+    # 准备 report.json（模拟 docker run 的产出）
+    task_id = "eval_pt0_sft0"
+    report_dir = tmp_path / "pt0_sft0" / task_id
+    report_dir.mkdir(parents=True)
+    (report_dir / "report.json").write_text(
+        json.dumps({"avg_accuracy": 80.0, "tasks": []})
+    )
+
+    cfg = argparse.Namespace(
+        models_dir=str(tmp_path),
+        eval_dir=str(tmp_path),
+        workspace=str(tmp_path),
+        deploy_api="http://fake:8080",
+        eval_timeout=60,
+        dry_run=False,
+    )
+
+    mock_config = {
+        "model_id": "abc123",
+        "model_name": "pt0_sft0",
+        "url": "http://188.109.35.159:10051/v1/chat/completions",
+    }
+
+    # 需要 patch daemon_mod 模块内的 load_model 和 unload_model
+    # 由于 daemon_mod 是通过 importlib 加载的，patch 目标是模块内的函数名
+    import sys
+    mod_name = daemon_mod.__name__
+    with patch.object(daemon_mod, 'load_model', return_value=mock_config) as mock_load, \
+         patch.object(daemon_mod, 'unload_model') as mock_unload, \
+         patch('subprocess.run', return_value=MagicMock(returncode=0)):
+        result = daemon_mod.eval_worker("pt0_sft0", cfg)
+
+    assert result["status"] == "done"
+    assert result["avg_accuracy"] == 80.0
+    assert result["model_id"] == "abc123"
+    mock_unload.assert_called_once_with("http://fake:8080", "abc123")
+
+
+def test_eval_worker_dry_run(tmp_path, daemon_mod):
+    """dry-run 模式跳过实际部署和评测"""
+    import argparse
+    cfg = argparse.Namespace(
+        models_dir=str(tmp_path),
+        eval_dir=str(tmp_path),
+        workspace=str(tmp_path),
+        deploy_api="http://fake:8080",
+        eval_timeout=60,
+        dry_run=True,
+    )
+    result = daemon_mod.eval_worker("pt0_sft0", cfg)
+    assert result["status"] == "done"
+    assert result["model_id"] == "dry-run"
+
+
+def test_generate_batch_report_creates_file(tmp_path, daemon_mod):
+    """生成 batch_report.md，包含所有模型的准确率"""
+    state = {
+        "last_scan": "2026-03-09T10:00:00",
+        "stats": {"total_discovered": 2, "done": 1, "evaluating": 0, "queued": 0, "failed": 1},
+        "models": {
+            "pt0_sft0": {
+                "status": "done",
+                "avg_accuracy": 78.5,
+                "eval_start": "2026-03-09T08:00:00",
+                "eval_end": "2026-03-09T09:00:00",
+            },
+            "pt0_sft1": {
+                "status": "failed",
+                "error": "无空闲npu",
+            },
+        },
+    }
+
+    report_path = tmp_path / "batch_report.md"
+    daemon_mod.generate_batch_report(state, report_path)
+
+    content = report_path.read_text(encoding="utf-8")
+    assert "pt0_sft0" in content
+    assert "78.5" in content or "78.50" in content
+    assert "pt0_sft1" in content
+    assert "failed" in content.lower() or "❌" in content

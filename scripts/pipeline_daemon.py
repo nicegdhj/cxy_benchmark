@@ -233,3 +233,186 @@ def unload_model(deploy_api: str, model_id: str, timeout: int = 30) -> None:
         logging.error(f"unload_model 请求超时（NPU 可能未释放）: {e}")
     except Exception as e:
         logging.warning(f"unload_model 失败（忽略）: {e}")
+
+
+def read_report_accuracy(report_path: Path) -> Optional[float]:
+    """读取 eval_entry.py 生成的 report.json，返回 avg_accuracy；失败返回 None。"""
+    try:
+        data = json.loads(report_path.read_text(encoding="utf-8"))
+        return data.get("avg_accuracy")
+    except Exception:
+        return None
+
+
+def eval_worker(exp_name: str, cfg) -> dict:
+    """Worker 线程：完整执行一个模型的 load → eval → unload 生命周期。
+
+    Args:
+        exp_name: 实验目录名，如 "pt0_sft0"
+        cfg: argparse.Namespace（包含 models_dir、eval_dir、workspace、deploy_api 等）
+
+    Returns:
+        dict with keys: status, model_id, serving_url, task_id, avg_accuracy,
+                        report_path, error (if failed)
+    """
+    model_path = str(Path(cfg.models_dir) / exp_name / MODEL_SUBPATH)
+    task_id = f"eval_{exp_name}"
+    output_dir = Path(cfg.eval_dir) / exp_name
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    log = logging.getLogger(__name__)
+    log.info(f"[{exp_name}] 开始评测，模型路径: {model_path}")
+
+    model_id = None
+    try:
+        # ① 部署模型，申请 NPU
+        if cfg.dry_run:
+            log.info(f"[{exp_name}] dry-run 模式，跳过实际部署和评测")
+            return {
+                "status": "done",
+                "model_id": "dry-run",
+                "serving_url": "dry-run",
+                "task_id": task_id,
+                "avg_accuracy": None,
+                "report_path": None,
+            }
+
+        config = load_model(cfg.deploy_api, model_path)
+        model_id = config["model_id"]
+        serving_url = config["url"]
+        host_ip, host_port = parse_serving_url(serving_url)
+        log.info(f"[{exp_name}] 模型已部署: model_id={model_id}, port={host_port}")
+
+        # ② 运行评测容器（调用方负责 output_dir 已存在）
+        cmd = build_docker_cmd(
+            exp_name=exp_name,
+            task_id=task_id,
+            output_dir=output_dir,
+            host_ip=host_ip,
+            host_port=host_port,
+            workspace=Path(cfg.workspace),
+        )
+        log.info(f"[{exp_name}] 启动 Docker 评测容器...")
+        proc = subprocess.run(cmd, timeout=cfg.eval_timeout)
+
+        # ③ 读取报告
+        report_path = output_dir / task_id / "report.json"
+        avg_accuracy = read_report_accuracy(report_path)
+
+        status = "done" if proc.returncode == 0 else "failed"
+        error = None if proc.returncode == 0 else f"docker exit code {proc.returncode}"
+        log.info(f"[{exp_name}] 评测完成: status={status}, accuracy={avg_accuracy}")
+
+        return {
+            "status": status,
+            "model_id": model_id,
+            "serving_url": serving_url,
+            "task_id": task_id,
+            "avg_accuracy": avg_accuracy,
+            "report_path": str(report_path) if report_path.exists() else None,
+            "error": error,
+        }
+
+    except DeployError as e:
+        log.error(f"[{exp_name}] 部署失败: {e}")
+        return {"status": "failed", "error": str(e), "model_id": model_id}
+
+    except subprocess.TimeoutExpired:
+        log.error(f"[{exp_name}] 评测超时（>{cfg.eval_timeout}s）")
+        return {"status": "failed", "error": f"eval timeout after {cfg.eval_timeout}s", "model_id": model_id}
+
+    except Exception as e:
+        log.error(f"[{exp_name}] 未知错误: {e}", exc_info=True)
+        return {"status": "failed", "error": str(e), "model_id": model_id}
+
+    finally:
+        # ④ 无论成功失败，必须释放 NPU
+        if model_id and not cfg.dry_run:
+            log.info(f"[{exp_name}] 卸载模型 {model_id}，释放 NPU")
+            unload_model(cfg.deploy_api, model_id)
+
+
+def generate_batch_report(state: dict, report_path: Path) -> None:
+    """根据当前 state 生成/覆盖 batch_report.md 横向对比报告。"""
+    stats = _compute_stats(state)
+    total = stats["total_discovered"]
+    done  = stats["done"]
+    evaluating = stats["evaluating"]
+    queued = stats["queued"]
+    failed = stats["failed"]
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    lines = [
+        "# 批量评测对比报告",
+        "",
+        f"**更新时间**: {now}",
+        f"**进度**: {done}/{total} 完成 | {evaluating} 评测中 | {queued} 排队 | {failed} 失败",
+        "",
+    ]
+
+    # 已完成模型的对比表
+    done_models = {
+        name: info for name, info in state["models"].items()
+        if info.get("status") == "done"
+    }
+    if done_models:
+        lines += [
+            "## 已完成模型对比",
+            "",
+            "| 模型 | 平均准确率 | 耗时(min) | 详细报告 |",
+            "|------|-----------|----------|---------|",
+        ]
+        sorted_models = sorted(
+            done_models.items(),
+            key=lambda kv: kv[1].get("avg_accuracy") or 0,
+            reverse=True,
+        )
+        for name, info in sorted_models:
+            acc = info.get("avg_accuracy")
+            acc_str = f"{acc:.2f}%" if acc is not None else "-"
+            try:
+                start = datetime.fromisoformat(info["eval_start"])
+                end   = datetime.fromisoformat(info["eval_end"])
+                dur   = round((end - start).total_seconds() / 60, 1)
+            except Exception:
+                dur = "-"
+            report = info.get("report_path", "-") or "-"
+            lines.append(f"| {name} | {acc_str} | {dur} | `{report}` |")
+        lines.append("")
+
+    # 正在评测
+    running_models = {
+        name: info for name, info in state["models"].items()
+        if info.get("status") == "evaluating"
+    }
+    if running_models:
+        lines += [
+            "## 当前进行中",
+            "",
+            "| 模型 | 开始时间 | 服务 URL |",
+            "|------|---------|---------|",
+        ]
+        for name, info in running_models.items():
+            start = info.get("eval_start", "-")
+            url   = info.get("serving_url", "-")
+            lines.append(f"| {name} | {start} | {url} |")
+        lines.append("")
+
+    # 失败模型
+    failed_models = {
+        name: info for name, info in state["models"].items()
+        if info.get("status") == "failed"
+    }
+    if failed_models:
+        lines += [
+            "## 失败列表",
+            "",
+            "| 模型 | 状态 | 失败原因 |",
+            "|------|------|---------|",
+        ]
+        for name, info in failed_models.items():
+            err = info.get("error", "未知")
+            lines.append(f"| {name} | failed | {err} |")
+        lines.append("")
+
+    report_path.write_text("\n".join(lines), encoding="utf-8")
