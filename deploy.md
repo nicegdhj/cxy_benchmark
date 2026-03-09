@@ -15,25 +15,26 @@
 
 ---
 
-## 2. 在有网环境（Mac / 打包机）构建并导出镜像
+## 2. 在有网环境（Mac / 打包机）构建并导出离线部署包
 
-由于私域网络隔离，**必须在有网的机器上完成镜像构建，并将包含了所有依赖的镜像导出为离线包**。
+由于私域网络隔离，**必须在有网的机器上完成镜像构建，并将包含了所有业务代码、数据集以及评测依赖的镜像打包导出**。
 
-### 2.1 构建镜像
+我们为您准备了**一键打包脚本**。
 
 在项目根目录（包含 `Dockerfile` 的目录）执行：
 
 ```bash
-docker build -t benchmark-eval:latest .
+bash scripts/package_deploy.sh
 ```
 
-### 2.2 导出离线镜像包
+该脚本将自动执行以下完整流水线：
 
-```bash
-docker save benchmark-eval:latest | gzip > benchmark-eval.tar.gz
-```
+1. 校验 `.env`、`data/` 等必要文件
+2. 执行 `docker build` 自动构建最新版的评测镜像
+3. 执行 `docker save` 导出离线镜像包
+4. 将配套脚本、数据和离线镜像一起打包成 `eval_workspace_xxxxxxxx.tar.gz` 放入 `outputs/`
 
-将 `benchmark-eval.tar.gz` 传输到私域服务器。
+完成后，将最终生成的 `tar.gz` 压缩包传输到脱机的私域服务器。
 
 ---
 

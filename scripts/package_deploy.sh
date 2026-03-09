@@ -3,8 +3,9 @@
 # package_deploy.sh —— 私域部署打包脚本
 #
 # 功能：
-#   1. 将 Docker 镜像导出为 .tar.gz（如果 outputs/ 下还没有则自动导出）
-#   2. 按 deploy.md 目录结构组织文件：
+#   1. 根据 Dockerfile 自动构建 Docker 镜像 benchmark-eval:latest
+#   2. 将 Docker 镜像导出为 .tar.gz（如果 outputs/ 下还没有则自动导出）
+#   3. 按 deploy.md 目录结构组织文件：
 #      eval_workspace/
 #      ├── .env                        # API 密钥（需在服务器上修改）
 #      ├── data/                       # 评测数据集
@@ -19,8 +20,7 @@
 #   bash scripts/package_deploy.sh
 #
 # 前提：
-#   - Docker 已构建好 benchmark-eval:latest 镜像
-#   - 项目根目录下有 data/、.env、eval_entry.py、scripts/、run_mixed_benchmark.sh
+#   - 项目根目录下有 Dockerfile、data/、.env、eval_entry.py、scripts/、run_mixed_benchmark.sh
 # ==============================================================================
 
 set -euo pipefail
@@ -45,8 +45,9 @@ echo "======================================================"
 
 # ── Step 1: 检查必要文件 ───────────────────────────────────────────────────────
 echo ""
-echo "▶ [1/4] 检查依赖文件..."
+echo "▶ [1/5] 检查依赖文件..."
 
+[ -f "$PROJECT_ROOT/Dockerfile" ]             || { echo "❌ 缺少 Dockerfile 文件"; exit 1; }
 [ -f "$PROJECT_ROOT/.env" ]                   || { echo "❌ 缺少 .env 文件"; exit 1; }
 [ -d "$PROJECT_ROOT/data" ]                   || { echo "❌ 缺少 data/ 目录"; exit 1; }
 [ -f "$PROJECT_ROOT/eval_entry.py" ]          || { echo "❌ 缺少 eval_entry.py"; exit 1; }
@@ -55,9 +56,21 @@ echo "▶ [1/4] 检查依赖文件..."
 
 mkdir -p "$OUTPUTS_DIR"
 
-# ── Step 2: 导出 Docker 镜像（如果已存在则跳过）────────────────────────────────
+# ── Step 2: 构建 Docker 镜像 ──────────────────────────────────────────────────
 echo ""
-echo "▶ [2/4] 导出 Docker 镜像..."
+echo "▶ [2/5] 构建 Docker 镜像..."
+
+echo "  正在执行 docker build -t $IMAGE_NAME .（可能需要几分钟）..."
+docker build -t "$IMAGE_NAME" .
+if [ $? -ne 0 ]; then
+    echo "❌ Docker 镜像构建失败，请检查 Dockerfile 及依赖！"
+    exit 1
+fi
+echo "  ✅ 镜像构建成功: $IMAGE_NAME"
+
+# ── Step 3: 导出 Docker 镜像（如果已存在则跳过）────────────────────────────────
+echo ""
+echo "▶ [3/5] 导出 Docker 镜像..."
 
 if [ -f "$IMAGE_PATH" ]; then
     echo "  ℹ️  镜像文件已存在，跳过导出: $IMAGE_PATH"
@@ -67,9 +80,9 @@ else
     echo "  ✅ 镜像已导出: $IMAGE_PATH ($(du -sh "$IMAGE_PATH" | cut -f1))"
 fi
 
-# ── Step 3: 构建临时目录结构 ────────────────────────────────────────────────────
+# ── Step 4: 构建临时目录结构 ────────────────────────────────────────────────────
 echo ""
-echo "▶ [3/4] 组织部署目录结构..."
+echo "▶ [4/5] 组织部署目录结构..."
 
 rm -rf "$TMP_DIR"
 mkdir -p "$TMP_DIR/eval_workspace/outputs"
@@ -136,9 +149,9 @@ cat > "$TMP_DIR/eval_workspace/README.txt" << 'EOF'
 详细说明请参考项目 deploy.md。
 EOF
 
-# ── Step 4: 压缩打包 ────────────────────────────────────────────────────────────
+# ── Step 5: 压缩打包 ────────────────────────────────────────────────────────────
 echo ""
-echo "▶ [4/4] 压缩打包..."
+echo "▶ [5/5] 压缩打包..."
 
 FINAL_PACKAGE="$OUTPUTS_DIR/${PACKAGE_NAME}.tar.gz"
 tar -czf "$FINAL_PACKAGE" -C "/tmp" "${PACKAGE_NAME}/eval_workspace"
