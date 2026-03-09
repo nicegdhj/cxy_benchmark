@@ -9,10 +9,12 @@
 #
 # 参数:
 #   --workspace   评测工作目录（默认 /opt/eval_workspace）
-#                 目录下须包含 .env / data/ / outputs/
+#                 目录下须包含 .env / data/ / code/
+#   --code-dir    业务代码目录（默认 <workspace>/code）
+#                 须包含 eval_entry.py 和 scripts/
 #   --image-tar   Docker 镜像 tar 包路径，若镜像不存在则自动 load
 #                 （可选，若镜像已存在自动跳过）
-#   --image-tag   Docker 镜像 tag（默认 benchmark-eval:v2）
+#   --image-tag   Docker 镜像 tag（默认 benchmark-eval:latest）
 #
 # 示例:
 #   bash run_mixed_benchmark.sh --workspace /data/eval --image-tar /data/benchmark-eval.tar.gz
@@ -22,11 +24,16 @@
 WORKSPACE="/opt/eval_workspace"   # 默认目录
 IMAGE_TAG="benchmark-eval:latest"     # 默认镜像 tag
 IMAGE_TAR=""                      # tar 包路径（可选）
+CODE_DIR=""                       # 业务代码目录（默认由 workspace 推导）
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --workspace)
             WORKSPACE="$2"
+            shift 2
+            ;;
+        --code-dir)
+            CODE_DIR="$2"
             shift 2
             ;;
         --image-tar)
@@ -38,7 +45,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -h|--help)
-            sed -n '3,18p' "$0" | sed 's/^# //;s/^#//'
+            sed -n '3,20p' "$0" | sed 's/^# //;s/^#//'
             exit 0
             ;;
         *)
@@ -53,6 +60,7 @@ ENV_FILE="${WORKSPACE}/.env"
 DATA_DIR="${WORKSPACE}/data"
 OUTPUT_DIR="${WORKSPACE}/outputs"
 LOG_DIR="${WORKSPACE}/logs"
+CODE_DIR="${CODE_DIR:-${WORKSPACE}/code}"   # 未指定则默认 <workspace>/code
 
 TASK_ID="mixed_eval_$(date +%Y%m%d_%H%M%S)"
 LOG_FILE="${LOG_DIR}/${TASK_ID}.log"
@@ -60,6 +68,18 @@ LOG_FILE="${LOG_DIR}/${TASK_ID}.log"
 # ── 前置校验 ─────────────────────────────────────────────────────────
 if [ ! -f "${ENV_FILE}" ]; then
     echo "❌ 找不到配置文件: ${ENV_FILE}"
+    exit 1
+fi
+
+if [ ! -f "${CODE_DIR}/eval_entry.py" ]; then
+    echo "❌ 找不到业务脚本: ${CODE_DIR}/eval_entry.py"
+    echo "   请将 eval_entry.py 放置到 ${CODE_DIR}/ 目录下"
+    exit 1
+fi
+
+if [ ! -d "${CODE_DIR}/scripts" ]; then
+    echo "❌ 找不到 scripts 目录: ${CODE_DIR}/scripts"
+    echo "   请将 scripts/ 目录放置到 ${CODE_DIR}/ 下"
     exit 1
 fi
 
@@ -90,12 +110,13 @@ mkdir -p "${LOG_DIR}" "${OUTPUT_DIR}"
 if [ -z "${_EVAL_BACKGROUND}" ]; then
     echo "🔄 以后台模式启动（SSH 断开后进程将持续运行）"
     echo "📂 工作目录: ${WORKSPACE}"
+    echo "💻 代码目录: ${CODE_DIR}"
     echo "📄 日志文件: ${LOG_FILE}"
     echo "👀 实时查看日志: tail -f ${LOG_FILE}"
     echo "🛑 终止任务:     docker stop \$(docker ps -q --filter ancestor=${IMAGE_TAG})"
     echo "---------------------------------------------------"
     export _EVAL_BACKGROUND=1
-    nohup bash "$0" --workspace "${WORKSPACE}" --image-tag "${IMAGE_TAG}" > "${LOG_FILE}" 2>&1 &
+    nohup bash "$0" --workspace "${WORKSPACE}" --code-dir "${CODE_DIR}" --image-tag "${IMAGE_TAG}" > "${LOG_FILE}" 2>&1 &
     echo "✅ 后台 PID: $!，安全断开 SSH 即可。"
     exit 0
 fi
@@ -107,9 +128,11 @@ echo "---------------------------------------------------"
 docker run --rm \
     -e PYTHONUNBUFFERED=1 \
     --env-file "${ENV_FILE}" \
-    -e LOCAL_CONCURRENCY=5 \
+    -e LOCAL_CONCURRENCY=50 \
     -v "${DATA_DIR}:/app/data" \
     -v "${OUTPUT_DIR}:/app/outputs" \
+    -v "${CODE_DIR}/eval_entry.py:/app/eval_entry.py" \
+    -v "${CODE_DIR}/scripts:/app/scripts" \
     "${IMAGE_TAG}" \
     python eval_entry.py \
         --task-id "${TASK_ID}" \

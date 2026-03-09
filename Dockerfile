@@ -47,12 +47,12 @@ RUN pip install --no-cache-dir --force-reinstall "huggingface-hub==1.5.0"
 # ── 提前下载 NLTK 数据（离线环境无法临时下载）──────────────────────
 RUN python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"
 
-# ── 复制脚本和配置（不含数据和密钥）────────────────────────────────
-COPY scripts/ scripts/
-COPY eval_entry.py .
-COPY run_maas_demo.sh .
-
-# ── 数据 / 输出 通过 -v 挂载，不打包进镜像 ──────────────────────────
+# ── 数据 / 输出 / 代码 均通过 -v 挂载，不打包进镜像 ─────────────────
+# -v /host/data:/app/data
+# -v /host/outputs:/app/outputs
+# -v /host/code/eval_entry.py:/app/eval_entry.py
+# -v /host/code/scripts:/app/scripts
+# （可选）-v /host/code/ais_bench:/app/ais_bench  # 若需修改评测框架内部逻辑
 # -v /host/data:/app/data
 # -v /host/results:/app/outputs
 VOLUME ["/app/data", "/app/outputs"]

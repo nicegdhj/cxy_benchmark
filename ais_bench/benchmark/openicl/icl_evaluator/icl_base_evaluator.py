@@ -11,7 +11,10 @@ from scipy.stats import hypergeom
 from ais_bench.benchmark.registry import TEXT_POSTPROCESSORS
 from ais_bench.benchmark.utils.logging.logger import AISLogger
 from ais_bench.benchmark.utils.logging.error_codes import ICLE_CODES
-from ais_bench.benchmark.utils.logging.exceptions import PredictionInvalidException, AISBenchImplementationError
+from ais_bench.benchmark.utils.logging.exceptions import (
+    PredictionInvalidException,
+    AISBenchImplementationError,
+)
 
 
 def compute_pass_at_k(n: int, c: int, k: int) -> float:
@@ -56,20 +59,19 @@ def compute_g_pass_at_k(n: int, c: int, k: int, t: float) -> float:
     m = max(int(np.ceil(k * t)), 1)
     return _compute_g_pass_at_k(n, c, k, m)
 
-class BaseEvaluator:
 
+class BaseEvaluator:
     def __init__(self) -> None:
         self._dataset_replica_idx = 0  # Default value for dataset_replica_idx
         self.logger = AISLogger()
-
 
     @property
     def dataset_replica_idx(self):
         return self._dataset_replica_idx
 
-
-    def group(self, n: int, details: List[Dict[str, Any]],
-              test_set: Dataset) -> Dict[str, Any]:
+    def group(
+        self, n: int, details: List[Dict[str, Any]], test_set: Dataset
+    ) -> Dict[str, Any]:
         """Group the details by the example abbreviation.
 
         Args:
@@ -90,18 +92,20 @@ class BaseEvaluator:
             example_abbr = f"{example['subdivision']}_{example['idx']}"
             if example_abbr not in example2replications:
                 example2replications[example_abbr] = []
-            example.update({'detail': detail})
+            example.update({"detail": detail})
             example2replications[example_abbr].append(example)
         for _, replications in example2replications.items():
-                if len(replications) != n:
-                    raise PredictionInvalidException(
-                        ICLE_CODES.REPLICATION_LENGTH_MISMATCH,
-                        message=f"Replication length mismatch, len of replications: {len(replications)} != n: {n}",
-                    )
+            if len(replications) != n:
+                raise PredictionInvalidException(
+                    ICLE_CODES.REPLICATION_LENGTH_MISMATCH,
+                    message=f"Replication length mismatch, len of replications: {len(replications)} != n: {n}",
+                )
 
         return example2replications
 
-    def reduce(self, details: List[Dict[str, Any]], k_list: List[int], n_val: int) -> Dict[str, Any]:
+    def reduce(
+        self, details: List[Dict[str, Any]], k_list: List[int], n_val: int
+    ) -> Dict[str, Any]:
         """Aggregate results.
 
         Args:
@@ -116,25 +120,25 @@ class BaseEvaluator:
 
         # Step 1: Global Sample Accuracy
         # Calculate global sample accuracy - using avg@n format
-        sample_accuracy = np.mean([detail[f'avg@{n_val}'] for detail in details])
-        eval_results[f'avg@{n_val}'] = 100 * sample_accuracy
+        sample_accuracy = np.mean([detail[f"avg@{n_val}"] for detail in details])
+        eval_results[f"avg@{n_val}"] = 100 * sample_accuracy
 
         # For each k value, compute global pass@k and cons@k
         for k_val in k_list:
             # Global pass@k
-            pass_at_k = np.mean([detail[f'pass@{k_val}'] for detail in details])
-            eval_results[f'pass@{k_val}'] = 100 * pass_at_k
+            pass_at_k = np.mean([detail[f"pass@{k_val}"] for detail in details])
+            eval_results[f"pass@{k_val}"] = 100 * pass_at_k
 
             # Global cons@k (majority voting accuracy)
-            cons_at_k = np.mean([detail[f'cons@{k_val}'] for detail in details])
-            eval_results[f'cons@{k_val}'] = 100 * cons_at_k
+            cons_at_k = np.mean([detail[f"cons@{k_val}"] for detail in details])
+            eval_results[f"cons@{k_val}"] = 100 * cons_at_k
 
         # Step 2: Category-wise Breakdown Statistics
         subdivision_map = defaultdict(list)
         for detail in details:
             try:
                 # Extract category names (first part of example_abbr)
-                subdiv = detail['example_abbr'].split('_')[0]
+                subdiv = detail["example_abbr"].split("_")[0]
                 subdivision_map[subdiv].append(detail)
             except KeyError:
                 # Ignore records without example_abbr
@@ -144,29 +148,34 @@ class BaseEvaluator:
         if len(subdivision_map) > 1:
             for subdiv, sub_details in sorted(subdivision_map.items()):
                 # Category-level avg@n
-                sub_avg = np.mean([d.get(f'avg@{n_val}', 0.0) for d in sub_details])
-                eval_results[f'{subdiv}/avg@{n_val}'] = 100 * sub_avg
+                sub_avg = np.mean([d.get(f"avg@{n_val}", 0.0) for d in sub_details])
+                eval_results[f"{subdiv}/avg@{n_val}"] = 100 * sub_avg
 
                 # Category-level pass@k & cons@k
                 for k_val in k_list:
-                    sub_pass = np.mean([d.get(f'pass@{k_val}', 0.0) for d in sub_details])
-                    eval_results[f'{subdiv}/pass@{k_val}'] = 100 * sub_pass
+                    sub_pass = np.mean(
+                        [d.get(f"pass@{k_val}", 0.0) for d in sub_details]
+                    )
+                    eval_results[f"{subdiv}/pass@{k_val}"] = 100 * sub_pass
 
-                    sub_cons = np.mean([d.get(f'cons@{k_val}', 0.0) for d in sub_details])
-                    eval_results[f'{subdiv}/cons@{k_val}'] = 100 * sub_cons
+                    sub_cons = np.mean(
+                        [d.get(f"cons@{k_val}", 0.0) for d in sub_details]
+                    )
+                    eval_results[f"{subdiv}/cons@{k_val}"] = 100 * sub_cons
 
         # Step 3: Preserve Raw Data
         # Define core metric names to exclude (avoid duplication)
         CORE_METRICS = {
-            'example_abbr', 'predictions',  # Metadata fields
+            "example_abbr",
+            "predictions",  # Metadata fields
             # Dynamic metrics
-            f'avg@{n_val}',
-            *{f'pass@{k}' for k in k_list},
-            *{f'cons@{k}' for k in k_list},
+            f"avg@{n_val}",
+            *{f"pass@{k}" for k in k_list},
+            *{f"cons@{k}" for k in k_list},
             # Metrics with category prefixes
-            *{f'{subdiv}/avg@{n_val}' for subdiv in subdivision_map},
-            *{f'{subdiv}/pass@{k}' for subdiv in subdivision_map for k in k_list},
-            *{f'{subdiv}/cons@{k}' for subdiv in subdivision_map for k in k_list}
+            *{f"{subdiv}/avg@{n_val}" for subdiv in subdivision_map},
+            *{f"{subdiv}/pass@{k}" for subdiv in subdivision_map for k in k_list},
+            *{f"{subdiv}/cons@{k}" for subdiv in subdivision_map for k in k_list},
         }
 
         # Dynamically extract all non-core fields
@@ -191,9 +200,9 @@ class BaseEvaluator:
                     sub_vals = [d[field] for d in subdivision_map[subdiv] if field in d]
                     if sub_vals:
                         try:
-                            eval_results[f'{subdiv}/{field}'] = 100 * np.mean(sub_vals)
+                            eval_results[f"{subdiv}/{field}"] = 100 * np.mean(sub_vals)
                         except TypeError:
-                            eval_results[f'{subdiv}/{field}'] = sub_vals
+                            eval_results[f"{subdiv}/{field}"] = sub_vals
             except (TypeError, ValueError):
                 # Non-numeric types - preserve original values
                 eval_results[field] = field_values
@@ -202,18 +211,17 @@ class BaseEvaluator:
                 for subdiv in subdivision_map:
                     sub_vals = [d[field] for d in subdivision_map[subdiv] if field in d]
                     if sub_vals:
-                        eval_results[f'{subdiv}/{field}'] = sub_vals
+                        eval_results[f"{subdiv}/{field}"] = sub_vals
 
         return eval_results
 
     def pred_postprocess(self, predictions: List) -> Dict:
-        if not hasattr(self, 'pred_postprocessor') or self.pred_postprocessor is None:
+        if not hasattr(self, "pred_postprocessor") or self.pred_postprocessor is None:
             return predictions
         else:
             kwargs = deepcopy(self.pred_postprocessor)
-            proc = TEXT_POSTPROCESSORS.get(kwargs.pop('type'))
+            proc = TEXT_POSTPROCESSORS.get(kwargs.pop("type"))
             return [proc(pred, **kwargs) for pred in predictions]
-
 
     def evaluate(
         self,
@@ -235,15 +243,21 @@ class BaseEvaluator:
         """
         # Check if predictions and references have the
         # same length if both are provided
-        if ('predictions' in score_kwargs and 'references' in score_kwargs
-                and score_kwargs['references'] is not None):
-            len_predictions, len_references = len(score_kwargs['predictions']), len(score_kwargs['references'])
+        if (
+            "predictions" in score_kwargs
+            and "references" in score_kwargs
+            and score_kwargs["references"] is not None
+        ):
+            len_predictions, len_references = (
+                len(score_kwargs["predictions"]),
+                len(score_kwargs["references"]),
+            )
             if len_predictions != len_references:
                 raise PredictionInvalidException(
-                        ICLE_CODES.UNKNOWN_ERROR,
-                        message=f'Predictions and references must have the same length, '
-                        f'but got prediction({len_predictions}) and references({len_references})',
-                    )
+                    ICLE_CODES.UNKNOWN_ERROR,
+                    message=f"Predictions and references must have the same length, "
+                    f"but got prediction({len_predictions}) and references({len_references})",
+                )
 
         real_size = len(original_dataset) // n  # dataset size of each replica
         all_details = []
@@ -273,16 +287,34 @@ class BaseEvaluator:
         # Run evaluation for each replica
         for i in range(n):
             self._dataset_replica_idx = i
-            self.logger.info(f'Running {i+1}-th replica of evaluation')
+            self.logger.info(f"Running {i + 1}-th replica of evaluation")
 
             current_params = {
                 key: select_fn(i, real_size, n, value)
                 for key, value in score_kwargs.items()
             }
-            current_params['predictions'] = self.pred_postprocess(
-                current_params['predictions'])
+            current_params["predictions"] = self.pred_postprocess(
+                current_params["predictions"]
+            )
             results = self.score(**current_params)
-            details = results.pop('details', None)
+            details = results.pop("details", None)
+
+            # Generate fallback details if the evaluator did not return any
+            if details is None:
+                preds_ = current_params.get("predictions", [])
+                refs_ = current_params.get("references", [])
+                if len(preds_) > 0 and len(preds_) == len(refs_):
+                    details = []
+                    for p, r in zip(preds_, refs_):
+                        details.append(
+                            {
+                                "pred": p,
+                                "answer": r,
+                                "eval_res": str(p).strip() == str(r).strip(),
+                                "eval_details": None,
+                            }
+                        )
+
             if details is not None:
                 if isinstance(details, Dict):
                     details = list(details.values())
@@ -297,11 +329,13 @@ class BaseEvaluator:
                 eval_results[key].append(single_replica_results[key])
         for key in deepcopy(eval_results):
             if isinstance(eval_results[key][0], float) or isinstance(
-                    eval_results[key][0], int):
+                eval_results[key][0], int
+            ):
                 if n > 1:
                     new_key = "accuracy" if key == "pass@1" else key
-                    eval_results[new_key + f' ({n} runs average)'] = np.mean(
-                        eval_results[key])
+                    eval_results[new_key + f" ({n} runs average)"] = np.mean(
+                        eval_results[key]
+                    )
                     eval_results.pop(key)
                 else:
                     eval_results[key] = np.mean(eval_results[key])
@@ -314,34 +348,36 @@ class BaseEvaluator:
             eval_details = []
 
             for example_abbr, examples in grouped_examples.items():
-                detail = {'predictions': [], 'example_abbr': example_abbr}
+                detail = {"predictions": [], "example_abbr": example_abbr}
                 c = 0
 
                 for example in examples:
-                    detail['predictions'].append(example['detail'])
+                    detail["predictions"].append(example["detail"])
 
                     correct_key = None
-                    for key in ['correct', 'is_correct', 'cascade_correct']:
-                        if key in example['detail']:
+                    for key in ["correct", "is_correct", "cascade_correct"]:
+                        if key in example["detail"]:
                             correct_key = key
                             break
 
                     if correct_key:
                         can_calculate = True
-                        c += int(example['detail'][correct_key])
+                        c += int(example["detail"][correct_key])
 
                 if can_calculate and n > 1 and max(k_list) > 1:
                     total_samples = len(examples)
 
                     # avg@n = Number of correct samples / Total number of samples
-                    detail[f'avg@{n}'] = c / total_samples
+                    detail[f"avg@{n}"] = c / total_samples
 
                     for _k in k_list:
-                        detail[f'pass@{_k}'] = compute_pass_at_k(n=total_samples, c=c, k=_k)
+                        detail[f"pass@{_k}"] = compute_pass_at_k(
+                            n=total_samples, c=c, k=_k
+                        )
                         if c > _k / 2:
-                            detail[f'cons@{_k}'] = 1.0
+                            detail[f"cons@{_k}"] = 1.0
                         else:
-                            detail[f'cons@{_k}'] = 0.0
+                            detail[f"cons@{_k}"] = 0.0
 
                 eval_details.append(detail)
 
@@ -349,13 +385,13 @@ class BaseEvaluator:
                 eval_results.update(self.reduce(eval_details, k_list, n))
 
             # Store eval_details in eval_results
-            eval_results['details'] = eval_details
+            eval_results["details"] = eval_details
 
             # Process details to flatten the predictions
             for detail in eval_details:
                 # Extract all prediction fields and flatten them
                 flattened_predictions = {}
-                for pred in detail['predictions']:
+                for pred in detail["predictions"]:
                     for k, v in pred.items():
                         if k not in flattened_predictions:
                             flattened_predictions[k] = [v]
@@ -367,21 +403,22 @@ class BaseEvaluator:
                     detail[k] = v
 
                 # Remove the original predictions field
-                detail.pop('predictions')
+                detail.pop("predictions")
 
             return eval_results
 
         # If there are no details, return results
         return results
 
-
     def score(self):
-        raise AISBenchImplementationError(ICLE_CODES.UNKNOWN_ERROR,
-                                           f"Method {self.__class__.__name__} hasn't been implemented yet")
+        raise AISBenchImplementationError(
+            ICLE_CODES.UNKNOWN_ERROR,
+            f"Method {self.__class__.__name__} hasn't been implemented yet",
+        )
 
     @staticmethod
     def is_num_equal(predictions, references):
         if len(predictions) != len(references):
-            return {'error': 'preds and refrs have different length'}
+            return {"error": "preds and refrs have different length"}
         else:
             return

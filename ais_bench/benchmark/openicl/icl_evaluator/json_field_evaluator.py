@@ -298,22 +298,40 @@ class JsonFieldEvaluator(BaseEvaluator):
         total_accuracy = 0.0
         total_parse_success = 0.0
         all_field_scores = {}
+        details = []
 
         for pred, gold in zip(predictions, references):
             result = self._evaluate_single(str(pred), str(gold))
             total_accuracy += result["accuracy"]
             total_parse_success += result.get("parse_success", 1.0)
 
+            detail_item = {
+                "pred": pred,
+                "answer": gold,
+            }
+            if result["accuracy"] == 1.0:
+                detail_item["eval_res"] = True
+            elif result["accuracy"] == 0.0:
+                detail_item["eval_res"] = False
+            else:
+                detail_item["eval_res"] = str(round(result["accuracy"] * 100, 2))
+
+            detail_item["eval_details"] = None
+
             if self.return_details and "field_scores" in result:
+                detail_item["eval_details"] = result["field_scores"]
                 for field, score in result["field_scores"].items():
                     if field not in all_field_scores:
                         all_field_scores[field] = []
                     all_field_scores[field].append(score)
 
+            details.append(detail_item)
+
         n = len(predictions)
         final_result = {
             "accuracy": (total_accuracy / n) * 100 if n > 0 else 0.0,
             "parse_success_rate": (total_parse_success / n) * 100 if n > 0 else 0.0,
+            "details": details,
         }
 
         # 添加每个字段的平均分

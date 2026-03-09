@@ -169,6 +169,10 @@ def run_evaluation(
         queue.append((dset, dset, "generic"))
 
     ais_bench_output = ROOT / "outputs" / "default"
+    # 每次评测前清理旧的 default 目录，避免历史结果占用磁盘
+    if ais_bench_output.exists():
+        shutil.rmtree(ais_bench_output)
+    ais_bench_output.mkdir(parents=True, exist_ok=True)
     results = []
 
     for i, (task_name, suite, task_type) in enumerate(queue, 1):
@@ -213,8 +217,9 @@ def run_evaluation(
         duration = time.time() - start_time
 
         # 解析最新输出目录里的 summary，拿到准确率、对应的 ais_bench 时间戳目录名、以及样本数
+        # 传入 run_start_time，确保只读取本次任务生成的 summary，杜绝跨任务串扰
         accuracy, ais_bench_dir, num_samples = _parse_latest_task_result(
-            ais_bench_output, suite_name_pattern=suite
+            ais_bench_output, suite_name_pattern=suite, run_start_time=start_time
         )
         results.append(
             {
@@ -233,8 +238,16 @@ def run_evaluation(
     return results
 
 
-def _parse_latest_task_result(ais_bench_output: Path, suite_name_pattern: str) -> tuple:
+def _parse_latest_task_result(
+    ais_bench_output: Path, suite_name_pattern: str, run_start_time: float = None
+) -> tuple:
     """从最新 summary txt 里解析准确率和条数，同时返回对应的时间戳目录名。
+
+    Args:
+        ais_bench_output: ais_bench 输出根目录（outputs/default/）
+        suite_name_pattern: 当前任务的 suite 名称（仅用于 jsonl 文件查找回退）
+        run_start_time: 调用 ais_bench 前的 time.time()，只读取在此之后生成的 summary，
+                        防止多任务顺序执行时结果串扰。None 时退化为旧行为（取最新一条）。
 
     Returns:
         (accuracy: float | None, dir_name: str | None, num_samples: int | None)
@@ -247,6 +260,9 @@ def _parse_latest_task_result(ais_bench_output: Path, suite_name_pattern: str) -
             reverse=True,
         )
         for summary_path in summaries:
+            # 若提供了启动时间，跳过在任务启动之前就已存在的 summary（其他任务的遗留结果）
+            if run_start_time is not None and summary_path.stat().st_mtime <= run_start_time:
+                continue
             try:
                 text = summary_path.read_text(encoding="utf-8")
 
@@ -258,49 +274,75 @@ def _parse_latest_task_result(ais_bench_output: Path, suite_name_pattern: str) -
                         csv_start = idx
                         break
 
-                if csv_start != -1:
-                    # 约 csv_start + 2 行是 header, csv_start + 3 是正式数据
-                    data_lines = []
-                    for i in range(csv_start + 3, len(lines)):
-                        if lines[i].startswith("$") or not lines[i].strip():
-                            break
-                        data_lines.append(lines[i].strip())
+                if csv_start == -1:
+                    continue
 
-                    if data_lines:
-                        dataset_abbr = ""
-                        total_acc = 0.0
-                        for line in data_lines:
-                            parts = line.split(",")
-                            if len(parts) >= 5:
-                                dataset_abbr = parts[0]
-                                total_acc += float(parts[-1])
+                # 约 csv_start + 2 行是 header, csv_start + 3 是正式数据
+                data_lines = []
+                for i in range(csv_start + 3, len(lines)):
+                    if lines[i].startswith("$") or not lines[i].strip():
+                        break
+                    data_lines.append(lines[i].strip())
 
-                        accuracy_val = total_acc / len(data_lines)
-                        dir_name = summary_path.parent.parent.name
+                if not data_lines:
+                    continue
 
-                        # 寻找对应的 jsonl 获取条目数
-                        num_samples = None
-                        pred_dir = summary_path.parent.parent / "predictions"
-                        jsonl_files = list(pred_dir.glob(f"**/{dataset_abbr}.jsonl"))
-                        if not jsonl_files:
-                            jsonl_files = list(
-                                pred_dir.glob(
-                                    f"**/*{suite_name_pattern.replace('_suite', '')}*.jsonl"
-                                )
+                # 解析准确率（允许部分行为 "-"，只统计有数值的行）
+                dataset_abbr = ""
+                total_acc = 0.0
+                valid_count = 0
+                for line in data_lines:
+                    parts = line.split(",")
+                    if len(parts) >= 5:
+                        dataset_abbr = parts[0]
+                        try:
+                            total_acc += float(parts[-1])
+                            valid_count += 1
+                        except (ValueError, TypeError):
+                            pass  # accuracy 为 "-" 时跳过，不报错
+
+                accuracy_val = (total_acc / valid_count) if valid_count > 0 else None
+                dir_name = summary_path.parent.parent.name
+
+                # 统计样本数：优先用 results/**/*_details.jsonl（已按 id 去重，数量精确）
+                # 找不到时回退到 predictions/**/*.jsonl（可能含 resume 追加的重复行）
+                num_samples = None
+                task_dir = summary_path.parent.parent
+                details_files = list((task_dir / "results").glob("**/*_details.jsonl"))
+                if details_files:
+                    try:
+                        num_samples = sum(
+                            sum(1 for _ in open(f, "r", encoding="utf-8"))
+                            for f in details_files
+                        )
+                    except Exception:
+                        pass
+
+                if num_samples is None:
+                    pred_dir = task_dir / "predictions"
+                    jsonl_files = list(pred_dir.glob(f"**/{dataset_abbr}.jsonl"))
+                    if not jsonl_files:
+                        jsonl_files = list(
+                            pred_dir.glob(
+                                f"**/*{suite_name_pattern.replace('_suite', '')}*.jsonl"
                             )
-                        if not jsonl_files:
-                            jsonl_files = list(pred_dir.glob(f"**/*.jsonl"))
+                        )
+                    if not jsonl_files:
+                        jsonl_files = list(pred_dir.glob(f"**/*.jsonl"))
+                    if jsonl_files:
+                        try:
+                            num_samples = sum(
+                                sum(1 for _ in open(f, "r", encoding="utf-8"))
+                                for f in jsonl_files
+                            )
+                        except Exception:
+                            pass
 
-                        if jsonl_files:
-                            try:
-                                num_samples = sum(
-                                    1
-                                    for _ in open(jsonl_files[0], "r", encoding="utf-8")
-                                )
-                            except Exception:
-                                pass
-
-                        return round(accuracy_val, 2), dir_name, num_samples
+                return (
+                    round(accuracy_val, 2) if accuracy_val is not None else None,
+                    dir_name,
+                    num_samples,
+                )
             except Exception:
                 pass
     except Exception:

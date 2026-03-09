@@ -2,14 +2,16 @@
 
 ## 1. 概述
 
-本指南介绍如何将现有的评测项目打包为 Docker 镜像，并在无公网连接的私域环境中进行离线、全自动化的多任务评测。
-该方案支持：
+本指南介绍如何将评测项目的**运行环境**打包为 Docker 镜像，并在无公网连接的私域环境中进行离线、全自动化的多任务评测。
 
-- **高并发加速**：通过环境变量控制 API 并发数，极大缩短数万条数据的评测时间。
-- **配置解耦**：测试数据 (`data`)、评测结果 (`outputs`)、API 密钥 (`.env`) 全部提取到宿主机，运行时动态挂载，无需修改镜像。
-- **本地自部署模型**：不仅支持私域 MaaS，还新增了本地直接部署推理（local_qwen）支持，并优化了并发调度。
-- **自动化流水线接入**：通过自定义的 `eval_entry.py` 脚本，每次评测指定唯一的 `task-id`，混合跑自定义与通用数据集，输出结构化的 `report.json`。
-- **SSH 断连持久化**：`run_mixed_benchmark.sh` 内置 nohup 后台模式，SSH 断开后评测进程持续运行，日志自动落盘。
+**环境与代码分离**是本方案的核心设计：
+
+| 内容 | 载体 | 更新方式 |
+|------|------|---------|
+| Python 运行时、pip 依赖、ais_bench 框架 | Docker 镜像 | 依赖变更时重新构建 |
+| `eval_entry.py`、`scripts/` 业务脚本 | 宿主机 `code/` 目录（`-v` 挂载） | 直接在服务器上编辑，无需重建镜像 |
+| `data/`（评测数据）、`outputs/`（结果） | 宿主机挂载目录 | 随时替换 |
+| `.env`（API 密钥） | 宿主机（不进入镜像） | 随时修改 |
 
 ---
 
@@ -27,15 +29,15 @@ docker build -t benchmark-eval:latest .
 
 ### 2.2 导出离线镜像包
 
-构建完成后，将镜像打包为压缩文件并拷贝至私域服务器：
-
 ```bash
 docker save benchmark-eval:latest | gzip > benchmark-eval.tar.gz
 ```
 
+将 `benchmark-eval.tar.gz` 传输到私域服务器。
+
 ---
 
-## 3. 私域网络部署与运行
+## 3. 私域网络部署
 
 ### 3.1 导入镜像
 
@@ -45,83 +47,73 @@ docker save benchmark-eval:latest | gzip > benchmark-eval.tar.gz
 docker load < benchmark-eval.tar.gz
 ```
 
-### 3.2 创建运行时工作目录结构
+### 3.2 创建工作目录结构
 
-在私域服务器上规划一个专门的评测工作目录（如 `/opt/eval_workspace/`），**所有的评测数据都在 `data` 目录下**：
+规划一个专门的评测工作目录（如 `/opt/eval_workspace/`），按如下结构准备文件：
 
 ```text
 /opt/eval_workspace/
-├── .env                  # API 密钥与基础配置
+├── .env                  # API 密钥与基础配置（必须存在）
 ├── data/                 # 统一数据挂载根目录
-│   ├── custom_task/      # 自定义任务的专用子目录
-│   │   ├── task_34.jsonl 
+│   ├── custom_task/      # 自定义任务数据
+│   │   ├── task_34.jsonl
 │   │   └── task_36.jsonl
-│   ├── telequad/         # 通用数据集的目录（以 telequad 为例）
-│   └── mmlu_redux/       # 另一个通用数据集的目录
-└── outputs/              # (自动创建) 存放按 task-id 分类的评测结果
+│   ├── telequad/         # 通用数据集目录
+│   └── mmlu_redux/       # 另一个通用数据集
+├── code/                 # 业务脚本（直接在服务器上维护）
+│   ├── eval_entry.py     # 主评测入口脚本
+│   └── scripts/          # 辅助脚本目录
+├── outputs/              # (自动创建) 按 task-id 分类的评测结果
+└── logs/                 # (自动创建) 后台运行日志
 ```
 
-**配置 `.env` 文件示例：**
+将 `eval_entry.py` 和 `scripts/` 从开发机复制到服务器：
+
+```bash
+scp eval_entry.py user@server:/opt/eval_workspace/code/
+scp -r scripts/ user@server:/opt/eval_workspace/code/
+```
+
+### 3.3 配置 `.env` 文件
 
 ```env
 # ====== 私域 MaaS 服务配置 ======
 MAAS_API_KEY=your-private-api-key
-MAAS_HOST_IP=10.0.0.1            # 私域模型服务 IP
-MAAS_HOST_PORT=30175             # 服务端口（默认 30175）
-MAAS_URL=/v1/chat/completions    # 接口路径
+MAAS_HOST_IP=10.0.0.1
+MAAS_HOST_PORT=30175
+MAAS_URL=/v1/chat/completions
 
 # ====== 本地部署模型配置 (local_qwen) ======
 LOCAL_MODEL_NAME=qwen3-14b
 LOCAL_HOST_IP=188.109.35.159
 LOCAL_HOST_PORT=8113
 LOCAL_URL=/v1/chat/completions
-LOCAL_CONCURRENCY=100            # 非常关键：控制 HTTP 请求并发数量！
+LOCAL_CONCURRENCY=100    # 控制 HTTP 请求并发数量
 
 # ====== 默认全局控制 ======
-EVAL_MODEL_NAME=Qwen3-32B        # 默认模型名
-EVAL_CONCURRENCY=5               # 如果未配置，默认的 ais_bench 层面并发度
+EVAL_MODEL_NAME=Qwen3-32B
+EVAL_CONCURRENCY=5
 EVAL_VERBOSE=false
 ```
 
 ---
 
-## 4. 混合任务评测最佳实践
+## 4. 执行评测
 
-本框架支持两种类别的任务：
+### 4.1 使用 `run_mixed_benchmark.sh` 一键启动（推荐）
 
-1. **自定义任务 (`--tasks`)**: 从 `data/custom_task/task_XX.jsonl` 中读取。
-2. **内置通用数据集 (`--generic-datasets`)**: 读取 `data/` 目录下同名的内置数据集源文件。
-
-### 推荐：使用 `run_mixed_benchmark.sh` 一键启动
-
-项目提供了 `run_mixed_benchmark.sh` 脚本，封装了完整的评测流程，**支持 SSH 断连后后台持续运行**，无需手写 docker 命令。
-
-**基本用法（使用默认工作目录 `/opt/eval_workspace`）：**
+将 `run_mixed_benchmark.sh` 放到服务器上（任意位置），执行：
 
 ```bash
-bash run_mixed_benchmark.sh
+bash run_mixed_benchmark.sh --workspace /opt/eval_workspace
 ```
 
-**指定自定义工作目录：**
-
-```bash
-bash run_mixed_benchmark.sh --workspace /data/myproject/eval
-```
-
-工作目录须包含以下结构（与第 3.2 节一致）：
-
-```text
-<workspace>/
-├── .env          # API 密钥与基础配置（必须存在，缺失时脚本报错退出）
-├── data/         # 统一数据挂载根目录
-└── outputs/      # (自动创建) 评测结果
-```
-
-执行后终端立即返回，日志自动写入 `<workspace>/logs/<task-id>.log`：
+脚本会自动以 **nohup 后台模式**启动，终端立即返回，SSH 断开后评测持续运行：
 
 ```text
 🔄 以后台模式启动（SSH 断开后进程将持续运行）
 📂 工作目录: /opt/eval_workspace
+💻 代码目录: /opt/eval_workspace/code
 📄 日志文件: /opt/eval_workspace/logs/mixed_eval_20260305_160000.log
 👀 实时查看日志: tail -f /opt/eval_workspace/logs/mixed_eval_20260305_160000.log
 🛑 终止任务: docker stop $(docker ps -q --filter ancestor=benchmark-eval:latest)
@@ -129,36 +121,32 @@ bash run_mixed_benchmark.sh --workspace /data/myproject/eval
 ✅ 后台 PID: 12345，安全断开 SSH 即可。
 ```
 
+**脚本参数说明：**
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--workspace` | `/opt/eval_workspace` | 评测工作目录 |
+| `--code-dir` | `<workspace>/code` | 业务代码目录，含 `eval_entry.py` 和 `scripts/` |
+| `--image-tag` | `benchmark-eval:latest` | Docker 镜像 tag |
+| `--image-tar` | （无） | 镜像离线包路径，镜像不存在时自动 load |
+
 **重连后查看进度：**
 
 ```bash
-# 实时跟踪日志
 tail -f /opt/eval_workspace/logs/mixed_eval_*.log
-
-# 确认容器仍在运行
-docker ps
+docker ps   # 确认容器仍在运行
 ```
 
-### 控制评测条数（快速冒烟测试）
-
-修改脚本中的 `--num-prompts` 参数，限制每个任务最多评测 N 条数据：
-
-```bash
-# 脚本中对应行：
-        --num-prompts 5    # 改为 5 条，用于验证环境连通性
-```
-
-### 直接调用 docker run（高级用法）
-
-如需临时调整参数，也可以绕过脚本直接调用：
+### 4.2 直接调用 `docker run`（临时调试用）
 
 ```bash
 docker run --rm \
     -e PYTHONUNBUFFERED=1 \
     --env-file /opt/eval_workspace/.env \
-    -e LOCAL_CONCURRENCY=100 \
     -v /opt/eval_workspace/data:/app/data \
     -v /opt/eval_workspace/outputs:/app/outputs \
+    -v /opt/eval_workspace/code/eval_entry.py:/app/eval_entry.py \
+    -v /opt/eval_workspace/code/scripts:/app/scripts \
     benchmark-eval:latest \
     python eval_entry.py \
         --task-id pipeline_round_1 \
@@ -167,41 +155,49 @@ docker run --rm \
         --model-config local_qwen
 ```
 
-> **注意**：直接 `docker run` 为前台模式，SSH 断开后进程会终止。如需后台运行，请使用 `run_mixed_benchmark.sh` 脚本或在命令前加 `nohup ... &`。
+> **注意**：直接 `docker run` 为前台模式，SSH 断开后进程会终止。如需后台运行，请使用 `run_mixed_benchmark.sh`。
 
 ---
 
-## 5. 补充：直接使用 ais_bench 原生并行运行 (特殊排查时使用)
+## 5. 在服务器上修改代码（无需重建镜像）
 
-如果你希望真正打破“任务与任务之间的串行隔离”，让若干个任务在**同一时刻同时向大模型发包**，可以直接不走 `eval_entry.py`，而是调用底层的 `ais_bench` 命令。
+这是本方案的核心优势。修改业务逻辑时，直接在服务器上编辑对应文件，重新执行脚本即可生效。
 
-> **注意：** 该模式**无法**统一汇总带子类别的 `report.json`，且当模型 API 处理能力有限时，并行发包不一定比独占串行快。
+**修改 `eval_entry.py`：**
 
 ```bash
-docker run --rm \
-    --env-file /opt/eval_workspace/.env \
-    -v /opt/eval_workspace/data:/app/data \
-    -v /opt/eval_workspace/outputs:/app/outputs \
-    benchmark-eval:latest \
-    ais_bench \
-        --models local_qwen \
-        --datasets task_34_suite task_36_suite \
-        --max-num-workers 2    # ← 开启此开关：让 2 个任务同时开跑
+vi /opt/eval_workspace/code/eval_entry.py
+# 或从本地 scp 覆盖：
+scp eval_entry.py user@server:/opt/eval_workspace/code/eval_entry.py
 ```
 
-这种场景下，`LOCAL_CONCURRENCY=100` 的资源会被这 `2` 个 task 瓜分并用。
+**修改 `ais_bench` 框架内部逻辑：**
+
+`ais_bench` 以 editable 模式安装在镜像内的 `/app/ais_bench/`，可通过额外挂载宿主机目录来覆盖它：
+
+```bash
+# 先将 ais_bench 源码复制到服务器
+scp -r ais_bench/ user@server:/opt/eval_workspace/code/ais_bench/
+
+# 在 docker run 中追加挂载（或修改 run_mixed_benchmark.sh 中的 docker run 命令）
+-v /opt/eval_workspace/code/ais_bench:/app/ais_bench
+```
+
+**什么时候需要重建镜像：**
+
+- 新增或升级 pip 依赖（修改 `requirements/` 文件后）
 
 ---
 
-## 6. 报告解析与持续集成 (CI/CD) 接入
+## 6. 报告解析
 
-执行完 `eval_entry.py` 后，在宿主机的 `/opt/eval_workspace/outputs/<task-id>/` 目录下会生成如下文件：
+执行完成后，在 `/opt/eval_workspace/outputs/<task-id>/` 下生成：
 
-1. **`report.md`**：综合战报，便于人工快速浏览。
-2. **`report.json`**：结构化的自动化报告，按任务类别提供了执行耗时和总体打分。
-3. **`details/`**：包含单条推理结果和带错题分析明细。
+1. **`report.md`**：综合战报，便于人工浏览。
+2. **`report.json`**：结构化报告，适合 CI/CD 自动解析。
+3. **`details/`**：单条推理结果与评分明细，按时间戳子目录组织。
 
-**`report.json` 样板：**
+**`report.json` 示例：**
 
 ```json
 {
@@ -210,16 +206,8 @@ docker run --rm \
   "timestamp": "2026-03-04 15:30:00",
   "avg_accuracy": 78.33,
   "summary": {
-    "custom": {
-      "count": 2,
-      "total_duration_sec": 45.9,
-      "avg_accuracy": 85.0
-    },
-    "generic": {
-      "count": 2,
-      "total_duration_sec": 120.1,
-      "avg_accuracy": 75.0
-    }
+    "custom": { "count": 2, "tasks_with_accuracy": 2, "total_duration_sec": 45.9, "avg_accuracy": 85.0 },
+    "generic": { "count": 2, "tasks_with_accuracy": 2, "total_duration_sec": 120.1, "avg_accuracy": 75.0 }
   },
   "tasks": [
     {
@@ -228,22 +216,21 @@ docker run --rm \
       "suite": "task_34_suite",
       "status": "success",
       "accuracy": 90.0,
-      "num_samples": 85,
+      "num_samples": 1000,
       "duration_sec": 15.2,
       "returncode": 0,
       "details_dir": "details/20260304_153000"
     }
-    // ...
   ]
 }
 ```
 
-在训练流水线中可以通过检测返回码和解析 `avg_accuracy` 等字段：
+**在流水线中解析结果：**
 
 ```bash
 python eval_entry.py ...
 if [ $? -eq 0 ]; then
-    SCORE=$(jq '.avg_accuracy' outputs/pipeline_round_1/report.json)
+    SCORE=$(jq '.avg_accuracy' /opt/eval_workspace/outputs/pipeline_round_1/report.json)
     if (( $(echo "$SCORE >= 80.0" | bc -l) )); then
         echo "模型达标！"
     fi
