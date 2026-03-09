@@ -132,3 +132,94 @@ def parse_serving_url(url: str):
     if parsed.port is None:
         raise ValueError(f"URL 中缺少端口号: {url}")
     return parsed.hostname, str(parsed.port)
+
+
+def build_docker_cmd(
+    exp_name: str,
+    task_id: str,
+    output_dir: Path,
+    host_ip: str,
+    host_port: str,
+    workspace: Path,
+) -> list:
+    """构造 docker run 命令列表。
+
+    设计要点：
+    - 每个模型挂载独立输出目录 output_dir → /app/outputs（避免并发冲突）
+    - LOCAL_HOST_IP / LOCAL_HOST_PORT 覆盖 .env 中的静态值
+    - LOCAL_MODEL_NAME 设为实验目录名，方便报告中识别
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "docker", "run", "--rm",
+        "-e", "PYTHONUNBUFFERED=1",
+        "--env-file", str(workspace / ".env"),
+        # 覆盖为本次动态分配的模型服务地址
+        "-e", f"LOCAL_HOST_IP={host_ip}",
+        "-e", f"LOCAL_HOST_PORT={host_port}",
+        "-e", f"LOCAL_MODEL_NAME={exp_name}",
+        "-e", "LOCAL_CONCURRENCY=50",
+        # 数据（共享只读）
+        "-v", f"{workspace}/data:/app/data",
+        # 代码（共享只读）
+        "-v", f"{workspace}/code/eval_entry.py:/app/eval_entry.py",
+        "-v", f"{workspace}/code/scripts:/app/scripts",
+        # 输出目录（每个模型独立，并发安全）
+        "-v", f"{output_dir}:/app/outputs",
+        IMAGE_TAG,
+        "python", "eval_entry.py",
+        "--task-id", task_id,
+        "--model-config", "local_qwen",
+    ]
+    if EVAL_TASKS:
+        cmd += ["--tasks"] + EVAL_TASKS
+    if EVAL_GENERIC:
+        cmd += ["--generic-datasets"] + EVAL_GENERIC
+    return cmd
+
+
+class DeployError(Exception):
+    """部署 API 业务错误（非网络错误）"""
+    pass
+
+
+def load_model(deploy_api: str, model_path: str, timeout: int = 120) -> dict:
+    """调用 /load_model，返回 config dict。
+
+    Args:
+        deploy_api: 如 "http://188.109.35.159:8080"
+        model_path: 如 "/dpc/exp/v260306/pt0_sft0/sft"
+
+    Returns:
+        {"model_id": "...", "model_name": "...", "url": "..."}
+
+    Raises:
+        DeployError: API 返回非 200 业务码（如"无空闲npu"）
+        requests.RequestException: 网络连接失败
+    """
+    resp = requests.post(
+        f"{deploy_api}/load_model",
+        json={"model_path": model_path},
+        timeout=timeout,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    if data.get("code") != 200:
+        raise DeployError(f"load_model 失败: {data.get('message', data)}")
+    return data["config"]
+
+
+def unload_model(deploy_api: str, model_id: str, timeout: int = 30) -> None:
+    """调用 /unload_model 卸载模型，释放 NPU。忽略"未找到模型ID"错误（已被卸载）。"""
+    try:
+        resp = requests.post(
+            f"{deploy_api}/unload_model",
+            json={"model_id": model_id},
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if data.get("code") not in (200, 10001):  # 10001 = 未找到（已卸载）
+            logging.warning(f"unload_model 异常响应: {data}")
+    except Exception as e:
+        logging.warning(f"unload_model 失败（忽略）: {e}")
