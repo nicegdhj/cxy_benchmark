@@ -148,8 +148,8 @@ def build_docker_cmd(
     - 每个模型挂载独立输出目录 output_dir → /app/outputs（避免并发冲突）
     - LOCAL_HOST_IP / LOCAL_HOST_PORT 覆盖 .env 中的静态值
     - LOCAL_MODEL_NAME 设为实验目录名，方便报告中识别
+    注意：调用方负责确保 output_dir 已存在（build_docker_cmd 不创建目录）
     """
-    output_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
         "docker", "run", "--rm",
         "-e", "PYTHONUNBUFFERED=1",
@@ -205,8 +205,13 @@ def load_model(deploy_api: str, model_path: str, timeout: int = 120) -> dict:
     resp.raise_for_status()
     data = resp.json()
     if data.get("code") != 200:
-        raise DeployError(f"load_model 失败: {data.get('message', data)}")
-    return data["config"]
+        raise DeployError(
+            f"load_model 失败 (code={data.get('code')}): {data.get('message', data)}"
+        )
+    try:
+        return data["config"]
+    except KeyError:
+        raise DeployError(f"load_model 响应缺少 config 字段: {data}")
 
 
 def unload_model(deploy_api: str, model_id: str, timeout: int = 30) -> None:
@@ -220,6 +225,11 @@ def unload_model(deploy_api: str, model_id: str, timeout: int = 30) -> None:
         resp.raise_for_status()
         data = resp.json()
         if data.get("code") not in (200, 10001):  # 10001 = 未找到（已卸载）
-            logging.warning(f"unload_model 异常响应: {data}")
+            logging.warning(f"unload_model 异常响应（NPU 可能未释放）: {data}")
+    except requests.exceptions.ConnectionError as e:
+        # 网络不通：NPU 可能未释放，用 error 级别以便排查资源泄漏
+        logging.error(f"unload_model 网络连接失败（NPU 可能未释放，请手动检查）: {e}")
+    except requests.exceptions.Timeout as e:
+        logging.error(f"unload_model 请求超时（NPU 可能未释放）: {e}")
     except Exception as e:
         logging.warning(f"unload_model 失败（忽略）: {e}")
