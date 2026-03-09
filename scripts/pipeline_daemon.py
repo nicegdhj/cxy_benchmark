@@ -315,15 +315,39 @@ def eval_worker(exp_name: str, cfg) -> dict:
 
     except DeployError as e:
         log.error(f"[{exp_name}] 部署失败: {e}")
-        return {"status": "failed", "error": str(e), "model_id": model_id}
+        return {
+            "status": "failed",
+            "error": str(e),
+            "model_id": model_id,
+            "serving_url": None,
+            "task_id": task_id,
+            "avg_accuracy": None,
+            "report_path": None,
+        }
 
     except subprocess.TimeoutExpired:
         log.error(f"[{exp_name}] 评测超时（>{cfg.eval_timeout}s）")
-        return {"status": "failed", "error": f"eval timeout after {cfg.eval_timeout}s", "model_id": model_id}
+        return {
+            "status": "failed",
+            "error": f"eval timeout after {cfg.eval_timeout}s",
+            "model_id": model_id,
+            "serving_url": None,
+            "task_id": task_id,
+            "avg_accuracy": None,
+            "report_path": None,
+        }
 
     except Exception as e:
         log.error(f"[{exp_name}] 未知错误: {e}", exc_info=True)
-        return {"status": "failed", "error": str(e), "model_id": model_id}
+        return {
+            "status": "failed",
+            "error": str(e),
+            "model_id": model_id,
+            "serving_url": None,
+            "task_id": task_id,
+            "avg_accuracy": None,
+            "report_path": None,
+        }
 
     finally:
         # ④ 无论成功失败，必须释放 NPU
