@@ -62,7 +62,7 @@ echo "▶ [2/4] 导出 Docker 镜像..."
 if [ -f "$IMAGE_PATH" ]; then
     echo "  ℹ️  镜像文件已存在，跳过导出: $IMAGE_PATH"
 else
-    echo "  正在导出 $IMAGE_NAME → $IMAGE_FILE（可能需要几分钟）..."
+    echo "  正在导出 $IMAGE_NAME → ${IMAGE_FILE}（可能需要几分钟）..."
     docker save "$IMAGE_NAME" | gzip > "$IMAGE_PATH"
     echo "  ✅ 镜像已导出: $IMAGE_PATH ($(du -sh "$IMAGE_PATH" | cut -f1))"
 fi
