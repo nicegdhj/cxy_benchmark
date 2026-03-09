@@ -440,3 +440,164 @@ def generate_batch_report(state: dict, report_path: Path) -> None:
         lines.append("")
 
     report_path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def recover_evaluating_state(state: dict, logger: logging.Logger) -> None:
+    """Daemon 重启后，将上次崩溃时处于 evaluating 状态的模型重置为 queued。
+
+    因为容器已经不在运行了（Daemon 崩溃），这些模型需要重新评测。
+    """
+    recovered = 0
+    for name, info in state["models"].items():
+        if info.get("status") == "evaluating":
+            info["status"] = "queued"
+            info.pop("model_id", None)
+            info.pop("serving_url", None)
+            info.pop("eval_start", None)
+            recovered += 1
+            logger.warning(f"[恢复] {name}: evaluating → queued（上次 Daemon 异常退出）")
+    if recovered:
+        logger.info(f"共恢复 {recovered} 个模型为 queued 状态")
+
+
+def run_daemon(cfg) -> None:
+    """主守护进程入口。"""
+    eval_dir  = Path(cfg.eval_dir)
+    models_dir = Path(cfg.models_dir)
+    state_file = eval_dir / "pipeline_state.json"
+    report_file = eval_dir / "batch_report.md"
+    pid_file   = eval_dir / "pipeline_daemon.pid"
+
+    eval_dir.mkdir(parents=True, exist_ok=True)
+
+    # 写 PID 文件（方便 kill）
+    pid_file.write_text(str(os.getpid()))
+
+    # 配置日志（同时输出到文件和 stdout）
+    log_file = eval_dir / "pipeline_daemon.log"
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(log_file, encoding="utf-8"),
+            logging.StreamHandler(sys.stdout),
+        ],
+    )
+    logger = logging.getLogger(__name__)
+    state_lock = threading.Lock()
+
+    logger.info("=" * 60)
+    logger.info("🚀 持续评测流水线守护进程启动")
+    logger.info(f"   训练目录: {models_dir}")
+    logger.info(f"   评测目录: {eval_dir}")
+    logger.info(f"   最大并发: {cfg.max_workers} 个模型")
+    logger.info(f"   轮询间隔: {cfg.poll_interval} 秒")
+    logger.info(f"   干跑模式: {cfg.dry_run}")
+    logger.info("=" * 60)
+
+    # 加载已有状态（支持断点续跑）
+    state = load_state(state_file)
+    recover_evaluating_state(state, logger)
+    save_state(state, state_file, state_lock)
+
+    running_futures: Dict[str, Future] = {}
+
+    with ThreadPoolExecutor(max_workers=cfg.max_workers) as executor:
+        while True:
+            # ── Step 1: 回收已完成的 worker ───────────────────────────
+            for exp_name in list(running_futures.keys()):
+                fut = running_futures[exp_name]
+                if fut.done():
+                    result = fut.result()
+                    now_str = datetime.now().isoformat(timespec="seconds")
+                    state["models"][exp_name].update({
+                        "status": result["status"],
+                        "eval_end": now_str,
+                        "avg_accuracy": result.get("avg_accuracy"),
+                        "report_path": result.get("report_path"),
+                        "error": result.get("error"),
+                    })
+                    icon = "✅" if result["status"] == "done" else "❌"
+                    acc = result.get("avg_accuracy")
+                    acc_str = f"{acc:.2f}%" if acc is not None else "N/A"
+                    logger.info(f"{icon} [{exp_name}] {result['status'].upper()} | 准确率: {acc_str}")
+                    del running_futures[exp_name]
+
+            # ── Step 2: 扫描新完成的训练实验 ──────────────────────────
+            found = scan_done_experiments(models_dir)
+            newly_added = 0
+            for exp_name in found:
+                if exp_name not in state["models"]:
+                    state["models"][exp_name] = {
+                        "status": "queued",
+                        "model_path": str(models_dir / exp_name / MODEL_SUBPATH),
+                        "discovered_at": datetime.now().isoformat(timespec="seconds"),
+                    }
+                    logger.info(f"🔍 发现新完成实验: {exp_name}")
+                    newly_added += 1
+
+            # ── Step 3: 派发新任务 ─────────────────────────────────────
+            queued = [
+                name for name, info in state["models"].items()
+                if info.get("status") == "queued"
+            ]
+            free_slots = cfg.max_workers - len(running_futures)
+            dispatched = 0
+            for exp_name in queued[:free_slots]:
+                state["models"][exp_name]["status"] = "evaluating"
+                state["models"][exp_name]["eval_start"] = datetime.now().isoformat(timespec="seconds")
+                fut = executor.submit(eval_worker, exp_name, cfg)
+                running_futures[exp_name] = fut
+                logger.info(f"▶ 派发评测: {exp_name} (空闲槽位: {free_slots - dispatched - 1})")
+                dispatched += 1
+
+            # ── Step 4: 更新状态和报告 ────────────────────────────────
+            state["stats"] = _compute_stats(state)
+            save_state(state, state_file, state_lock)
+            generate_batch_report(state, report_file)
+
+            stats = state["stats"]
+            logger.info(
+                f"📊 状态 | 完成:{stats.get('done',0)} "
+                f"评测中:{stats.get('evaluating',0)}({len(running_futures)}) "
+                f"排队:{stats.get('queued',0)} "
+                f"失败:{stats.get('failed',0)} "
+                f"发现:{stats.get('total_discovered',0)}"
+            )
+
+            # ── Step 5: 检查退出条件 ───────────────────────────────────
+            total = stats.get("total_discovered", 0)
+            terminal = stats.get("done", 0) + stats.get("failed", 0)
+            if total > 0 and terminal >= total and not running_futures:
+                logger.info("🏁 所有模型评测完成！")
+                logger.info(f"   最终报告: {report_file}")
+                break
+
+            # ── Step 6: 等待下次轮询 ───────────────────────────────────
+            logger.info(f"⏳ 等待 {cfg.poll_interval} 秒后下次轮询...")
+            time.sleep(cfg.poll_interval)
+
+    pid_file.unlink(missing_ok=True)
+    logger.info("守护进程正常退出。")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="持续评测流水线守护进程",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("--models-dir",    default=DEFAULT_MODELS_DIR)
+    parser.add_argument("--eval-dir",      default=DEFAULT_EVAL_DIR)
+    parser.add_argument("--workspace",     default=DEFAULT_WORKSPACE)
+    parser.add_argument("--deploy-api",    default=DEFAULT_DEPLOY_API)
+    parser.add_argument("--max-workers",   type=int, default=DEFAULT_MAX_WORKERS)
+    parser.add_argument("--poll-interval", type=int, default=DEFAULT_POLL_INTERVAL)
+    parser.add_argument("--eval-timeout",  type=int, default=DEFAULT_EVAL_TIMEOUT)
+    parser.add_argument("--dry-run",       action="store_true",
+                        help="只扫描和打印，不实际部署或评测")
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    run_daemon(args)
