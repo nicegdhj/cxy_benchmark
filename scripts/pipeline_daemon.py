@@ -71,8 +71,8 @@ def load_state(state_file: Path) -> dict:
     if state_file.exists():
         try:
             return json.loads(state_file.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, IOError):
-            pass
+        except (json.JSONDecodeError, IOError) as e:
+            logging.warning("无法解析 state 文件 %s，将从头开始：%s", state_file, e)
     return {
         "last_scan": datetime.now().isoformat(timespec="seconds"),
         "stats": {},
@@ -82,9 +82,9 @@ def load_state(state_file: Path) -> dict:
 
 def save_state(state: dict, state_file: Path, lock: threading.Lock) -> None:
     """将状态原子写入 state_file（先写临时文件再 rename，防止写坏）。"""
-    state["last_scan"] = datetime.now().isoformat(timespec="seconds")
     tmp = state_file.with_suffix(".tmp")
     with lock:
+        state["last_scan"] = datetime.now().isoformat(timespec="seconds")
         tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
         tmp.replace(state_file)
 
