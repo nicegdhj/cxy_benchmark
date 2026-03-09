@@ -97,3 +97,33 @@ def _compute_stats(state: dict) -> dict:
         if s in counts:
             counts[s] += 1
     return counts
+
+
+def scan_done_experiments(models_dir: Path) -> set:
+    """扫描 models_dir 下所有已完成训练的实验名（有 .done 且有 sft/ 子目录）。
+
+    Returns:
+        set of experiment directory names (str), e.g. {"pt0_sft0", "pt0_sft1"}
+    """
+    done = set()
+    if not models_dir.exists():
+        return done
+    for exp_dir in models_dir.iterdir():
+        if not exp_dir.is_dir():
+            continue
+        if (exp_dir / DONE_MARKER).exists() and (exp_dir / MODEL_SUBPATH).is_dir():
+            done.add(exp_dir.name)
+    return done
+
+
+def parse_serving_url(url: str):
+    """从部署 API 返回的 URL 中解析出 (host_ip, host_port)。
+
+    Args:
+        url: e.g. "http://188.109.35.159:10051/v1/chat/completions"
+
+    Returns:
+        (host_ip: str, host_port: str)
+    """
+    parsed = urlparse(url)
+    return parsed.hostname, str(parsed.port)

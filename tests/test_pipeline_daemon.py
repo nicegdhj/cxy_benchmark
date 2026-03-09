@@ -39,3 +39,30 @@ def test_save_and_reload_state(tmp_path, daemon_mod):
 
     reloaded = daemon_mod.load_state(state_file)
     assert reloaded["models"]["exp_001"]["status"] == "queued"
+
+
+def test_scan_done_experiments(tmp_path, daemon_mod):
+    """只返回有 .done 且有 sft/ 子目录的实验名"""
+    # 实验 A：训练完成（有 .done 且有 sft/）
+    exp_a = tmp_path / "pt0_sft0"
+    (exp_a / "sft").mkdir(parents=True)
+    (exp_a / ".done").touch()
+
+    # 实验 B：训练未完成（有 sft/ 但无 .done）
+    exp_b = tmp_path / "pt0_sft1"
+    (exp_b / "sft").mkdir(parents=True)
+
+    # 实验 C：有 .done 但无 sft/（训练产物不完整，跳过）
+    exp_c = tmp_path / "pt0_sft2"
+    exp_c.mkdir()
+    (exp_c / ".done").touch()
+
+    found = daemon_mod.scan_done_experiments(tmp_path)
+    assert found == {"pt0_sft0"}
+
+
+def test_parse_serving_url(daemon_mod):
+    """解析返回 URL 为 (host_ip, host_port)"""
+    ip, port = daemon_mod.parse_serving_url("http://188.109.35.159:10051/v1/chat/completions")
+    assert ip == "188.109.35.159"
+    assert port == "10051"
