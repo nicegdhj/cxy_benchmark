@@ -66,3 +66,31 @@ def test_parse_serving_url(daemon_mod):
     ip, port = daemon_mod.parse_serving_url("http://188.109.35.159:10051/v1/chat/completions")
     assert ip == "188.109.35.159"
     assert port == "10051"
+
+
+def test_scan_done_experiments_nonexistent_dir(daemon_mod, tmp_path):
+    """models_dir 不存在时返回空 set"""
+    found = daemon_mod.scan_done_experiments(tmp_path / "nonexistent")
+    assert found == set()
+
+
+def test_scan_done_experiments_ignores_files(tmp_path, daemon_mod):
+    """普通文件被跳过（只处理目录）"""
+    # 放一个普通文件
+    (tmp_path / "some_file.log").write_text("content")
+    # 放一个真正完成的实验
+    exp = tmp_path / "pt0_sft0"
+    (exp / "sft").mkdir(parents=True)
+    (exp / ".done").touch()
+
+    found = daemon_mod.scan_done_experiments(tmp_path)
+    assert found == {"pt0_sft0"}
+
+
+def test_parse_serving_url_raises_on_missing_port(daemon_mod):
+    """URL 没有端口号时应抛出 ValueError"""
+    try:
+        daemon_mod.parse_serving_url("http://188.109.35.159/v1/chat/completions")
+        assert False, "应该抛出 ValueError"
+    except ValueError as e:
+        assert "端口" in str(e) or "port" in str(e).lower()

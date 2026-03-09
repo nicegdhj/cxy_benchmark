@@ -120,10 +120,15 @@ def parse_serving_url(url: str):
     """从部署 API 返回的 URL 中解析出 (host_ip, host_port)。
 
     Args:
-        url: e.g. "http://188.109.35.159:10051/v1/chat/completions"
+        url: e.g. "http://188.109.35.159:10051/v1/chat/completions"，必须包含端口号
 
     Returns:
         (host_ip: str, host_port: str)
+
+    Raises:
+        ValueError: URL 中不含端口号
     """
     parsed = urlparse(url)
+    if parsed.port is None:
+        raise ValueError(f"URL 中缺少端口号: {url}")
     return parsed.hostname, str(parsed.port)
