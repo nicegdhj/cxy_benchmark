@@ -115,7 +115,7 @@ class TeleQnADataset(BaseDataset):
             random.shuffle(data_list)  # 原地随机打乱
             
             # 计算 40% 的数量
-            target_size = int(num_samples * 0.4)
+            target_size = int(num_samples * 0.04)
             data_list = data_list[:target_size]
             
             logger.debug(f"TeleQnA dataset size {num_samples} > 1000, sampled 40%: {len(data_list)}")

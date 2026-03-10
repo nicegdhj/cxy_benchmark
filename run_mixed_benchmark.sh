@@ -126,9 +126,9 @@ echo "🚀 开始执行混合评测任务，Task ID: ${TASK_ID}"
 echo "---------------------------------------------------"
 
 docker run --rm \
-    -e PYTHONUNBUFFERED=1 \
     --env-file "${ENV_FILE}" \
-    -e LOCAL_CONCURRENCY=50 \
+    -e LOCAL_CONCURRENCY=20 \
+    -e LOCAL_HOST_PORT=8113 \
     -v "${DATA_DIR}:/app/data" \
     -v "${OUTPUT_DIR}:/app/outputs" \
     -v "${CODE_DIR}/eval_entry.py:/app/eval_entry.py" \
@@ -140,7 +140,6 @@ docker run --rm \
         --num-prompts 500 \
         --tasks 1 34 36 43 44 60 \
         --generic-datasets \
-            mmlu_redux_gen_5_shot_str \
             ceval_gen_0_shot_str \
             gpqa_gen_0_shot_str \
             bbh_gen_3_shot_cot_chat \
@@ -156,7 +155,8 @@ docker run --rm \
             teledata_gen_0_shot \
             telequad_gen_0_shot \
             tele_exam_gen_0_shot \
-            tele_exam_gen_0_shot_str
+            tele_exam_gen_0_shot_str \
+            mmlu_redux_gen_5_shot_str 
 
 if [ $? -eq 0 ]; then
     echo "==================================================="

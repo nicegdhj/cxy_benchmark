@@ -86,9 +86,6 @@ def read_and_clear_statuses(tmp_file_dir, tmp_file_name_list):
     )
 
     for tmp_file in abs_path_list:
-        if not os.path.exists(tmp_file):
-            continue
-
         try:
             # read existing content
             with open(tmp_file, "r", encoding="utf-8") as f:

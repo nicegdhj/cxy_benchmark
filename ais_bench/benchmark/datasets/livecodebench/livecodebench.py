@@ -119,7 +119,8 @@ class LCBCodeGenerationDataset(BaseDataset):
                         for f in [
                             os.path.join(path, fn)
                             for fn in os.listdir(path)
-                            if fn.endswith(".jsonl") or fn.endswith(".json")
+                            if (fn.endswith(".jsonl") or fn.endswith(".json"))
+                            and not fn.startswith("._")
                         ]
                     ]
                 },
