@@ -128,7 +128,6 @@ echo "---------------------------------------------------"
 docker run --rm \
     --env-file "${ENV_FILE}" \
     -e LOCAL_CONCURRENCY=20 \
-    -e LOCAL_HOST_PORT=8113 \
     -v "${DATA_DIR}:/app/data" \
     -v "${OUTPUT_DIR}:/app/outputs" \
     -v "${CODE_DIR}/eval_entry.py:/app/eval_entry.py" \
