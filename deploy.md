@@ -88,7 +88,6 @@ MAAS_URL=/v1/chat/completions
 LOCAL_MODEL_NAME=qwen3-14b
 LOCAL_HOST_IP=188.109.35.159
 LOCAL_HOST_PORT=8113
-LOCAL_URL=/v1/chat/completions
 LOCAL_CONCURRENCY=100    # 控制 HTTP 请求并发数量
 
 # ====== 默认全局控制 ======

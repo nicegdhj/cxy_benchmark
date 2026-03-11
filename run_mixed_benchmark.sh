@@ -136,7 +136,6 @@ docker run --rm \
     python eval_entry.py \
         --task-id "${TASK_ID}" \
         --model-config local_qwen \
-        --num-prompts 500 \
         --tasks 1 34 36 43 44 60 \
         --generic-datasets \
             ceval_gen_0_shot_str \

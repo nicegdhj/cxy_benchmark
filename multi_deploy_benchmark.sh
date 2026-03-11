@@ -59,16 +59,14 @@ for TARGET in "${TARGETS[@]}"; do
     fi
     echo "📂 识别到实际可挂载的工作区目录: $REAL_WORKSPACE"
     
-    # 步骤 2: 修改独立工作区 .env 中的 LOCAL_HOST_PORT 和 LOCAL_URL 端口号
+    # 步骤 2: 修改独立工作区 .env 中的 LOCAL_HOST_PORT 端口号
     # 兼容 mac/linux 的 sed 用法
     if [[ "$OSTYPE" == "darwin"* ]]; then
         sed -i '' "s/^LOCAL_HOST_PORT=.*/LOCAL_HOST_PORT=${PORT}/g" "$REAL_WORKSPACE/.env"
-        sed -i '' "s|\(LOCAL_URL=.*:\)[0-9]\{1,\}\(/.*\)|\1${PORT}\2|g" "$REAL_WORKSPACE/.env"
     else
         sed -i "s/^LOCAL_HOST_PORT=.*/LOCAL_HOST_PORT=${PORT}/g" "$REAL_WORKSPACE/.env"
-        sed -i "s|\(LOCAL_URL=.*:\)[0-9]\{1,\}\(/.*\)|\1${PORT}\2|g" "$REAL_WORKSPACE/.env"
     fi
-    echo "✅ 已成功覆盖 $REAL_WORKSPACE/.env 设置，LOCAL_HOST_PORT=$PORT 且同步更新了 LOCAL_URL"
+    echo "✅ 已成功覆盖 $REAL_WORKSPACE/.env 设置，LOCAL_HOST_PORT=$PORT"
     
     # 步骤 3: 寻找是否有需 load 的离线镜像包（第一次需 load 后续会跳过）
     TAR_PATH="$REAL_WORKSPACE/benchmark-eval.tar.gz"
