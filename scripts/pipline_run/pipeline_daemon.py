@@ -228,3 +228,192 @@ def parse_serving_url(url: str):
     if parsed.port is None:
         raise ValueError(f"URL 中缺少端口号: {url}")
     return parsed.hostname, str(parsed.port)
+
+
+# ── Docker 命令构造与 fmt 归集 ─────────────────────────────────────────────
+
+def build_docker_cmd(
+    exp_name: str,
+    task_id: str,
+    output_dir: Path,
+    host_ip: str,
+    host_port: str,
+    workspace: Path,
+    config: dict,
+) -> list:
+    """构造 docker run 命令。
+
+    关键设计：
+    - data/ 和 code/ 以只读方式共享挂载（:ro），所有容器复用同一份
+    - outputs/ 每个实验组独立挂载（可写），避免并发冲突
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "docker", "run", "--rm",
+        "-e", "PYTHONUNBUFFERED=1",
+        "--env-file", str(workspace / ".env"),
+        "-e", f"LOCAL_HOST_IP={host_ip}",
+        "-e", f"LOCAL_HOST_PORT={host_port}",
+        "-e", f"LOCAL_MODEL_NAME={exp_name}",
+        "-e", "LOCAL_CONCURRENCY=50",
+        "-v", f"{workspace}/data:/app/data:ro",
+        "-v", f"{workspace}/code/eval_entry.py:/app/eval_entry.py:ro",
+        "-v", f"{workspace}/code/scripts:/app/scripts:ro",
+        "-v", f"{output_dir}:/app/outputs",
+        config["image_tag"],
+        "python", "eval_entry.py",
+        "--task-id", task_id,
+        "--model-config", "local_qwen",
+    ]
+    if config["eval_tasks"]:
+        cmd += ["--tasks"] + config["eval_tasks"]
+    if config["eval_generic"]:
+        cmd += ["--generic-datasets"] + config["eval_generic"]
+    return cmd
+
+
+def collect_to_fmt(exp_name: str, task_id: str, output_dir: Path, fmt_dir: Path) -> None:
+    """将评测结果从 output_dir/<task_id>/ 归集到 fmt/<exp_name>/。
+
+    目标结构（与现有 outputs/fmt/ 一致）：
+      fmt/<exp_name>/
+      ├── report.json
+      ├── report.md
+      └── details/
+    """
+    src = output_dir / task_id
+    if not src.exists():
+        logging.warning(f"[{exp_name}] 评测输出目录不存在，跳过 fmt 归集: {src}")
+        return
+
+    dst = fmt_dir / exp_name
+    dst.mkdir(parents=True, exist_ok=True)
+
+    for fname in ("report.json", "report.md"):
+        src_file = src / fname
+        if src_file.exists():
+            shutil.copy2(src_file, dst / fname)
+
+    src_details = src / "details"
+    if src_details.exists():
+        dst_details = dst / "details"
+        if dst_details.exists():
+            shutil.rmtree(dst_details)
+        shutil.copytree(src_details, dst_details)
+
+    logging.info(f"[{exp_name}] 结果已归集到 {dst}")
+
+
+def read_report_accuracy(report_path: Path) -> Optional[float]:
+    """读取 report.json，返回 avg_accuracy。"""
+    try:
+        data = json.loads(report_path.read_text(encoding="utf-8"))
+        return data.get("avg_accuracy")
+    except Exception:
+        return None
+
+
+# ── Worker 线程 ────────────────────────────────────────────────────────────
+
+def eval_worker(exp_name: str, config: dict, pool: MachinePool) -> dict:
+    """Worker 线程：allocate → lock → load → eval → unload → release → collect。
+
+    Args:
+        exp_name: 实验组名，如 "pt14_sft0"
+        config: 配置字典（含 work_dir, workspace, dry_run 等）
+        pool: GPU 机器池
+
+    Returns:
+        dict with status, machine_ip, model_id, avg_accuracy, error 等
+    """
+    model_path = f"{config['models_dir']}/{exp_name}/{config['model_subpath']}"
+    task_id = f"eval_{exp_name}"
+    work_dir = Path(config["work_dir"])
+    output_dir = work_dir / exp_name / "outputs"
+    log_dir = work_dir / exp_name / "logs"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    log = logging.getLogger(__name__)
+    log.info(f"[{exp_name}] 开始评测")
+
+    # dry-run 模式
+    if config.get("dry_run"):
+        log.info(f"[{exp_name}] dry-run 模式，跳过")
+        return {"status": "done", "model_id": "dry-run", "machine_ip": "dry-run",
+                "task_id": task_id, "avg_accuracy": None, "report_path": None}
+
+    # ① 分配机器槽位
+    machine = pool.allocate()
+    if machine is None:
+        return {"status": "failed", "error": "无空闲 GPU 槽位", "machine_ip": None,
+                "model_id": None, "task_id": task_id, "avg_accuracy": None}
+
+    machine_ip = machine["ip"]
+    deploy_api = f"http://{machine_ip}:{machine['port']}"
+    model_id = None
+
+    try:
+        # ② 串行化 load（per-machine lock）
+        machine_lock = pool.get_lock(machine_ip)
+        log.info(f"[{exp_name}] 等待机器 {machine_ip} 的加载锁...")
+        with machine_lock:
+            log.info(f"[{exp_name}] 调用 load_model @ {machine_ip}")
+            model_config = load_model(deploy_api, model_path, timeout=config["load_timeout"])
+            model_id = model_config["model_id"]
+            serving_url = model_config["url"]
+
+        host_ip, host_port = parse_serving_url(serving_url)
+        log.info(f"[{exp_name}] 模型已部署: {machine_ip}, port={host_port}, model_id={model_id}")
+
+        # ③ 启动评测容器（不持锁，可并行）
+        cmd = build_docker_cmd(
+            exp_name=exp_name, task_id=task_id, output_dir=output_dir,
+            host_ip=host_ip, host_port=host_port,
+            workspace=Path(config["workspace"]), config=config,
+        )
+        log.info(f"[{exp_name}] 启动评测容器...")
+        proc = subprocess.run(cmd, timeout=config["eval_timeout"])
+
+        # ④ 读取报告
+        report_path = output_dir / task_id / "report.json"
+        avg_accuracy = read_report_accuracy(report_path)
+        status = "done" if proc.returncode == 0 else "failed"
+        error = None if proc.returncode == 0 else f"docker exit code {proc.returncode}"
+        log.info(f"[{exp_name}] 评测完成: {status}, accuracy={avg_accuracy}")
+
+        # ⑤ 归集到 fmt
+        if status == "done":
+            fmt_dir = work_dir / "fmt"
+            collect_to_fmt(exp_name, task_id, output_dir, fmt_dir)
+
+        return {
+            "status": status, "model_id": model_id, "machine_ip": machine_ip,
+            "serving_url": serving_url, "task_id": task_id,
+            "avg_accuracy": avg_accuracy, "error": error,
+            "report_path": str(report_path) if report_path.exists() else None,
+        }
+
+    except DeployError as e:
+        log.error(f"[{exp_name}] 部署失败: {e}")
+        return {"status": "failed", "error": str(e), "model_id": model_id,
+                "machine_ip": machine_ip, "task_id": task_id, "avg_accuracy": None}
+
+    except subprocess.TimeoutExpired:
+        log.error(f"[{exp_name}] 评测超时")
+        return {"status": "failed", "error": f"eval timeout {config['eval_timeout']}s",
+                "model_id": model_id, "machine_ip": machine_ip, "task_id": task_id,
+                "avg_accuracy": None}
+
+    except Exception as e:
+        log.error(f"[{exp_name}] 未知错误: {e}", exc_info=True)
+        return {"status": "failed", "error": str(e), "model_id": model_id,
+                "machine_ip": machine_ip, "task_id": task_id, "avg_accuracy": None}
+
+    finally:
+        # ⑥ 无论成功失败，释放 NPU + 释放槽位
+        if model_id:
+            log.info(f"[{exp_name}] 卸载模型 {model_id} @ {machine_ip}")
+            with machine_lock:
+                unload_model(deploy_api, model_id, timeout=config["unload_timeout"])
+        pool.release(machine_ip)
