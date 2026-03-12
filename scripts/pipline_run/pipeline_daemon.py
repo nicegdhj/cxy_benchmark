@@ -417,3 +417,231 @@ def eval_worker(exp_name: str, config: dict, pool: MachinePool) -> dict:
             with machine_lock:
                 unload_model(deploy_api, model_id, timeout=config["unload_timeout"])
         pool.release(machine_ip)
+
+
+# ── 批量报告与崩溃恢复 ───────────────────────────────────────────────────
+
+def generate_batch_report(state: dict, report_path: Path) -> None:
+    """生成 batch_report.md 横向对比报告。"""
+    stats = state.get("stats", _compute_stats(state))
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    lines = [
+        "# 批量评测对比报告",
+        "",
+        f"**更新时间**: {now}",
+        f"**进度**: {stats.get('done',0)}/{stats.get('total',0)} 完成 | "
+        f"{stats.get('evaluating',0)} 评测中 | {stats.get('queued',0)} 排队 | "
+        f"{stats.get('failed',0)} 失败",
+        "",
+    ]
+
+    # 已完成
+    done_models = {n: m for n, m in state["models"].items() if m.get("status") == "done"}
+    if done_models:
+        lines += [
+            "## 已完成模型对比", "",
+            "| 模型 | 平均准确率 | 机器 | 耗时(min) |",
+            "|------|-----------|------|----------|",
+        ]
+        sorted_models = sorted(done_models.items(),
+                                key=lambda kv: kv[1].get("avg_accuracy") or 0, reverse=True)
+        for name, info in sorted_models:
+            acc = info.get("avg_accuracy")
+            acc_str = f"{acc:.2f}%" if acc is not None else "-"
+            ip = info.get("machine_ip", "-")
+            try:
+                s = datetime.fromisoformat(info["eval_start"])
+                e = datetime.fromisoformat(info["eval_end"])
+                dur = round((e - s).total_seconds() / 60, 1)
+            except Exception:
+                dur = "-"
+            lines.append(f"| {name} | {acc_str} | {ip} | {dur} |")
+        lines.append("")
+
+    # 评测中
+    running = {n: m for n, m in state["models"].items() if m.get("status") == "evaluating"}
+    if running:
+        lines += ["## 当前进行中", "",
+                  "| 模型 | 机器 | 开始时间 |", "|------|------|---------|"]
+        for name, info in running.items():
+            lines.append(f"| {name} | {info.get('machine_ip','-')} | {info.get('eval_start','-')} |")
+        lines.append("")
+
+    # 失败
+    failed = {n: m for n, m in state["models"].items() if m.get("status") == "failed"}
+    if failed:
+        lines += ["## 失败列表", "", "| 模型 | 原因 |", "|------|------|"]
+        for name, info in failed.items():
+            lines.append(f"| {name} | {info.get('error','未知')} |")
+        lines.append("")
+
+    report_path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def recover_evaluating_state(state: dict, logger: logging.Logger) -> None:
+    """崩溃恢复：evaluating → queued。"""
+    for name, info in state["models"].items():
+        if info.get("status") == "evaluating":
+            info["status"] = "queued"
+            for key in ("model_id", "serving_url", "eval_start", "machine_ip"):
+                info.pop(key, None)
+            logger.warning(f"[恢复] {name}: evaluating → queued")
+
+
+# ── 主轮询循环与 CLI 入口 ────────────────────────────────────────────────
+
+def run_daemon(config: dict) -> None:
+    """主守护进程入口。"""
+    work_dir = Path(config["work_dir"])
+    state_file = work_dir / "pipeline_state.json"
+    report_file = work_dir / "batch_report.md"
+    pid_file = work_dir / "pipeline_daemon.pid"
+
+    work_dir.mkdir(parents=True, exist_ok=True)
+
+    # PID 文件
+    pid_file.write_text(str(os.getpid()))
+
+    # 日志
+    log_file = work_dir / "pipeline_daemon.log"
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(log_file, encoding="utf-8"),
+            logging.StreamHandler(sys.stdout),
+        ],
+    )
+    logger = logging.getLogger(__name__)
+    state_lock = threading.Lock()
+
+    logger.info("=" * 60)
+    logger.info("Pipeline Daemon v2 启动")
+    logger.info(f"  GPU 机器数: {len(config['gpu_machines'])} 台, 总槽位: {sum(m['slots'] for m in config['gpu_machines'])}")
+    logger.info(f"  实验组数: {len(config['experiment_groups'])} 组")
+    logger.info(f"  工作目录: {work_dir}")
+    logger.info(f"  工作区:   {config['workspace']}")
+    logger.info(f"  dry-run:  {config.get('dry_run', False)}")
+    logger.info("=" * 60)
+
+    # 初始化机器池
+    pool = MachinePool(config["gpu_machines"])
+
+    # 加载状态（断点续跑）
+    state = load_state(state_file)
+    recover_evaluating_state(state, logger)
+
+    # 将实验组列表注入 state（只添加不在 state 中的新组）
+    for exp_name in config["experiment_groups"]:
+        if exp_name not in state["models"]:
+            state["models"][exp_name] = {
+                "status": "queued",
+                "model_path": f"{config['models_dir']}/{exp_name}/{config['model_subpath']}",
+                "added_at": datetime.now().isoformat(timespec="seconds"),
+            }
+            logger.info(f"加入调度队列: {exp_name}")
+        elif state["models"][exp_name].get("status") == "done":
+            logger.info(f"跳过已完成: {exp_name}")
+
+    save_state(state, state_file, state_lock)
+
+    running_futures: Dict[str, Future] = {}
+
+    with ThreadPoolExecutor(max_workers=config["max_workers"]) as executor:
+        while True:
+            # Step 1: 回收已完成 worker
+            for exp_name in list(running_futures.keys()):
+                fut = running_futures[exp_name]
+                if fut.done():
+                    result = fut.result()
+                    now_str = datetime.now().isoformat(timespec="seconds")
+                    state["models"][exp_name].update({
+                        "status": result["status"],
+                        "eval_end": now_str,
+                        "avg_accuracy": result.get("avg_accuracy"),
+                        "machine_ip": result.get("machine_ip"),
+                        "model_id": result.get("model_id"),
+                        "report_path": result.get("report_path"),
+                        "error": result.get("error"),
+                    })
+                    icon = "✅" if result["status"] == "done" else "❌"
+                    acc = result.get("avg_accuracy")
+                    acc_str = f"{acc:.2f}%" if acc is not None else "N/A"
+                    logger.info(f"{icon} [{exp_name}] {result['status'].upper()} | 准确率: {acc_str} | 机器: {result.get('machine_ip', '-')}")
+                    del running_futures[exp_name]
+
+            # Step 2: 派发新任务 - 检查空闲槽位数，按数量派发
+            queued = [n for n, m in state["models"].items() if m.get("status") == "queued"]
+            pool_status = pool.status()
+            free_total = sum(s["total"] - s["used"] for s in pool_status.values())
+            dispatched = 0
+            for exp_name in queued:
+                if dispatched >= free_total:
+                    break
+                state["models"][exp_name]["status"] = "evaluating"
+                state["models"][exp_name]["eval_start"] = datetime.now().isoformat(timespec="seconds")
+                fut = executor.submit(eval_worker, exp_name, config, pool)
+                running_futures[exp_name] = fut
+                dispatched += 1
+                logger.info(f"▶ 派发: {exp_name} (剩余空闲: {free_total - dispatched})")
+
+            # Step 3: 更新状态和报告
+            save_state(state, state_file, state_lock)
+            generate_batch_report(state, report_file)
+
+            stats = state["stats"]
+            logger.info(
+                f"📊 完成:{stats.get('done',0)} 评测中:{stats.get('evaluating',0)} "
+                f"排队:{stats.get('queued',0)} 失败:{stats.get('failed',0)} 总计:{stats.get('total',0)}"
+            )
+
+            # 打印机器池状态
+            for ip, s in pool.status().items():
+                logger.info(f"   GPU {ip}: {s['used']}/{s['total']} 使用中")
+
+            # Step 4: 退出条件
+            total = stats.get("total", 0)
+            terminal = stats.get("done", 0) + stats.get("failed", 0)
+            if total > 0 and terminal >= total and not running_futures:
+                logger.info("🏁 所有实验组评测完成！")
+                logger.info(f"   报告: {report_file}")
+                logger.info(f"   fmt 目录: {work_dir / 'fmt'}")
+                break
+
+            # Step 5: 等待下次轮询
+            logger.info(f"⏳ 等待 {config['poll_interval']} 秒...")
+            time.sleep(config["poll_interval"])
+
+    pid_file.unlink(missing_ok=True)
+    logger.info("守护进程正常退出。")
+
+
+def parse_args() -> dict:
+    """解析命令行参数，合并到默认配置中返回。"""
+    parser = argparse.ArgumentParser(description="Pipeline Daemon v2 - 多机 GPU 池化评测流水线")
+    parser.add_argument("--work-dir", default=None, help="工作目录（状态/输出/fmt）")
+    parser.add_argument("--workspace", default=None, help="Docker 工作区（.env/data/code）")
+    parser.add_argument("--max-workers", type=int, default=None)
+    parser.add_argument("--poll-interval", type=int, default=None)
+    parser.add_argument("--eval-timeout", type=int, default=None)
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args()
+
+    config = get_default_config()
+    if args.work_dir:
+        config["work_dir"] = args.work_dir
+    if args.workspace:
+        config["workspace"] = args.workspace
+    if args.max_workers is not None:
+        config["max_workers"] = args.max_workers
+    if args.poll_interval is not None:
+        config["poll_interval"] = args.poll_interval
+    if args.eval_timeout is not None:
+        config["eval_timeout"] = args.eval_timeout
+    config["dry_run"] = args.dry_run
+    return config
+
+
+if __name__ == "__main__":
+    config = parse_args()
+    run_daemon(config)

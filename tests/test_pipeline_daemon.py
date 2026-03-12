@@ -1,6 +1,7 @@
 # tests/test_pipeline_daemon.py
 import importlib.util
 import json
+import logging
 import threading
 from pathlib import Path
 
@@ -254,3 +255,37 @@ def test_eval_worker_dry_run(tmp_path, daemon):
     result = daemon.eval_worker("pt14_sft0", cfg, pool)
     assert result["status"] == "done"
     assert result["model_id"] == "dry-run"
+
+
+def test_generate_batch_report(tmp_path, daemon):
+    """生成 batch_report.md"""
+    state = {
+        "last_scan": "2026-03-12T10:00:00",
+        "stats": {"total": 2, "done": 1, "failed": 1, "evaluating": 0, "queued": 0},
+        "models": {
+            "pt14_sft0": {"status": "done", "avg_accuracy": 80.0,
+                          "machine_ip": "188.109.35.159",
+                          "eval_start": "2026-03-12T08:00:00",
+                          "eval_end": "2026-03-12T09:00:00"},
+            "pt15_sft0": {"status": "failed", "error": "timeout"},
+        },
+    }
+    path = tmp_path / "batch_report.md"
+    daemon.generate_batch_report(state, path)
+    content = path.read_text()
+    assert "pt14_sft0" in content
+    assert "80.0" in content or "80.00" in content
+    assert "pt15_sft0" in content
+
+
+def test_recover_evaluating_state(daemon):
+    """崩溃恢复：evaluating → queued"""
+    state = {
+        "models": {
+            "pt14_sft0": {"status": "evaluating", "model_id": "abc"},
+            "pt15_sft0": {"status": "done"},
+        }
+    }
+    daemon.recover_evaluating_state(state, logging.getLogger())
+    assert state["models"]["pt14_sft0"]["status"] == "queued"
+    assert state["models"]["pt15_sft0"]["status"] == "done"
