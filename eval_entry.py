@@ -235,6 +235,16 @@ def run_evaluation(
             }
         )
 
+        # ── 逐任务清理：立即搬运本轮产出到最终目录，然后删除源目录释放磁盘和 Page Cache ──
+        if ais_bench_dir:
+            src_dir = ais_bench_output / ais_bench_dir
+            if src_dir.exists():
+                staging_dir = output_dir / task_id / "details" / ais_bench_dir
+                staging_dir.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copytree(src_dir, staging_dir)
+                shutil.rmtree(src_dir)
+                print(f"   🧹 已转存并清理: {ais_bench_dir}")
+
     return results
 
 
@@ -437,13 +447,18 @@ def generate_report(results: list, task_id: str, model: str, output_dir: Path) -
         json.dumps(json_data, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    # ── 复制 ais_bench 原始输出
+    # ── 复制 ais_bench 原始输出（增量模式：大部分已在评测循环中逐任务转存）
     ais_out = ROOT / "outputs" / "default"
     dest_details = task_dir / "details"
+    dest_details.mkdir(parents=True, exist_ok=True)
+    # 仅搬运 outputs/default 中尚未被逐任务清理掉的残余目录（兜底）
     if ais_out.exists():
-        if dest_details.exists():
-            shutil.rmtree(dest_details)
-        shutil.copytree(ais_out, dest_details)
+        for sub in ais_out.iterdir():
+            dest_sub = dest_details / sub.name
+            if sub.is_dir() and not dest_sub.exists():
+                shutil.copytree(sub, dest_sub)
+        # 最终清理整个 default 目录
+        shutil.rmtree(ais_out)
 
     print("\n📄 报告已生成:")
     print(f"   Markdown : {md_path}")
