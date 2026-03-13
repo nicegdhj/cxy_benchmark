@@ -68,17 +68,13 @@ if [ $? -ne 0 ]; then
 fi
 echo "  ✅ 镜像构建成功: $IMAGE_NAME"
 
-# ── Step 3: 导出 Docker 镜像（如果已存在则跳过）────────────────────────────────
+# ── Step 3: 导出 Docker 镜像（每次强制重新导出，确保与刚构建的镜像一致）────────
 echo ""
 echo "▶ [3/5] 导出 Docker 镜像..."
 
-if [ -f "$IMAGE_PATH" ]; then
-    echo "  ℹ️  镜像文件已存在，跳过导出: $IMAGE_PATH"
-else
-    echo "  正在导出 $IMAGE_NAME → ${IMAGE_FILE}（可能需要几分钟）..."
-    docker save "$IMAGE_NAME" | gzip > "$IMAGE_PATH"
-    echo "  ✅ 镜像已导出: $IMAGE_PATH ($(du -sh "$IMAGE_PATH" | cut -f1))"
-fi
+echo "  正在导出 $IMAGE_NAME → ${IMAGE_FILE}（可能需要几分钟）..."
+docker save "$IMAGE_NAME" | gzip > "$IMAGE_PATH"
+echo "  ✅ 镜像已导出: $IMAGE_PATH ($(du -sh "$IMAGE_PATH" | cut -f1))"
 
 # ── Step 4: 构建临时目录结构 ────────────────────────────────────────────────────
 echo ""
