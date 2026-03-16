@@ -5,7 +5,7 @@
 # 功能：
 #   1. 在指定机器上通过代理 API 批量加载模型推理服务
 #   2. 从 API 返回中自动提取端口号
-#   3. 自动解压评测包、注入端口配置、拉起评测容器
+#   3. 自动解压评测包、注入端口配置、拉起评测容器（分批模式防 OOM）
 #
 # 用法:
 #   bash run_pipeline.sh --ip <机器IP> [选项]
@@ -43,18 +43,21 @@ set -euo pipefail
 # 用户配置区（也可通过命令行参数覆盖）
 # ══════════════════════════════════════════════════════════════════════════════
 
-MACHINE_IP=""                                # 必填：目标机器 IP
+MACHINE_IP="188.109.35.159"                                # 必填：目标机器 IP
 PROXY_PORT=8090                              # 代理服务端口
-PACKAGE_PATH=""                              # 评测压缩包路径（空=自动查找）
+PACKAGE_PATH="/dpc/hejia/eval_0314/eval_workspace_20260311_135303.tar.gz"                              # 评测压缩包路径（空=自动查找）
 WORKSPACE_BASE="$(pwd)"                      # 评测工作区根目录（默认当前目录）
 NO_VERIFY=false
 DEPLOY_ONLY=false
 EVAL_ONLY=false
 
+# 推理服务操作等待时间（拉起/卸载等操作需要 3~5 分钟）
+DEPLOY_WAIT_SEC=300
+
 # 实验组模型路径（命令行 --model-path 会追加到此数组）
 MODEL_PATHS=(
-#    "/dpc/exp/v260306/pt14_sf0/sft"
-#    "/dpc/exp/v260306/pt15_sf0/sft"
+    "/dpc/exp/v260306/pt14_sf0/sft"
+    "/dpc/exp/v260306/pt17_sf0/sft"
 #    "/dpc/exp/v260306/pt16_sf0/sft"
 #    "/dpc/exp/v260306/pt17_sf0/sft"
 #    "/dpc/exp/v260306/pt18_sf0/sft"
@@ -126,14 +129,25 @@ extract_port() {
 }
 
 call_api() {
+    echo DEPLOY_API
+    echo $endpoint
+    echo $payload
     local endpoint="$1" payload="$2"
     curl -sf -X POST \
         -H "Content-Type: application/json" \
-        -d "$payload" \
+        --data-binary "$payload" \
         --connect-timeout 10 \
         --max-time 300 \
         "${DEPLOY_API}${endpoint}" \
-    || { echo -e "${RED}❌ 连接代理服务失败: ${DEPLOY_API}${NC}" >&2; return 1; }
+    || {
+        local exit_code=$?
+        echo -e "${RED}❌ 连接代理服务失败: ${DEPLOY_API}${endpoint} (curl exit=${exit_code})${NC}" >&2
+        echo -e "${RED}   exit=6: DNS 解析失败 | exit=7: 连接拒绝 | exit=28: 超时${NC}" >&2
+        echo -e "${RED}   手动验证: curl -v -X POST ${DEPLOY_API}${endpoint} -H 'Content-Type: application/json' -d '${payload}'${NC}" >&2
+        return 1
+    }
+
+
 }
 
 verify_inference() {
@@ -150,6 +164,14 @@ verify_inference() {
         warn "  推理服务响应异常: $resp"
         return 1
     fi
+}
+
+# 等待推理服务就绪（拉起/卸载后需要 3~5 分钟）
+wait_for_service() {
+    local msg="${1:-推理服务操作}"
+    local wait_sec="${2:-$DEPLOY_WAIT_SEC}"
+    info "  ${msg}，等待 ${wait_sec} 秒（约 $((wait_sec / 60)) 分钟）..."
+    sleep "${wait_sec}"
 }
 
 
@@ -192,7 +214,7 @@ if [[ "$EVAL_ONLY" == "false" ]]; then
         echo "  ── [$idx/$TOTAL] $exp_name  ($path)"
         info "  正在调用 /load_model..."
 
-        RESP=$(call_api "/load_model" "{\"model_path\": \"$path\"}") || {
+        RESP=$(call_api "/load_model" "$(jq -cn --arg p "$path" '{model_path: $p}')") || {
             warn "  API 请求失败，跳过"
             printf '%s | %-40s | %-12s | %-10s | %-8s | %s\n' \
                 "$(now)" "$path" "$exp_name" "-" "-" "FAILED" >> "$DEPLOY_RECORD"
@@ -201,10 +223,16 @@ if [[ "$EVAL_ONLY" == "false" ]]; then
         }
         dim "响应: $RESP"
 
+        # 标准化响应：将 Python 风格的单引号 key（'key':）转为合法 JSON 双引号
+        RESP=$(echo "$RESP" | sed "s/'\([^']*\)':/\"\1\":/g")
+        dim "标准化后响应: $RESP"
+
         CODE=$(echo "$RESP" | jq -r '.code' 2>/dev/null) || {
-            warn "  响应非 JSON，跳过"
+            warn "  响应非合法 JSON，jq 解析失败，跳过"
+            warn "  原始响应内容: >>>$RESP<<<"
+            warn "  请检查 API 是否返回了非 JSON 内容（如 HTML 错误页、空响应等）"
             printf '%s | %-40s | %-12s | %-10s | %-8s | %s\n' \
-                "$(now)" "$path" "$exp_name" "-" "-" "FAILED" >> "$DEPLOY_RECORD"
+                "$(now)" "$path" "$exp_name" "-" "-" "FAILED(json_parse)" >> "$DEPLOY_RECORD"
             LOAD_FAIL=$((LOAD_FAIL + 1))
             continue
         }
@@ -216,6 +244,15 @@ if [[ "$EVAL_ONLY" == "false" ]]; then
                 URL=$(echo "$RESP"   | jq -r '.config.url')
                 PORT=$(extract_port "$URL")
 
+                if [[ -z "$PORT" ]]; then
+                    warn "  加载成功但无法从 URL 提取端口，跳过"
+                    warn "  config.url 原始值: '$URL'（期望格式: http://x.x.x.x:PORT/...）"
+                    printf '%s | %-40s | %-12s | %-10s | %-8s | %s\n' \
+                        "$(now)" "$path" "$exp_name" "$MID" "-" "FAILED(no_port)" >> "$DEPLOY_RECORD"
+                    LOAD_FAIL=$((LOAD_FAIL + 1))
+                    continue
+                fi
+
                 success "  加载成功"
                 echo -e "     model_id:   ${YELLOW}${MID}${NC}"
                 echo    "     model_name: $MNAME"
@@ -226,6 +263,9 @@ if [[ "$EVAL_ONLY" == "false" ]]; then
                     "$(now)" "$path" "$exp_name" "$MID" "$PORT" "SUCCESS" >> "$DEPLOY_RECORD"
 
                 DEPLOYED_TARGETS+=("${exp_name}:${PORT}")
+
+                # 等待推理服务完全就绪
+                wait_for_service "等待推理服务就绪" "$DEPLOY_WAIT_SEC"
 
                 if [[ "$NO_VERIFY" == "false" ]]; then
                     verify_inference "$URL" "$MNAME" || true
@@ -339,12 +379,20 @@ for i in "${!DEPLOYED_TARGETS[@]}"; do
     # 步骤1: 创建目录并解压
     mkdir -p "$work_dir"
     info "  解压评测包到 $work_dir ..."
-    tar -xzf "$PACKAGE_PATH" -C "$work_dir"
+    if ! tar -xzf "$PACKAGE_PATH" -C "$work_dir"; then
+        warn "  解压失败: $PACKAGE_PATH → $work_dir"
+        warn "  请检查: 压缩包是否完整 / 目标目录是否有写权限 / 磁盘空间是否充足"
+        printf '%s | %-35s | %-8s | %s\n' "$(now)" "$work_dir" "$port" "FAILED(tar_error)" >> "$EVAL_RECORD"
+        EVAL_FAIL=$((EVAL_FAIL + 1))
+        continue
+    fi
 
     # 定位真实工作区（查找 .env 所在目录）
     REAL_WORKSPACE=$(dirname "$(find "$work_dir" -name ".env" -maxdepth 3 | head -n 1)")
     if [[ -z "$REAL_WORKSPACE" || "$REAL_WORKSPACE" == "." ]]; then
         warn "  解压后未找到 .env，跳过"
+        warn "  解压目录 $work_dir 内容:"
+        ls -lA "$work_dir" 2>&1 | while IFS= read -r line; do dim "    $line"; done
         printf '%s | %-35s | %-8s | %s\n' "$(now)" "$work_dir" "$port" "FAILED(no .env)" >> "$EVAL_RECORD"
         EVAL_FAIL=$((EVAL_FAIL + 1))
         continue
@@ -363,21 +411,38 @@ for i in "${!DEPLOYED_TARGETS[@]}"; do
         IMAGE_TAR_FLAG="--image-tar $TAR_IMG"
     fi
 
-    # 步骤4: 拉起评测容器
-    if [[ -f "$REAL_WORKSPACE/run_mixed_benchmark.sh" ]]; then
-        info "  拉起评测容器..."
+    # 步骤4: 拉起评测容器（分批模式防 OOM）
+    if [[ -f "$REAL_WORKSPACE/run_mixed_benchmark_batched.sh" ]]; then
+        info "  拉起评测容器（分批模式）..."
+        info "  执行: bash run_mixed_benchmark_batched.sh --workspace $REAL_WORKSPACE $IMAGE_TAR_FLAG"
         cd "$REAL_WORKSPACE"
-        bash run_mixed_benchmark.sh --workspace "$REAL_WORKSPACE" $IMAGE_TAR_FLAG
+        if ! bash run_mixed_benchmark_batched.sh --workspace "$REAL_WORKSPACE" $IMAGE_TAR_FLAG; then
+            local rc=$?
+            cd - > /dev/null
+            warn "  run_mixed_benchmark_batched.sh 执行失败 (exit=${rc})"
+            warn "  请检查脚本日志: $REAL_WORKSPACE/logs/"
+            printf '%s | %-35s | %-8s | %s\n' "$(now)" "$work_dir" "$port" "FAILED(script_exit=${rc})" >> "$EVAL_RECORD"
+            EVAL_FAIL=$((EVAL_FAIL + 1))
+            continue
+        fi
         cd - > /dev/null
 
         sleep 3
         CONTAINER_ID=$(docker ps --latest --filter ancestor=benchmark-eval:latest --format "{{.ID}}" 2>/dev/null || echo "-")
-        success "  评测已启动，容器 ID: $CONTAINER_ID"
+        if [[ "$CONTAINER_ID" == "-" || -z "$CONTAINER_ID" ]]; then
+            warn "  脚本执行完成但未检测到运行中的评测容器，请确认容器是否正常启动"
+            warn "  检查: docker ps -a --filter ancestor=benchmark-eval:latest"
+        else
+            success "  评测已启动（分批模式），容器 ID: $CONTAINER_ID"
+        fi
 
         printf '%s | %-35s | %-8s | %s\n' "$(now)" "$work_dir" "$port" "OK($CONTAINER_ID)" >> "$EVAL_RECORD"
         EVAL_OK=$((EVAL_OK + 1))
     else
-        warn "  未找到 run_mixed_benchmark.sh"
+        warn "  未找到 run_mixed_benchmark_batched.sh"
+        warn "  实际工作区路径: $REAL_WORKSPACE"
+        warn "  工作区内容:"
+        ls -lA "$REAL_WORKSPACE" 2>&1 | while IFS= read -r line; do dim "    $line"; done
         printf '%s | %-35s | %-8s | %s\n' "$(now)" "$work_dir" "$port" "FAILED(no script)" >> "$EVAL_RECORD"
         EVAL_FAIL=$((EVAL_FAIL + 1))
     fi

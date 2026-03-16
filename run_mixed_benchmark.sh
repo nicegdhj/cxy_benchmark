@@ -138,7 +138,6 @@ docker run --rm \
         --model-config local_qwen \
         --tasks 1 34 36 43 44 60 \
         --generic-datasets \
-            ceval_gen_0_shot_str \
             gpqa_gen_0_shot_str \
             bbh_gen_3_shot_cot_chat \
             BFCL_gen_simple \
@@ -150,11 +149,12 @@ docker run --rm \
             telemath_gen_0_cot_shot \
             teleqna_gen_0_shot \
             tspec_gen_0_shot \
-            teledata_gen_0_shot \
             telequad_gen_0_shot \
             tele_exam_gen_0_shot \
-            tele_exam_gen_0_shot_str \
-            mmlu_redux_gen_5_shot_str 
+            tele_exam_gen_0_shot_str
+
+
+#     ceval_gen_0_shot_str \  mmlu_redux_gen_5_shot_str  teledata_gen_0_shot
 
 if [ $? -eq 0 ]; then
     echo "==================================================="

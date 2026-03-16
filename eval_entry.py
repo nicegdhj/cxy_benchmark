@@ -270,9 +270,26 @@ def _parse_latest_task_result(
             reverse=True,
         )
         for summary_path in summaries:
-            # 若提供了启动时间，跳过在任务启动之前就已存在的 summary（其他任务的遗留结果）
-            if run_start_time is not None and summary_path.stat().st_mtime <= run_start_time:
+            # 加入时间容差（300秒），防止宿主机与容器时钟不同步导致误杀最新结果
+            if run_start_time is not None and summary_path.stat().st_mtime <= (run_start_time - 300):
                 continue
+                
+            task_dir = summary_path.parent.parent
+            
+            # 通过读取对应的 config 文件精确匹配 suite，解决不同步导致旧结果被误用的风险
+            is_match = False
+            for cfg in task_dir.glob("configs/*.py"):
+                try:
+                    cfg_text = cfg.read_text(encoding="utf-8")
+                    if f"'{suite_name_pattern}'" in cfg_text or f'"{suite_name_pattern}"' in cfg_text:
+                        is_match = True
+                        break
+                except Exception:
+                    pass
+            
+            if not is_match:
+                continue
+
             try:
                 text = summary_path.read_text(encoding="utf-8")
 
