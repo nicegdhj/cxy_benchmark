@@ -64,12 +64,15 @@ class TeleExamDataset(BaseDataset):
 
             for item in data:
                 question = item.get('question', '').strip()
+                # 优先使用 correct answer（若非空），否则使用 answer
+                correct_answer = item.get('correct answer', '').strip()
                 answer = item.get('answer', '').strip()
-                if not question or not answer:
+                final_answer = correct_answer if correct_answer else answer
+                if not question or not final_answer:
                     continue
                 raw_data.append({
                     'question': question,
-                    'answer': answer,
+                    'answer': final_answer,
                     'subdivision': file.replace('.json', ''),
                 })
 
