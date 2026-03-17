@@ -10,7 +10,7 @@ import os
 import re
 import sqlite3
 import subprocess
-import threading
+import time
 import uuid
 
 import psutil
@@ -86,7 +86,7 @@ def get_idle_npu():
 
 
 def launch_vllm_service(model_path: str, npu_id: int):
-    """启动 vLLM 服务并返回 PID"""
+    """启动 vLLM 服务并返回 PID，日志直写文件避免 pipe 反压"""
     env_vars = {
         "ASCEND_RT_VISIBLE_DEVICES": f"{npu_id * 2},{npu_id * 2 + 1}",
         "TASK_QUEUE_ENABLE": "1",
@@ -120,36 +120,41 @@ def launch_vllm_service(model_path: str, npu_id: int):
         if value is not None:
             cmd.append(value)
 
+    # 日志直写文件，不经过 pipe
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, f"vllm_npu{npu_id}.log")
+    log_file = open(log_path, "w")
+
     process = subprocess.Popen(
         cmd,
         env=current_env,
-        stdout=subprocess.PIPE,
+        stdout=log_file,
         stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,  # 行缓冲
-        start_new_session=True  # 避免信号干扰
+        start_new_session=True,
     )
+    log_file.close()  # 父进程关闭 fd，子进程继承的 fd 继续写
 
-    print(f"✅ 启动模型 {model_path}，PID={process.pid}，NPU={npu_id}")
+    print(f"✅ 启动模型 {model_path}，PID={process.pid}，NPU={npu_id}，日志: {log_path}")
 
-    ready_flag = threading.Event()
+    # 轮询日志文件检测启动完成
+    for i in range(300):
+        time.sleep(1)
+        try:
+            with open(log_path, "r") as f:
+                content = f.read()
+                if "Application startup complete" in content:
+                    print(f"✅ NPU-{npu_id} 服务启动完毕（耗时 {i+1}s）")
+                    return process.pid, port
+                # 检测启动失败（进程已退出）
+                if process.poll() is not None:
+                    print(f"❌ NPU-{npu_id} 进程异常退出 (code={process.returncode})")
+                    print(f"   查看日志: tail -100 {log_path}")
+                    raise RuntimeError(f"vLLM 启动失败，exit={process.returncode}")
+        except FileNotFoundError:
+            pass
 
-    # 后台线程异步读取，防止 PIPE 阻塞
-    def reader(pipe):
-        for line in iter(pipe.readline, ''):
-            line = line.strip()
-            if line:
-                print(f"[vLLM-{npu_id}] {line}")
-            if "Application startup complete" in line:
-                print("✅ 服务器启动完毕！")
-                ready_flag.set()
-        pipe.close()
-
-    threading.Thread(target=reader, args=(process.stdout,), daemon=True).start()
-
-    if not ready_flag.wait(timeout=300):
-        print("⚠️ 启动超时，可能未检测到启动完成日志，但服务已在后台运行。")
-
+    print(f"⚠️ NPU-{npu_id} 启动超时(300s)，服务可能仍在加载中，日志: {log_path}")
     return process.pid, port
 
 
@@ -243,20 +248,91 @@ def unload_model(req: UnloadModelRequest):
     model_id = req.model_id
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT pid FROM models WHERE model_id=?", (model_id,))
+    c.execute("SELECT pid, npu_id FROM models WHERE model_id=?", (model_id,))
     row = c.fetchone()
     if not row:
         conn.close()
         return MsgResponse(code=10001, message="未找到该模型ID")
 
-    pid = row[0]
+    pid, npu_id = row
     kill_process(pid)
+
+    # 清理日志文件
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+    log_path = os.path.join(log_dir, f"vllm_npu{npu_id}.log")
+    if os.path.exists(log_path):
+        os.rename(log_path, log_path + ".unloaded")
 
     c.execute("DELETE FROM models WHERE model_id=?", (model_id,))
     conn.commit()
     conn.close()
 
     return MsgResponse(code=200, message=f"模型 {model_id} 已卸载")
+
+
+@app.get("/health")
+def health_check():
+    """检查所有已注册模型的进程存活状态"""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT model_id, model_path, npu_id, pid, port, status FROM models")
+    rows = c.fetchall()
+    conn.close()
+
+    results = []
+    for model_id, model_path, npu_id, pid, port, status in rows:
+        alive = psutil.pid_exists(pid)
+        results.append({
+            "model_id": model_id,
+            "npu_id": npu_id,
+            "pid": pid,
+            "port": port,
+            "status": "running" if alive else "dead",
+            "model_path": model_path,
+        })
+    all_healthy = all(r["status"] == "running" for r in results)
+    return {"healthy": all_healthy, "models": results}
+
+
+@app.get("/logs/{model_id}")
+def get_model_logs(model_id: str, tail: int = 100):
+    """查看指定模型的最近 N 行日志"""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT npu_id FROM models WHERE model_id=?", (model_id,))
+    row = c.fetchone()
+    conn.close()
+
+    if not row:
+        return {"code": 10001, "message": "未找到该模型ID"}
+
+    npu_id = row[0]
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+    log_path = os.path.join(log_dir, f"vllm_npu{npu_id}.log")
+
+    if not os.path.exists(log_path):
+        return {"code": 10002, "message": f"日志文件不存在: {log_path}"}
+
+    from collections import deque
+    with open(log_path, "r") as f:
+        lines = list(deque(f, maxlen=tail))
+    return {"model_id": model_id, "npu_id": npu_id, "lines": lines}
+
+
+@app.get("/models")
+def list_models():
+    """列出所有已注册的模型"""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT model_id, model_path, npu_id, pid, port, status FROM models")
+    rows = c.fetchall()
+    conn.close()
+
+    return {"count": len(rows), "models": [
+        {"model_id": r[0], "model_path": r[1], "npu_id": r[2],
+         "pid": r[3], "port": r[4], "status": r[5]}
+        for r in rows
+    ]}
 
 
 @app.get("/")
