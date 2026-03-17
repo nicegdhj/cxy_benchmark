@@ -141,6 +141,29 @@ def first_option_postprocess(text: str, options: str, cushion=True) -> str:
         rf'(\s|^)[{options}][\s。，,：:\.$]',
         r'1.\s?(.*?)$',
         rf'1.\s?([{options}])[.。$]?$',
+        # 匹配 Markdown 加粗格式：**C** 或 **C. 描述**
+        rf'答案选?\s*\*+\s?([{options}])\s?\*+',
+        
+        # 匹配 LaTeX 的 \boxed 格式，支持 \text{C} 或直接 {C}
+        rf'\\boxed\s?\{{\s*(?:\\text\{{)?\s?([{options}])\s*\}}?\s*\}}',
+        
+        # 匹配带图标的格式，如 ✅ 正确答案：C
+        rf'[✅✔✓]\s*正确答案\s*[:：]\s*\*?\*?([{options}])',
+        
+        # 匹配“选项C，即...” 这种格式
+        rf'正确答案是选项\s?([{options}])',
+        
+        # 匹配“最终答案：”后接换行或空格的 LaTeX 或纯文本
+        rf'最终答案\s*[:：]\s*.*?([{options}])',
+        
+        # 匹配“答案：D. 不必经...” 这种后面带长文本描述的情况
+        # 注意：这里只捕获选项字母本身
+        rf'^\*\*?答案\*\*?\s*[:：]\s*([{options}])(?=[\.\s])',
+        # 针对 "The correct answer is (C)" 及其前后带有加粗、波浪号、句号等格式
+        rf'[Tt]he correct answer is\s*\(\s*([{options}])\s*\)',
+        # 针对 "Final Answer:" 及其带有 ✅、换行、加粗、以及后续公式的格式
+        rf'(?i)Final\s*Answer\s*[:：]\s*[\*\s]*\(\s*([{options}])\s*\)',
+
     ]
     cushion_patterns = [
         rf'([{options}]):',

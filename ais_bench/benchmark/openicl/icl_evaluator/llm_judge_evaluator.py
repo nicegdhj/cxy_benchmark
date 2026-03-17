@@ -1,4 +1,5 @@
 import copy
+import os
 import re
 from typing import List
 from collections import defaultdict
@@ -24,13 +25,80 @@ Please output the score only as a number at the end of your response."""
 class LLMJudgeEvaluator(BaseEvaluator):
     def __init__(self, model_cfg: dict = None, prompt_template: str = None, **kwargs) -> None:
         super().__init__()
-        self.model_cfg = model_cfg
         self.prompt_template = prompt_template or DEFAULT_PROMPT_TEMPLATE
+
+        if model_cfg:
+            # 显式传入了配置，直接使用
+            self.model_cfg = model_cfg
+        else:
+            # 未传入配置，尝试从 EVAL_* 环境变量自动构建评估模型配置
+            self.model_cfg = self._build_eval_model_cfg_from_env()
+
         if not self.model_cfg:
-            self.logger.warning("LLMJudgeEvaluator: model_cfg is None. It might not be able to evaluate.")
+            self.logger.warning(
+                "LLMJudgeEvaluator: model_cfg is None 且未检测到 EVAL_* 环境变量，"
+                "评估器将无法调用 LLM 评分。"
+            )
             self.model = None
         else:
             self.model = build_model_from_cfg(self.model_cfg)
+
+    @staticmethod
+    def _build_eval_model_cfg_from_env() -> dict:
+        """从 EVAL_* 环境变量构建评估模型配置（与推理的 LOCAL_* 变量完全解耦）。
+
+        必填：EVAL_HOST_IP, EVAL_HOST_PORT, EVAL_MODEL_NAME
+        可选：EVAL_URL（默认拼接 /v1/chat/completions），EVAL_CONCURRENCY（默认 100）
+
+        Returns:
+            完整的 model_cfg dict，若必填变量缺失则返回 None。
+        """
+        from ais_bench.benchmark.models import MaaSAPI
+        from ais_bench.benchmark.utils.postprocess.model_postprocessors import (
+            extract_non_reasoning_content,
+        )
+
+        host_ip   = os.environ.get("EVAL_HOST_IP")
+        host_port = os.environ.get("EVAL_HOST_PORT")
+        model_name = os.environ.get("EVAL_MODEL_NAME")
+
+        # 必填变量校验
+        if not all([host_ip, host_port, model_name]):
+            return None
+
+        try:
+            host_port_int = int(host_port)
+        except ValueError:
+            return None
+
+        eval_url = os.environ.get(
+            "EVAL_URL",
+            f"http://{host_ip}:{host_port}/v1/chat/completions",
+        )
+        concurrency = int(os.environ.get("LOCAL_CONCURRENCY", "100"))
+
+        return dict(
+            type=MaaSAPI,
+            attr="service",
+            abbr="eval_model",
+            path="",
+            model=model_name,
+            stream=False,
+            request_rate=0,
+            retry=1,
+            host_ip=host_ip,
+            host_port=host_port_int,
+            url=eval_url,
+            max_out_len=512,
+            batch_size=concurrency,
+            trust_remote_code=False,
+            verbose=os.environ.get("EVAL_VERBOSE", "false").lower() == "true",
+            generation_kwargs=dict(
+                temperature=0.01,
+                ignore_eos=False,
+            ),
+            pred_postprocessor=dict(type=extract_non_reasoning_content),
+        )
             
     def evaluate(self, k, n, original_dataset: Dataset, **score_kwargs):
         if 'predictions' in score_kwargs and 'references' in score_kwargs:
