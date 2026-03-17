@@ -9,6 +9,7 @@ from datasets import Dataset
 from ais_bench.benchmark.registry import ICL_EVALUATORS
 from ais_bench.benchmark.openicl.icl_evaluator.icl_base_evaluator import BaseEvaluator
 from ais_bench.benchmark.utils.config.build import build_model_from_cfg
+from ais_bench.benchmark.utils.logging.logger import AISLogger
 
 DEFAULT_PROMPT_TEMPLATE = """You are a fair and strict evaluator. Please score the following student's answer based on the correct answer.
 The maximum score you can give is {max_score}.
@@ -26,7 +27,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
     def __init__(self, model_cfg: dict = None, prompt_template: str = None, **kwargs) -> None:
         super().__init__()
         self.prompt_template = prompt_template or DEFAULT_PROMPT_TEMPLATE
-
+        self.logger = AISLogger()
         if model_cfg:
             # 显式传入了配置，直接使用
             self.model_cfg = model_cfg
@@ -35,7 +36,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
             self.model_cfg = self._build_eval_model_cfg_from_env()
 
         if not self.model_cfg:
-            self.logger.warning(
+            self.logger.info(
                 "LLMJudgeEvaluator: model_cfg is None 且未检测到 EVAL_* 环境变量，"
                 "评估器将无法调用 LLM 评分。"
             )
@@ -47,8 +48,15 @@ class LLMJudgeEvaluator(BaseEvaluator):
     def _build_eval_model_cfg_from_env() -> dict:
         """从 EVAL_* 环境变量构建评估模型配置（与推理的 LOCAL_* 变量完全解耦）。
 
-        必填：EVAL_HOST_IP, EVAL_HOST_PORT, EVAL_MODEL_NAME
-        可选：EVAL_URL（默认拼接 /v1/chat/completions），EVAL_CONCURRENCY（默认 100）
+        自动分支：
+          - 检测到 EVAL_API_KEY（非空）→ MaaS API 模式
+              必填：EVAL_MODEL_NAME, EVAL_API_KEY, EVAL_URL
+          - 未检测到 EVAL_API_KEY         → 本地服务模式
+              必填：EVAL_MODEL_NAME, EVAL_HOST_IP, EVAL_HOST_PORT
+              可选：EVAL_URL（默认自动拼接 /v1/chat/completions）
+
+        公共可选变量：
+          LOCAL_CONCURRENCY（并发数，默认 100），EVAL_VERBOSE（日志，默认 false）
 
         Returns:
             完整的 model_cfg dict，若必填变量缺失则返回 None。
@@ -58,26 +66,13 @@ class LLMJudgeEvaluator(BaseEvaluator):
             extract_non_reasoning_content,
         )
 
-        host_ip   = os.environ.get("EVAL_HOST_IP")
-        host_port = os.environ.get("EVAL_HOST_PORT")
-        model_name = os.environ.get("EVAL_MODEL_NAME")
-
-        # 必填变量校验
-        if not all([host_ip, host_port, model_name]):
-            return None
-
-        try:
-            host_port_int = int(host_port)
-        except ValueError:
-            return None
-
-        eval_url = os.environ.get(
-            "EVAL_URL",
-            f"http://{host_ip}:{host_port}/v1/chat/completions",
-        )
+        model_name  = os.environ.get("EVAL_MODEL_NAME")
+        api_key     = os.environ.get("EVAL_API_KEY", "").strip()
         concurrency = int(os.environ.get("LOCAL_CONCURRENCY", "100"))
+        verbose     = os.environ.get("EVAL_VERBOSE", "false").lower() == "true"
 
-        return dict(
+        # 公共基础字段
+        base_cfg = dict(
             type=MaaSAPI,
             attr="service",
             abbr="eval_model",
@@ -86,19 +81,51 @@ class LLMJudgeEvaluator(BaseEvaluator):
             stream=False,
             request_rate=0,
             retry=1,
-            host_ip=host_ip,
-            host_port=host_port_int,
-            url=eval_url,
             max_out_len=512,
             batch_size=concurrency,
             trust_remote_code=False,
-            verbose=os.environ.get("EVAL_VERBOSE", "false").lower() == "true",
+            verbose=verbose,
             generation_kwargs=dict(
                 temperature=0.01,
                 ignore_eos=False,
+                enable_thinking=False,
             ),
             pred_postprocessor=dict(type=extract_non_reasoning_content),
         )
+
+        if api_key:
+            # ── 分支 A：MaaS API 模式（有 api_key，走云端 MaaS 服务）────────
+            eval_url = os.environ.get("EVAL_URL", "")
+            if not all([model_name, eval_url]):
+                return None
+            return {
+                **base_cfg,
+                "api_key": api_key,
+                "url": eval_url,
+                # MaaS 模式下 host_ip / host_port 从 url 中隐含，给占位值避免校验报错
+                "host_ip": os.environ.get("EVAL_HOST_IP", "localhost"),
+                "host_port": int(os.environ.get("EVAL_HOST_PORT", "443")),
+            }
+        else:
+            # ── 分支 B：本地服务模式（无 api_key，走内网自托管服务）──────────
+            host_ip   = os.environ.get("EVAL_HOST_IP")
+            host_port = os.environ.get("EVAL_HOST_PORT")
+            if not all([model_name, host_ip, host_port]):
+                return None
+            try:
+                host_port_int = int(host_port)
+            except ValueError:
+                return None
+            eval_url = os.environ.get(
+                "EVAL_URL",
+                f"http://{host_ip}:{host_port}/v1/chat/completions",
+            )
+            return {
+                **base_cfg,
+                "host_ip": host_ip,
+                "host_port": host_port_int,
+                "url": eval_url,
+            }
             
     def evaluate(self, k, n, original_dataset: Dataset, **score_kwargs):
         if 'predictions' in score_kwargs and 'references' in score_kwargs:

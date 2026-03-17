@@ -9,13 +9,13 @@ sys.argv = [
     'ais_bench', 
     '--models', 'bailian_qwen_plus',
     '--datasets', 
-        'math500_gen_0_shot_cot_chat_prompt',
+        'telequad_gen_0_shot',
     '--debug',
     '--work-dir', './outputs',
     '--max-num-workers', '1',  
     '--num-prompts', '1',
     '--mode','eval',
-    '--reuse','20260316_205810'
+    '--reuse','20260317_144540'
 ]
 #'--models', 'maas_api',
 #'--reuse',"20260227_113125"
