@@ -88,6 +88,8 @@ def first_option_postprocess(text: str, options: str, cushion=True) -> str:
     # yapf: disable
     # flake8: noqa: W605
     patterns = [
+        rf'^\**\s*(正确)?答案\s*[:：]\s*\*?\*?([{options}])(?=[\.\s]|\*|\))',
+        rf'^\**\s*答案选?\s*\*+\s?([{options}])\s?\*+',
         rf'答案是?\s*([{options}])',
         rf'答案是?\s*：\s*([{options}])',
         rf'答案是?\s*:\s*([{options}])',
@@ -121,10 +123,10 @@ def first_option_postprocess(text: str, options: str, cushion=True) -> str:
         rf'[是为。]\s?([{options}])[。\.]?$',
         rf'因此\s?([{options}])[。\.]?$',
         rf'显然\s?([{options}])[。\.]?$',
-        r'答案是\s?(\S+)(?:。|$)',
+        rf'答案是\s?(\S+)(?:。|$)',
         rf'[^a-zA-Z]*答案[是为]\s*[:：]?\s*\*{{0,2}}[✅✔✓]?\s*\*{{0,2}}([{options}])',
-        r'答案应该是\s?(\S+)(?:。|$)',
-        r'答案为\s?(\S+)(?:。|$)',
+        rf'答案应该是\s?(\S+)(?:。|$)',
+        rf'答案为\s?(\S+)(?:。|$)',
         rf'[Aa]nswer\s*[:：]?\s*\*?\*?([{options}])', 
         rf'(?i)ANSWER\s*:\s*([{options}])',
         rf'[Tt]he answer is:?\s+\(?([{options}])\)?',
@@ -139,7 +141,7 @@ def first_option_postprocess(text: str, options: str, cushion=True) -> str:
         rf'^选项\s?([{options}])',
         rf'^([{options}])\s?选?项',
         rf'(\s|^)[{options}][\s。，,：:\.$]',
-        r'1.\s?(.*?)$',
+        rf'1.\s?(.*?)$',
         rf'1.\s?([{options}])[.。$]?$',
         # 匹配 Markdown 加粗格式：**C** 或 **C. 描述**
         rf'答案选?\s*\*+\s?([{options}])\s?\*+',
