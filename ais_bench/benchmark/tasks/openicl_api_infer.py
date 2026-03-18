@@ -1,4 +1,5 @@
 import argparse
+import atexit
 import os
 import sys
 import threading
@@ -12,6 +13,24 @@ from typing import Dict
 import pickle
 from mmengine.config import Config, ConfigDict
 from collections import defaultdict
+
+# 全局追踪所有已创建的共享内存名称，用于 atexit 兜底清理
+_ACTIVE_SHM_NAMES: list = []
+
+
+def _atexit_cleanup_shms():
+    """进程退出时兜底清理所有未释放的共享内存段。"""
+    for name in _ACTIVE_SHM_NAMES:
+        try:
+            shm = shared_memory.SharedMemory(name=name, create=False)
+            shm.close()
+            shm.unlink()
+        except (FileNotFoundError, OSError):
+            pass
+    _ACTIVE_SHM_NAMES.clear()
+
+
+atexit.register(_atexit_cleanup_shms)
 
 from ais_bench.benchmark.global_consts import WORKERS_NUM
 from ais_bench.benchmark.registry import ICL_INFERENCERS, TASKS, ICL_RETRIEVERS
@@ -246,6 +265,7 @@ class OpenICLApiInferTask(BaseTask):
         check_virtual_memory_usage(dataset_bytes=dataset_bytes, threshold_percent=80)
 
         dataset_shm = shared_memory.SharedMemory(create=True, size=dataset_bytes)
+        _ACTIVE_SHM_NAMES.append(dataset_shm.name)
 
         buf = dataset_shm.buf
         indexes = {}
@@ -256,6 +276,8 @@ class OpenICLApiInferTask(BaseTask):
             indexes[index] = (index, offset, length)
             offset += length
             index += 1
+        # 数据已写入共享内存，立即释放临时 pickle 列表以回收内存
+        del pickled_dataset
         padding_indexes = {i: indexes.get(k) for i, k in enumerate(global_indexes)}
         if not self.pressure:
             padding_indexes[len(global_indexes)] = None
@@ -652,13 +674,17 @@ class OpenICLApiInferTask(BaseTask):
             shm: Shared memory object to clean up
         """
         try:
+            name = shm.name
             shm.close()
             shm.unlink()
-            self.logger.debug(f"Cleanup shared memory: {shm.name}")
+            # 从 atexit 兜底列表中移除已正常清理的条目
+            if name in _ACTIVE_SHM_NAMES:
+                _ACTIVE_SHM_NAMES.remove(name)
+            self.logger.debug(f"Cleanup shared memory: {name}")
         except (FileNotFoundError, OSError) as e:
             # shared memory already cleaned up or not found
             self.logger.debug(
-                f"Shared memory {shm.name} already cleaned up or not found: {e}"
+                f"Shared memory already cleaned up or not found: {e}"
             )
 
     def _set_default_value(self, cfg: ConfigDict, key: str, value: Any):

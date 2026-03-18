@@ -42,12 +42,6 @@ ais_bench --models bailian_qwen --datasets BFCL_gen_simple --debug  --num-prompt
 # 'tele_exam_gen_0_shot.py',
 # 'tele_exam_gen_0_shot_str.py',
 
-# 'ifeval_0_shot_gen_str.py',
-# math500_gen_0_shot_cot_chat_prompt
-#humaneval_gen_0_shot
-# telemath_gen_0_cot_shot
-# telequad_gen_0_shot
-
 
 
 

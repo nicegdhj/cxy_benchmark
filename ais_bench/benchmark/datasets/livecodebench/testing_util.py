@@ -96,7 +96,8 @@ def run_test(sample, test=None, debug=False, timeout=6):
     otherwise it'll just return an input and output pair.
     """
     # Disable functionalities that can make destructive changes to the test.
-    reliability_guard()
+    # 限制单个测试用例最大内存为 512MB，防止生成代码无限申请内存导致 OOM
+    reliability_guard(maximum_memory_bytes=1024 * 1024 * 1024)
 
     if debug:
         print(f'start = {datetime.now().time()}')

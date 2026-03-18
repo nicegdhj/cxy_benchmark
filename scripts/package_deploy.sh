@@ -52,6 +52,7 @@ echo "▶ [1/5] 检查依赖文件..."
 [ -d "$PROJECT_ROOT/data" ]                   || { echo "❌ 缺少 data/ 目录"; exit 1; }
 [ -f "$PROJECT_ROOT/eval_entry.py" ]          || { echo "❌ 缺少 eval_entry.py"; exit 1; }
 [ -f "$PROJECT_ROOT/eval_judge.py" ]          || { echo "❌ 缺少 eval_judge.py"; exit 1; }
+[ -f "$PROJECT_ROOT/aggregate_eval_reports.py" ] || { echo "❌ 缺少 aggregate_eval_reports.py"; exit 1; }
 [ -d "$PROJECT_ROOT/scripts" ]                || { echo "❌ 缺少 scripts/ 目录"; exit 1; }
 [ -f "$PROJECT_ROOT/run_mixed_benchmark.sh" ] || { echo "❌ 缺少 run_mixed_benchmark.sh"; exit 1; }
 
@@ -99,6 +100,9 @@ cp "$PROJECT_ROOT/eval_entry.py" "$TMP_DIR/eval_workspace/code/eval_entry.py"
 
 echo "  复制 eval_judge.py → code/..."
 cp "$PROJECT_ROOT/eval_judge.py" "$TMP_DIR/eval_workspace/code/eval_judge.py"
+
+echo "  复制 aggregate_eval_reports.py → code/..."
+cp "$PROJECT_ROOT/aggregate_eval_reports.py" "$TMP_DIR/eval_workspace/code/aggregate_eval_reports.py"
 
 echo "  复制 scripts/ → code/scripts/..."
 cp -r "$PROJECT_ROOT/scripts/" "$TMP_DIR/eval_workspace/code/scripts/"

@@ -325,4 +325,5 @@ def process_results(base_fmt_dir="outputs/fmt", output_base_dir="outputs"):
                     print(f"Created: {out_path}")
 
 if __name__ == "__main__":
-    process_results()
+    process_results(base_fmt_dir="/Users/jia/MyProjects/pythonProjects/cmcc_cxy/Bprocss/fmt",
+                    output_base_dir="/Users/jia/MyProjects/pythonProjects/cmcc_cxy/Bprocss/benchmark/outputs",)
