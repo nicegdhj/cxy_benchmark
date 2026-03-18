@@ -51,6 +51,7 @@ echo "▶ [1/5] 检查依赖文件..."
 [ -f "$PROJECT_ROOT/.env" ]                   || { echo "❌ 缺少 .env 文件"; exit 1; }
 [ -d "$PROJECT_ROOT/data" ]                   || { echo "❌ 缺少 data/ 目录"; exit 1; }
 [ -f "$PROJECT_ROOT/eval_entry.py" ]          || { echo "❌ 缺少 eval_entry.py"; exit 1; }
+[ -f "$PROJECT_ROOT/eval_judge.py" ]          || { echo "❌ 缺少 eval_judge.py"; exit 1; }
 [ -d "$PROJECT_ROOT/scripts" ]                || { echo "❌ 缺少 scripts/ 目录"; exit 1; }
 [ -f "$PROJECT_ROOT/run_mixed_benchmark.sh" ] || { echo "❌ 缺少 run_mixed_benchmark.sh"; exit 1; }
 
@@ -96,6 +97,9 @@ cp "$PROJECT_ROOT/.env" "$TMP_DIR/eval_workspace/.env"
 echo "  复制 eval_entry.py → code/..."
 cp "$PROJECT_ROOT/eval_entry.py" "$TMP_DIR/eval_workspace/code/eval_entry.py"
 
+echo "  复制 eval_judge.py → code/..."
+cp "$PROJECT_ROOT/eval_judge.py" "$TMP_DIR/eval_workspace/code/eval_judge.py"
+
 echo "  复制 scripts/ → code/scripts/..."
 cp -r "$PROJECT_ROOT/scripts/" "$TMP_DIR/eval_workspace/code/scripts/"
 
@@ -117,9 +121,10 @@ cat > "$TMP_DIR/eval_workspace/README.txt" << 'EOF'
   ├── .env                     # API 密钥（部署前请修改）
   ├── data/                    # 评测数据集
   ├── code/                    # 业务脚本（可直接在服务器上修改，无需重建镜像）
-  │   ├── eval_entry.py
+  │   ├── eval_entry.py        # 推理脚本（阶段 1）
+  │   ├── eval_judge.py        # 评测脚本（阶段 2）
   │   └── scripts/
-  ├── run_mixed_benchmark.sh   # 启动脚本
+  ├── run_mixed_benchmark.sh   # 启动脚本（推理+评测两阶段串联）
   └── benchmark-eval.tar.gz   # Docker 镜像离线包
 
 部署步骤：
@@ -134,11 +139,13 @@ cat > "$TMP_DIR/eval_workspace/README.txt" << 'EOF'
    bash run_mixed_benchmark.sh --workspace $(pwd)
 
 4. 查看结果：
-   outputs/<task-id>/report.md
-   outputs/<task-id>/report.json
+   outputs/<task-id>/eval_*/report.md
+   outputs/<task-id>/eval_*/report.json
+   outputs/<task-id>/infer_meta.json
 
 提示：
-  - 修改评测逻辑时直接编辑 code/eval_entry.py，无需重建镜像
+  - 修改推理逻辑时直接编辑 code/eval_entry.py，无需重建镜像
+  - 修改评测逻辑时直接编辑 code/eval_judge.py，无需重建镜像
   - 重连后查看进度：tail -f logs/mixed_eval_*.log
   - 终止任务：docker stop $(docker ps -q --filter ancestor=benchmark-eval:latest)
 

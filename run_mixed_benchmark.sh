@@ -125,12 +125,21 @@ fi
 echo "🚀 开始执行混合评测任务，Task ID: ${TASK_ID}"
 echo "---------------------------------------------------"
 
+# ── 阶段 1：推理 ──────────────────────────────────────────────────────
+echo ""
+echo "📌 阶段 1/2：执行推理..."
+echo "---------------------------------------------------"
+
 docker run --rm \
+    --memory=128g \
+    --memory-swap=128g \
+    --shm-size=16g \
     --env-file "${ENV_FILE}" \
     -e LOCAL_CONCURRENCY=20 \
     -v "${DATA_DIR}:/app/data" \
     -v "${OUTPUT_DIR}:/app/outputs" \
     -v "${CODE_DIR}/eval_entry.py:/app/eval_entry.py" \
+    -v "${CODE_DIR}/eval_judge.py:/app/eval_judge.py" \
     -v "${CODE_DIR}/scripts:/app/scripts" \
     "${IMAGE_TAG}" \
     python eval_entry.py \
@@ -138,6 +147,9 @@ docker run --rm \
         --model-config local_qwen \
         --tasks 1 34 36 43 44 60 \
         --generic-datasets \
+            ceval_gen_0_shot_str \
+            mmlu_redux_gen_5_shot_str \
+            teledata_gen_0_shot \
             gpqa_gen_0_shot_str \
             bbh_gen_3_shot_cot_chat \
             BFCL_gen_simple \
@@ -145,7 +157,6 @@ docker run --rm \
             math500_gen_0_shot_cot_chat_prompt \
             aime2025_gen_0_shot_chat_prompt \
             humaneval_gen_0_shot \
-            livecodebench_0_shot_chat_v6 \
             telemath_gen_0_cot_shot \
             teleqna_gen_0_shot \
             tspec_gen_0_shot \
@@ -153,17 +164,47 @@ docker run --rm \
             tele_exam_gen_0_shot \
             tele_exam_gen_0_shot_str
 
+##            livecodebench_0_shot_chat_v6 \
 
-#     ceval_gen_0_shot_str \  mmlu_redux_gen_5_shot_str  teledata_gen_0_shot
+INFER_RC=$?
+if [ ${INFER_RC} -ne 0 ]; then
+    echo "==================================================="
+    echo "❌ 推理阶段出现异常（退出码: ${INFER_RC}），跳过评测阶段。"
+    echo "==================================================="
+    exit ${INFER_RC}
+fi
+
+echo ""
+echo "✅ 推理阶段完成"
+
+# ── 阶段 2：评测 ──────────────────────────────────────────────────────
+echo ""
+echo "📌 阶段 2/2：执行评测..."
+echo "---------------------------------------------------"
+
+docker run --rm \
+    --memory=128g \
+    --memory-swap=128g \
+    --shm-size=16g \
+    --env-file "${ENV_FILE}" \
+    -e LOCAL_CONCURRENCY=20 \
+    -v "${DATA_DIR}:/app/data" \
+    -v "${OUTPUT_DIR}:/app/outputs" \
+    -v "${CODE_DIR}/eval_entry.py:/app/eval_entry.py" \
+    -v "${CODE_DIR}/eval_judge.py:/app/eval_judge.py" \
+    -v "${CODE_DIR}/scripts:/app/scripts" \
+    "${IMAGE_TAG}" \
+    python eval_judge.py \
+        --infer-task "${TASK_ID}"
 
 if [ $? -eq 0 ]; then
     echo "==================================================="
     echo "✅ 评测流水线全部执行完成！"
-    echo "📊 报告路径: ${OUTPUT_DIR}/${TASK_ID}/report.md"
+    echo "📊 报告路径: ${OUTPUT_DIR}/${TASK_ID}/eval_*/report.md"
     echo "==================================================="
 else
     echo "==================================================="
-    echo "❌ 评测过程中出现异常，部分或全部任务失败，请检查详情日志。"
+    echo "❌ 评测阶段出现异常，请检查详情日志。"
     echo "==================================================="
     exit 1
 fi

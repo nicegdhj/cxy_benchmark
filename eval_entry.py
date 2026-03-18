@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-eval_entry.py - ais_bench 统一评测入口
+eval_entry.py - ais_bench 推理入口（仅推理，不做评测）
+
+推理完成后生成 infer_meta.json，供 eval_judge.py 读取并执行评测。
 
 用法:
     python eval_entry.py \
@@ -22,9 +24,9 @@ Docker 用法:
 """
 
 import argparse
+import gc
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -42,7 +44,7 @@ load_dotenv(ROOT / ".env", override=False)
 # ── 参数解析 ────────────────────────────────────────────────────────
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="ais_bench 统一评测入口",
+        description="ais_bench 推理入口（仅推理，不做评测）",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -116,6 +118,29 @@ def parse_args():
     return args
 
 
+# ── 清理泄漏的共享内存 ────────────────────────────────────────────────
+def _cleanup_leaked_shm():
+    """清理 /dev/shm 中残留的 Python 共享内存段，防止 OOM。
+
+    Python multiprocessing.shared_memory 创建的共享内存以 /psm_ 或 /wnsm_ 为前缀，
+    存放在 /dev/shm/ 下。当进程被 SIGKILL 后这些文件不会自动删除。
+    """
+    shm_dir = Path("/dev/shm")
+    if not shm_dir.exists():
+        return
+    cleaned = 0
+    for f in shm_dir.iterdir():
+        # Python SharedMemory 默认命名格式
+        if f.name.startswith(("psm_", "wnsm_")):
+            try:
+                f.unlink()
+                cleaned += 1
+            except OSError:
+                pass
+    if cleaned:
+        print(f"   🧹 已清理 {cleaned} 个残留共享内存段")
+
+
 # ── 数据文件校验 ────────────────────────────────────────────────────
 def validate_data_files(task_nums: list, data_dir: Path):
     if not task_nums:
@@ -183,6 +208,7 @@ def run_evaluation(
             # --debug 模式：ais_bench 串行执行，日志直接打印到终端，便于排查问题
             cmd = [
                 "ais_bench",
+                "--mode", "infer",
                 "--models",
                 model_config,
                 "--datasets",
@@ -196,6 +222,7 @@ def run_evaluation(
             # 生产模式：去掉 --debug，用 --max-num-workers 开启真正并发
             cmd = [
                 "ais_bench",
+                "--mode", "infer",
                 "--models",
                 model_config,
                 "--datasets",
@@ -216,26 +243,27 @@ def run_evaluation(
         )
         duration = time.time() - start_time
 
-        # 解析最新输出目录里的 summary，拿到准确率、对应的 ais_bench 时间戳目录名、以及样本数
-        # 传入 run_start_time，确保只读取本次任务生成的 summary，杜绝跨任务串扰
-        accuracy, ais_bench_dir, num_samples = _parse_latest_task_result(
+        # infer 模式不产出 summary/results，只需找到时间戳目录和样本数
+        ais_bench_dir, num_samples = _find_infer_output(
             ais_bench_output, suite_name_pattern=suite, run_start_time=start_time
         )
         results.append(
             {
-                "task": task_name,
+                "task_name": task_name,
                 "type": task_type,
                 "suite": suite,
                 "status": "success" if proc.returncode == 0 else "failed",
-                "accuracy": accuracy,
                 "num_samples": num_samples,
                 "duration_sec": round(duration, 1),
                 "returncode": proc.returncode,
-                "_ais_bench_dir": ais_bench_dir,  # 内部字段，生成报告时转换
+                "timestamp": ais_bench_dir,
             }
         )
 
-        # ── 逐任务清理：立即搬运本轮产出到最终目录，然后删除源目录释放磁盘和 Page Cache ──
+        # ── 逐任务清理：清理残留共享内存 + 搬运产出 + 强制 GC ──
+        _cleanup_leaked_shm()
+        gc.collect()
+
         if ais_bench_dir:
             src_dir = ais_bench_output / ais_bench_dir
             if src_dir.exists():
@@ -243,245 +271,104 @@ def run_evaluation(
                 staging_dir.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copytree(src_dir, staging_dir)
                 shutil.rmtree(src_dir)
-                print(f"   🧹 已转存并清理: {ais_bench_dir}")
+                print(f"   📦 已转存并清理: {ais_bench_dir}")
 
     return results
 
 
-def _parse_latest_task_result(
+def _find_infer_output(
     ais_bench_output: Path, suite_name_pattern: str, run_start_time: float = None
 ) -> tuple:
-    """从最新 summary txt 里解析准确率和条数，同时返回对应的时间戳目录名。
+    """查找本次推理产出的时间戳目录和样本数。
 
     Args:
         ais_bench_output: ais_bench 输出根目录（outputs/default/）
-        suite_name_pattern: 当前任务的 suite 名称（仅用于 jsonl 文件查找回退）
-        run_start_time: 调用 ais_bench 前的 time.time()，只读取在此之后生成的 summary，
-                        防止多任务顺序执行时结果串扰。None 时退化为旧行为（取最新一条）。
+        suite_name_pattern: 当前任务的 suite 名称
+        run_start_time: 调用 ais_bench 前的 time.time()，用于时间过滤
 
     Returns:
-        (accuracy: float | None, dir_name: str | None, num_samples: int | None)
-            dir_name 即 outputs/default/ 下的时间戳目录名，如 '20260228_075043'
+        (dir_name: str | None, num_samples: int | None)
     """
     try:
-        summaries = sorted(
-            ais_bench_output.glob("*/summary/summary_*.txt"),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
-        )
-        for summary_path in summaries:
-            # 加入时间容差（300秒），防止宿主机与容器时钟不同步导致误杀最新结果
-            if run_start_time is not None and summary_path.stat().st_mtime <= (run_start_time - 300):
+        candidates = []
+        for d in ais_bench_output.iterdir():
+            if not d.is_dir():
                 continue
-                
-            task_dir = summary_path.parent.parent
-            
-            # 通过读取对应的 config 文件精确匹配 suite，解决不同步导致旧结果被误用的风险
-            is_match = False
-            for cfg in task_dir.glob("configs/*.py"):
+            pred_dir = d / "predictions"
+            if not pred_dir.exists():
+                continue
+            # 时间过滤
+            if run_start_time is not None and d.stat().st_mtime <= (run_start_time - 300):
+                continue
+            # config 匹配
+            for cfg in d.glob("configs/*.py"):
                 try:
                     cfg_text = cfg.read_text(encoding="utf-8")
                     if f"'{suite_name_pattern}'" in cfg_text or f'"{suite_name_pattern}"' in cfg_text:
-                        is_match = True
+                        candidates.append(d)
                         break
                 except Exception:
                     pass
-            
-            if not is_match:
-                continue
 
+        if not candidates:
+            return None, None
+
+        # 取最新的
+        target = sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)[0]
+        dir_name = target.name
+
+        # 统计样本数
+        num_samples = None
+        jsonl_files = list((target / "predictions").glob("**/*.jsonl"))
+        if jsonl_files:
             try:
-                text = summary_path.read_text(encoding="utf-8")
-
-                # 寻找 csv format 以下的行
-                lines = text.splitlines()
-                csv_start = -1
-                for idx, line in enumerate(lines):
-                    if line.strip() == "csv format":
-                        csv_start = idx
-                        break
-
-                if csv_start == -1:
-                    continue
-
-                # 约 csv_start + 2 行是 header, csv_start + 3 是正式数据
-                data_lines = []
-                for i in range(csv_start + 3, len(lines)):
-                    if lines[i].startswith("$") or not lines[i].strip():
-                        break
-                    data_lines.append(lines[i].strip())
-
-                if not data_lines:
-                    continue
-
-                # 解析准确率（允许部分行为 "-"，只统计有数值的行）
-                dataset_abbr = ""
-                total_acc = 0.0
-                valid_count = 0
-                for line in data_lines:
-                    parts = line.split(",")
-                    if len(parts) >= 5:
-                        dataset_abbr = parts[0]
-                        try:
-                            total_acc += float(parts[-1])
-                            valid_count += 1
-                        except (ValueError, TypeError):
-                            pass  # accuracy 为 "-" 时跳过，不报错
-
-                accuracy_val = (total_acc / valid_count) if valid_count > 0 else None
-                dir_name = summary_path.parent.parent.name
-
-                # 统计样本数：优先用 results/**/*_details.jsonl（已按 id 去重，数量精确）
-                # 找不到时回退到 predictions/**/*.jsonl（可能含 resume 追加的重复行）
-                num_samples = None
-                task_dir = summary_path.parent.parent
-                details_files = list((task_dir / "results").glob("**/*_details.jsonl"))
-                if details_files:
-                    try:
-                        num_samples = sum(
-                            sum(1 for _ in open(f, "r", encoding="utf-8"))
-                            for f in details_files
-                        )
-                    except Exception:
-                        pass
-
-                if num_samples is None:
-                    pred_dir = task_dir / "predictions"
-                    jsonl_files = list(pred_dir.glob(f"**/{dataset_abbr}.jsonl"))
-                    if not jsonl_files:
-                        jsonl_files = list(
-                            pred_dir.glob(
-                                f"**/*{suite_name_pattern.replace('_suite', '')}*.jsonl"
-                            )
-                        )
-                    if not jsonl_files:
-                        jsonl_files = list(pred_dir.glob(f"**/*.jsonl"))
-                    if jsonl_files:
-                        try:
-                            num_samples = sum(
-                                sum(1 for _ in open(f, "r", encoding="utf-8"))
-                                for f in jsonl_files
-                            )
-                        except Exception:
-                            pass
-
-                return (
-                    round(accuracy_val, 2) if accuracy_val is not None else None,
-                    dir_name,
-                    num_samples,
+                num_samples = sum(
+                    sum(1 for _ in open(f, "r", encoding="utf-8"))
+                    for f in jsonl_files
                 )
             except Exception:
                 pass
+
+        return dir_name, num_samples
     except Exception:
-        pass
-    return None, None, None
+        return None, None
 
 
-# ── 生成综合报告 ────────────────────────────────────────────────────
-def generate_report(results: list, task_id: str, model: str, output_dir: Path) -> Path:
-    task_dir = output_dir / task_id
-    task_dir.mkdir(parents=True, exist_ok=True)
-
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    accuracies = [r["accuracy"] for r in results if r["accuracy"] is not None]
-    avg = sum(accuracies) / len(accuracies) if accuracies else 0.0
-
-    # ── 计算分类汇总
-    summary_stats = {
-        "custom": {"count": 0, "total_duration_sec": 0.0, "accuracies": []},
-        "generic": {"count": 0, "total_duration_sec": 0.0, "accuracies": []},
-    }
-
-    for r in results:
-        t = r["type"]
-        summary_stats[t]["count"] += 1
-        summary_stats[t]["total_duration_sec"] += r["duration_sec"]
-        if r["accuracy"] is not None:
-            summary_stats[t]["accuracies"].append(r["accuracy"])
-
-    for t in ["custom", "generic"]:
-        accs = summary_stats[t].pop("accuracies")
-        summary_stats[t]["avg_accuracy"] = (
-            round(sum(accs) / len(accs), 2) if accs else 0.0
-        )
-        summary_stats[t]["total_duration_sec"] = round(
-            summary_stats[t]["total_duration_sec"], 1
-        )
-
-    # ── Markdown 报告
-    lines = [
-        "# 评测报告",
-        "",
-        f"- **Task ID**: `{task_id}`",
-        f"- **模型**: `{model}`",
-        f"- **时间**: {now}",
-        f"- **综合准确率**: {avg:.2f}%",
-        "",
-        "## 统计摘要",
-        "",
-        "| 任务类型 | 任务数量 | 总耗时 (秒) | 平均准确率 |",
-        "|----------|----------|-------------|------------|",
-        f"| 自定义 (Custom) | {summary_stats['custom']['count']} | {summary_stats['custom']['total_duration_sec']} | {summary_stats['custom']['avg_accuracy']}% |",
-        f"| 通用 (Generic)  | {summary_stats['generic']['count']} | {summary_stats['generic']['total_duration_sec']} | {summary_stats['generic']['avg_accuracy']}% |",
-        "",
-        "## 各任务明细",
-        "",
-        "| 任务 | 类型 | 状态 | 耗时(秒) | 数据量 | 准确率 |",
-        "|------|------|------|----------|--------|--------|",
-    ]
-    for r in results:
-        status_icon = "✅" if r["status"] == "success" else "❌"
-        acc_str = f"{r['accuracy']:.2f}%" if r["accuracy"] is not None else "-"
-        samples_str = str(r["num_samples"]) if r["num_samples"] is not None else "-"
-        lines.append(
-            f"| {r['task']} | {r['type']} | {status_icon} {r['status']} | {r['duration_sec']} | {samples_str} | {acc_str} |"
-        )
-
-    md_content = "\n".join(lines)
-    md_path = task_dir / "report.md"
-    md_path.write_text(md_content, encoding="utf-8")
-
-    # ── JSON 报告（供训练框架解析）
-    # 把内部字段 _ais_bench_dir 转成用户可读的 details_dir，并排除内部字段
-    tasks_for_json = []
-    for r in results:
-        ais_dir = r.get("_ais_bench_dir")
-        entry = {k: v for k, v in r.items() if not k.startswith("_")}
-        entry["details_dir"] = f"details/{ais_dir}" if ais_dir else None
-        tasks_for_json.append(entry)
-
-    json_data = {
+# ── 生成推理元数据 ────────────────────────────────────────────────────
+def generate_infer_meta(results: list, task_id: str, model_config: str, model_name: str, output_dir: Path):
+    """生成 infer_meta.json，记录每个任务的推理时间戳映射。"""
+    meta = {
         "task_id": task_id,
-        "model": model,
-        "timestamp": now,
-        "avg_accuracy": round(avg, 4),
-        "summary": summary_stats,
-        "tasks": tasks_for_json,
+        "model_config": model_config,
+        "model_name": model_name,
+        "infer_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "tasks": {}
     }
-    json_path = task_dir / "report.json"
-    json_path.write_text(
-        json.dumps(json_data, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    for r in results:
+        meta["tasks"][r["suite"]] = {
+            "timestamp": r["timestamp"],
+            "task_name": r["task_name"],
+            "type": r["type"],
+            "num_samples": r["num_samples"],
+            "duration_sec": r["duration_sec"],
+            "status": r["status"],
+        }
 
-    # ── 复制 ais_bench 原始输出（增量模式：大部分已在评测循环中逐任务转存）
+    meta_path = output_dir / task_id / "infer_meta.json"
+    meta_path.parent.mkdir(parents=True, exist_ok=True)
+    meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"\n📄 推理元数据已生成: {meta_path}")
+
+    # 兜底：搬运 outputs/default 中残余目录
     ais_out = ROOT / "outputs" / "default"
-    dest_details = task_dir / "details"
+    dest_details = output_dir / task_id / "details"
     dest_details.mkdir(parents=True, exist_ok=True)
-    # 仅搬运 outputs/default 中尚未被逐任务清理掉的残余目录（兜底）
     if ais_out.exists():
         for sub in ais_out.iterdir():
             dest_sub = dest_details / sub.name
             if sub.is_dir() and not dest_sub.exists():
                 shutil.copytree(sub, dest_sub)
-        # 最终清理整个 default 目录
         shutil.rmtree(ais_out)
-
-    print("\n📄 报告已生成:")
-    print(f"   Markdown : {md_path}")
-    print(f"   JSON     : {json_path}")
-    print(f"   原始输出 : {dest_details}")
-    return task_dir
 
 
 # ── 主流程 ──────────────────────────────────────────────────────────
@@ -519,23 +406,19 @@ def main():
         debug=args.debug,
         num_prompts=args.num_prompts,
     )
-    report_dir = generate_report(results, args.task_id, args.model, output_dir)
+    generate_infer_meta(results, args.task_id, args.model_config, args.model, output_dir)
 
     # 打印摘要
     print("\n" + "=" * 60)
-    print("📊 评测完成摘要")
+    print("📊 推理完成摘要")
     print("=" * 60)
     for r in results:
         icon = "✅" if r["status"] == "success" else "❌"
-        acc = f"{r['accuracy']:.2f}%" if r["accuracy"] is not None else "N/A"
+        samples = r["num_samples"] if r["num_samples"] else "N/A"
         print(
-            f"  {icon} [{r['type'][:3]}] {r['task']:15s} 耗时: {r['duration_sec']}s  准确率: {acc}"
+            f"  {icon} [{r['type'][:3]}] {r['task_name']:15s} 耗时: {r['duration_sec']}s  样本数: {samples}"
         )
-
-    accuracies = [r["accuracy"] for r in results if r["accuracy"] is not None]
-    if accuracies:
-        print(f"\n  🏆 综合平均: {sum(accuracies) / len(accuracies):.2f}%")
-    print(f"\n  📁 结果目录: {report_dir}")
+    print(f"\n  📁 结果目录: {output_dir / args.task_id}")
     print("=" * 60)
 
     # 外部调用时返回非 0 表示有任务失败
