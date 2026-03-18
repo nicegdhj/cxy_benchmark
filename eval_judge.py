@@ -64,6 +64,12 @@ def parse_args():
         default=str(ROOT / "outputs"),
         help="输出根目录（默认 outputs/）",
     )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=int(os.environ.get("LOCAL_CONCURRENCY", "5")),
+        help="评测并发数，透传给 ais_bench --max-num-workers（默认读取 LOCAL_CONCURRENCY，否则 5）",
+    )
     return parser.parse_args()
 
 
@@ -125,6 +131,7 @@ def run_eval_for_task(
     model_config: str,
     infer_task_dir: Path,
     eval_dir: Path,
+    concurrency: int = 5,
 ) -> dict:
     """对单个任务执行评测，搬运结果到 eval_dir。"""
 
@@ -142,6 +149,7 @@ def run_eval_for_task(
         "--reuse", timestamp,
         "--models", model_config,
         "--datasets", suite,
+        "--max-num-workers", str(concurrency),
     ]
 
     start_time = time.time()
@@ -157,8 +165,8 @@ def run_eval_for_task(
     work_dir = infer_task_dir / "details" / timestamp
     accuracy, num_samples = _parse_eval_result(work_dir, suite)
 
-    # 搬运 results/、logs/eval/、summary/ 到 eval_dir
-    _move_eval_outputs(work_dir, eval_dir)
+    # 搬运 results/、logs/eval/、summary/ 到 eval_dir/{suite}/
+    _move_eval_outputs(work_dir, eval_dir, suite)
 
     # 内存清理
     _cleanup_leaked_shm()
@@ -232,39 +240,40 @@ def _parse_eval_result(work_dir: Path, suite: str) -> tuple:
     return accuracy, num_samples
 
 
-def _move_eval_outputs(work_dir: Path, eval_dir: Path):
-    """将 ais_bench eval 产出（results/、logs/eval/、summary/）从 work_dir 搬运到 eval_dir。"""
-    for subdir in ["results", "summary"]:
-        src = work_dir / subdir
-        if src.exists():
-            dest = eval_dir / subdir
-            if dest.exists():
-                # 合并模式：多任务结果累积到同一 eval_dir
-                for item in src.rglob("*"):
-                    if item.is_file():
-                        rel = item.relative_to(src)
-                        target = dest / rel
-                        target.parent.mkdir(parents=True, exist_ok=True)
-                        shutil.copy2(item, target)
-            else:
-                shutil.copytree(src, dest)
-            shutil.rmtree(src)
+def _move_eval_outputs(work_dir: Path, eval_dir: Path, suite: str):
+    """将 ais_bench eval 产出从 work_dir 搬运到 eval_dir，按 suite 分目录。
 
-    # logs/eval/ 特殊处理
+    目标结构：
+        eval_dir/
+        ├── results/{suite}/    ← 展平 results/{model_config}/ 这一层
+        ├── summary/{suite}/    ← summary 文件按 suite 归档
+        └── logs/{suite}/       ← 展平 logs/eval/{model_config}/ 这两层
+    """
+    def _copy_files_flat(src_root: Path, dest_dir: Path):
+        """将 src_root 下所有文件（递归）平铺复制到 dest_dir，不保留中间目录层级。"""
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        for item in src_root.rglob("*"):
+            if item.is_file():
+                shutil.copy2(item, dest_dir / item.name)
+
+    # results/{model_config}/* → eval_dir/results/{suite}/*
+    src_results = work_dir / "results"
+    if src_results.exists():
+        _copy_files_flat(src_results, eval_dir / "results" / suite)
+        shutil.rmtree(src_results)
+
+    # summary/* → eval_dir/summary/{suite}/*
+    src_summary = work_dir / "summary"
+    if src_summary.exists():
+        _copy_files_flat(src_summary, eval_dir / "summary" / suite)
+        shutil.rmtree(src_summary)
+
+    # logs/eval/{model_config}/* → eval_dir/logs/{suite}/*
     eval_log_src = work_dir / "logs" / "eval"
     if eval_log_src.exists():
-        eval_log_dest = eval_dir / "logs" / "eval"
-        if eval_log_dest.exists():
-            for item in eval_log_src.rglob("*"):
-                if item.is_file():
-                    rel = item.relative_to(eval_log_src)
-                    target = eval_log_dest / rel
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(item, target)
-        else:
-            shutil.copytree(eval_log_src, eval_log_dest)
+        _copy_files_flat(eval_log_src, eval_dir / "logs" / suite)
         shutil.rmtree(eval_log_src)
-        # 如果 logs/ 目录空了，清理掉
+        # logs/ 目录若已空则清理
         logs_dir = work_dir / "logs"
         if logs_dir.exists() and not any(logs_dir.iterdir()):
             logs_dir.rmdir()
@@ -405,6 +414,7 @@ def main():
     print(f"📋 infer_task    : {args.infer_task}")
     print(f"📋 eval_version  : {eval_version}")
     print(f"📋 model         : {model_name} ({model_config})")
+    print(f"📋 concurrency   : {args.concurrency}")
     print(f"📋 tasks ({len(task_suites)})")
     for s in task_suites:
         eval_type = detect_evaluator_type(s)
@@ -428,6 +438,7 @@ def main():
             model_config=model_config,
             infer_task_dir=infer_task_dir,
             eval_dir=eval_dir,
+            concurrency=args.concurrency,
         )
         results.append(result)
 
