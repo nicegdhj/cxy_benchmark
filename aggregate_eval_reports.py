@@ -19,6 +19,8 @@ import argparse
 import glob
 import json
 import os
+import re
+import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -62,14 +64,30 @@ def load_mappings(output_base_dir: str):
     return task_mapping, df_task_mapping, id_to_name, df_exp_mapping
 
 
+def get_mapped_suite(raw_suite: str, task_mapping: dict) -> str:
+    """查映射表，找不到时尝试去掉 _suite 后缀再查。"""
+    if raw_suite in task_mapping:
+        return task_mapping[raw_suite]
+    stripped = raw_suite.removesuffix("_suite")
+    return task_mapping.get(stripped, raw_suite)
+
+
 def get_mapped_exp_name(raw_name: str, id_to_name: dict) -> str:
     if raw_name in ("baseline", "baseline_nothink"):
         return raw_name
     if raw_name.startswith("pt"):
         import re
-        match = re.search(r"pt(\d+)_", raw_name)
+        # 匹配 pt{id}_sft0 或 pt{id}_sf0，并捕获其后的额外后缀（如 _exp0317）
+        match = re.match(r"pt(\d+)_sf[t]?0(.*)", raw_name)
         if match:
             pt_id = int(match.group(1))
+            extra = match.group(2)  # e.g. "_exp0317" 或 ""
+            if pt_id in id_to_name:
+                return id_to_name[pt_id] + extra
+        # fallback：仅提取 id
+        match2 = re.search(r"pt(\d+)_", raw_name)
+        if match2:
+            pt_id = int(match2.group(1))
             if pt_id in id_to_name:
                 return id_to_name[pt_id]
     return raw_name
@@ -142,7 +160,7 @@ def process(fmt_dir: str, eval_version: str, output_base_dir: str):
 
     task_rows = []
     for raw_suite in sorted(all_suites):
-        mapped_suite = task_mapping.get(raw_suite, raw_suite)
+        mapped_suite = get_mapped_suite(raw_suite, task_mapping)
         row_dict = {"Task": mapped_suite}
         for group_tuple in exp_groups_sorted:
             mapped_exp = group_tuple[1]
@@ -216,7 +234,7 @@ def process(fmt_dir: str, eval_version: str, output_base_dir: str):
                 raw_suite = t.get("suite", t.get("task", "unknown"))
                 tasks_list.append({
                     "suite":       raw_suite,
-                    "task":        task_mapping.get(raw_suite, raw_suite),
+                    "task":        get_mapped_suite(raw_suite, task_mapping),
                     "type":        t.get("type", "-"),
                     "eval_type":   t.get("eval_type", "-"),
                     "status":      t.get("status", "-"),
@@ -249,7 +267,7 @@ def process(fmt_dir: str, eval_version: str, output_base_dir: str):
         suite_set = {t.get("suite", t.get("task")) for t in report_data.get("tasks", [])}
 
         for suite in suite_set:
-            mapped_suite = task_mapping.get(suite, suite)
+            mapped_suite = get_mapped_suite(suite, task_mapping)
             suite_dir = eval_results_dir / suite
             if not suite_dir.exists():
                 # 兼容旧结构（results/ 下直接有 jsonl）
@@ -300,8 +318,11 @@ def process(fmt_dir: str, eval_version: str, output_base_dir: str):
                             def fmt(v):
                                 if v is None: return "null"
                                 if isinstance(v, (dict, list)):
-                                    return json.dumps(v, ensure_ascii=False, indent=2)
-                                return str(v)
+                                    s = json.dumps(v, ensure_ascii=False, indent=2)
+                                else:
+                                    s = str(v)
+                                # 过滤 Excel 非法控制字符（openpyxl 不接受 \x00-\x08 \x0b \x0c \x0e-\x1f）
+                                return re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", s)
 
                             rows.append({
                                 "eval_res": fmt(eval_res),
@@ -318,6 +339,14 @@ def process(fmt_dir: str, eval_version: str, output_base_dir: str):
                     out_path = os.path.join(task_out_dir, out_name)
                     pd.DataFrame(rows).to_excel(out_path, index=False)
                     print(f"  📄 {out_path}")
+
+            # 拷贝 summary 子目录（对齐 process_results.py 的行为）
+            suite_summary_src = group_dir / eval_version / "summary" / suite
+            if suite_summary_src.exists():
+                summary_dst = os.path.join(task_out_dir, "summary")
+                if not os.path.exists(summary_dst):
+                    shutil.copytree(str(suite_summary_src), summary_dst)
+                    print(f"  📁 summary → {summary_dst}")
 
     print(f"\n✅ 汇总完成 → {target_dir}")
 

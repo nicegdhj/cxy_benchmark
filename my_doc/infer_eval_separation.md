@@ -224,3 +224,88 @@ python eval_judge.py \
 | `--model-config` | 模型配置名（默认 `local_qwen`） |
 | `--all` | 批量处理 path 下所有子目录 |
 | `--overwrite` | 强制覆盖已有的 `infer_meta.json` |
+
+---
+
+## 6. 结果汇总：aggregate_eval_reports.py
+
+### 6.1 作用
+
+`aggregate_eval_reports.py` 用于将多个实验组（`ptXX_sftX`、`baseline` 等）的评测结果汇总为一份 Excel 报告，输出格式与 `process_results.py` 对齐。
+
+核心功能：
+
+| 功能 | 说明 |
+|------|------|
+| **总体对比表** | 生成 `总体汇总_*.xlsx`，行为任务名，列为实验组，baseline 黄色高亮，优于 baseline 绿色，劣于 baseline 红色 |
+| **实验组详情 Sheet** | 每个实验组独立一个 Sheet，展示各任务准确率、样本数、耗时等 |
+| **明细 Excel** | 将每个实验组每个任务的 `_details.jsonl` 转换为 Excel，存放至 `{数据集名}/{实验组名}/` 子目录 |
+| **summary 拷贝** | 将 `eval_{version}/summary/{suite}/` 拷贝至对应子目录的 `summary/` 下 |
+| **任务名映射** | 自动读取 `outputs/评测任务文件名对应.xlsx`，将 `ceval_gen_0_shot_str` 等内部名称转换为可读名称（如 `C-Eval`）；支持自动去除 `_suite` 后缀 |
+| **实验组名映射** | 自动读取 `outputs/实验设置.xlsx`，将 `pt37_sft0` 转换为 `set37_...` 实验设置名；带 `_expXXXX` 后缀的变体（如 `pt37_sf0_exp0317`）映射为 `set37_..._exp0317` |
+
+### 6.2 输入目录结构
+
+脚本读取 `--fmt-dir` 下每个实验组的 `{eval_version}/report.json`：
+
+```
+fmt/
+├── baseline/
+│   └── v6_rule/
+│       ├── report.json          # 任务准确率等汇总
+│       ├── results/{suite}/     # *_details.jsonl 明细
+│       └── summary/{suite}/     # 评测 summary 文件
+├── pt0_sft0/
+│   └── v6_rule/
+│       └── ...
+└── pt37_sf0_exp0317/            # 带版本后缀的变体组
+    └── v6_rule/
+        └── ...
+```
+
+### 6.3 输出目录结构
+
+```
+outputs/aggregated_reports_{timestamp}/
+├── 总体汇总_{timestamp}.xlsx      # 主报告（总体对比 + 附录）
+├── {数据集名}/                    # 例如 AIME-2025/、C-Eval/
+│   ├── baseline/
+│   │   ├── {task}_details.xlsx   # 明细 Excel
+│   │   └── summary/              # 拷贝自 eval_{version}/summary/{suite}/
+│   └── {实验组名}/
+│       ├── {task}_details.xlsx
+│       └── summary/
+└── ...
+```
+
+### 6.4 用法
+
+```bash
+# 基本用法
+python aggregate_eval_reports.py \
+    --fmt-dir /path/to/fmt \
+    --eval-version v6_rule \
+    --output-dir ./outputs
+
+# 不传 --output-dir 时默认输出到 fmt-dir/../benchmark/outputs/
+python aggregate_eval_reports.py \
+    --fmt-dir ~/Desktop/fmt_exp0316 \
+    --eval-version v6_rule
+```
+
+### 6.5 参数说明
+
+| 参数 | 必填 | 说明 | 示例 |
+|------|------|------|------|
+| `--fmt-dir` | 否（有默认值） | 实验组根目录，每个子目录为一个实验组 | `~/Desktop/fmt_exp0316` |
+| `--eval-version` | **是** | 评测版本号，即 `eval_judge.py` 的 `--eval-version` | `v6_rule` |
+| `--output-dir` | 否 | 汇总输出目录（不传则输出到 `fmt-dir/../benchmark/outputs/`） | `./outputs` |
+
+### 6.6 依赖映射文件
+
+脚本从 `--output-dir` 下读取以下两个 Excel，缺失时跳过映射（直接使用原始名称）：
+
+| 文件 | 作用 |
+|------|------|
+| `outputs/评测任务文件名对应.xlsx` | 第一列：任务内部名称；第二列：展示名称 |
+| `outputs/实验设置.xlsx` | 第一列：编号；第二列：实验设置文件名（`.json` 后缀自动去除） |
