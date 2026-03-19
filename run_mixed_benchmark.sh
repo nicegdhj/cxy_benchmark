@@ -164,7 +164,7 @@ docker run --rm \
             tele_exam_gen_0_shot \
             tele_exam_gen_0_shot_str
 
-##            livecodebench_0_shot_chat_v6 \
+## livecodebench_0_shot_chat_v6 \
 
 INFER_RC=$?
 if [ ${INFER_RC} -ne 0 ]; then

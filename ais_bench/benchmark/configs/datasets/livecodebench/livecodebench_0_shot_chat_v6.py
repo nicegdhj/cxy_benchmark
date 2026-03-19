@@ -48,7 +48,7 @@ lcb_code_generation_eval_cfg = dict(
     evaluator=dict(
         type=LCBCodeGenerationEvaluator,
         num_process_evaluate=4,
-        timeout=500,
+        timeout=10,
         release_version=DATASET_RELEASE_VERSION,
     ),
     pred_role='BOT',

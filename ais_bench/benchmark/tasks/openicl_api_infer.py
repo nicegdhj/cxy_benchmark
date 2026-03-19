@@ -276,12 +276,13 @@ class OpenICLApiInferTask(BaseTask):
             indexes[index] = (index, offset, length)
             offset += length
             index += 1
+        dataset_size = len(pickled_dataset)
         # 数据已写入共享内存，立即释放临时 pickle 列表以回收内存
         del pickled_dataset
         padding_indexes = {i: indexes.get(k) for i, k in enumerate(global_indexes)}
         if not self.pressure:
             padding_indexes[len(global_indexes)] = None
-        return len(pickled_dataset), dataset_shm, padding_indexes
+        return dataset_size, dataset_shm, padding_indexes
 
     def _deliver_concurrency_for_workers(self):
         """Split total concurrency across worker processes as evenly as possible.

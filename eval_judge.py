@@ -70,6 +70,12 @@ def parse_args():
         default=int(os.environ.get("LOCAL_CONCURRENCY", "5")),
         help="评测并发数，透传给 ais_bench --max-num-workers（默认读取 LOCAL_CONCURRENCY，否则 5）",
     )
+    parser.add_argument(
+        "--task-timeout",
+        type=int,
+        default=int(os.environ.get("EVAL_TASK_TIMEOUT", "3600")),
+        help="单个评测任务最大执行时间（秒），超时强制终止并跳过。默认3600秒",
+    )
     return parser.parse_args()
 
 
@@ -132,6 +138,7 @@ def run_eval_for_task(
     infer_task_dir: Path,
     eval_dir: Path,
     concurrency: int = 5,
+    task_timeout: int = 3600,
 ) -> dict:
     """对单个任务执行评测，搬运结果到 eval_dir。"""
 
@@ -153,15 +160,26 @@ def run_eval_for_task(
     ]
 
     start_time = time.time()
-    proc = subprocess.run(
-        cmd,
-        cwd=str(ROOT),
-        text=True,
-        capture_output=False,
-    )
+    status = "success"
+    returncode = 0
+    try:
+        proc = subprocess.run(
+            cmd,
+            cwd=str(ROOT),
+            text=True,
+            capture_output=False,
+            timeout=task_timeout,
+        )
+        returncode = proc.returncode
+        if returncode != 0:
+            status = "failed"
+    except subprocess.TimeoutExpired:
+        print(f"   ⏰ 任务 {suite} 超时（>{task_timeout}s），强制终止并跳过")
+        status = "timeout"
+        returncode = -1
     duration = time.time() - start_time
 
-    # 解析评测结果
+    # 解析评测结果（超时也尝试解析已产出的部分结果）
     work_dir = infer_task_dir / "details" / timestamp
     accuracy, num_samples = _parse_eval_result(work_dir, suite)
 
@@ -177,11 +195,11 @@ def run_eval_for_task(
         "suite": suite,
         "type": task_info["type"],
         "eval_type": eval_type,
-        "status": "success" if proc.returncode == 0 else "failed",
+        "status": status,
         "accuracy": accuracy,
         "num_samples": num_samples or task_info.get("num_samples"),
         "duration_sec": round(duration, 1),
-        "returncode": proc.returncode,
+        "returncode": returncode,
     }
 
 
@@ -439,6 +457,7 @@ def main():
             infer_task_dir=infer_task_dir,
             eval_dir=eval_dir,
             concurrency=args.concurrency,
+            task_timeout=args.task_timeout,
         )
         results.append(result)
 

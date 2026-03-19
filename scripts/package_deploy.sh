@@ -55,6 +55,7 @@ echo "▶ [1/5] 检查依赖文件..."
 [ -f "$PROJECT_ROOT/aggregate_eval_reports.py" ] || { echo "❌ 缺少 aggregate_eval_reports.py"; exit 1; }
 [ -d "$PROJECT_ROOT/scripts" ]                || { echo "❌ 缺少 scripts/ 目录"; exit 1; }
 [ -f "$PROJECT_ROOT/run_mixed_benchmark.sh" ] || { echo "❌ 缺少 run_mixed_benchmark.sh"; exit 1; }
+[ -f "$PROJECT_ROOT/run_eval_container.sh" ]  || { echo "❌ 缺少 run_eval_container.sh"; exit 1; }
 
 mkdir -p "$OUTPUTS_DIR"
 
@@ -111,6 +112,10 @@ cp -r "$PROJECT_ROOT/scripts/" "$TMP_DIR/eval_workspace/code/scripts/"
 echo "  复制 run_mixed_benchmark.sh..."
 cp "$PROJECT_ROOT/run_mixed_benchmark.sh" "$TMP_DIR/eval_workspace/run_mixed_benchmark.sh"
 chmod +x "$TMP_DIR/eval_workspace/run_mixed_benchmark.sh"
+
+echo "  复制 run_eval_container.sh..."
+cp "$PROJECT_ROOT/run_eval_container.sh" "$TMP_DIR/eval_workspace/run_eval_container.sh"
+chmod +x "$TMP_DIR/eval_workspace/run_eval_container.sh"
 
 # 复制镜像文件
 echo "  复制镜像文件 $IMAGE_FILE..."

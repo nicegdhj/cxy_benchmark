@@ -11,6 +11,7 @@ RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debia
     || sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list; \
     apt-get update && apt-get install -y --no-install-recommends \
         curl \
+        vim \
     && rm -rf /var/lib/apt/lists/*
 
 # ── 全局 pip 换清华源 ─────────────────────────────────────────────────

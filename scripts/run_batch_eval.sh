@@ -32,10 +32,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # ── 默认参数 ─────────────────────────────────────────────────────────────────
-FMT_DIR=""
-EVAL_VERSION="v3_reeval"
-CONCURRENCY=10
-EVAL_TASKS=""
+FMT_DIR="fmt"
+EVAL_VERSION="v_test"
+CONCURRENCY=60
+
+# livecodebench_0_shot_chat_v6
+
+# EVAL_TASKS="tele_exam_gen_0_shot_strl telequad_gen_0_shot teledata_gen_0_shot"
+EVAL_TASKS="task_1_suite task_34_suite task_36_suite task_43_suite task_44_suite task_60_suite mmlu_redux_gen_5_shot_str ceval_gen_0_shot_str gpqa_gen_0_shot_str bbh_gen_3_shot_cot_chat BFCL_gen_simple ifeval_0_shot_gen_str math500_gen_0_shot_cot_chat_prompt aime2025_gen_0_shot_chat_prompt humaneval_gen_0_shot telemath_gen_0_cot_shot teleqna_gen_0_shot tspec_gen_0_shot tele_exam_gen_0_shot"
 DRY_RUN=false
 MODE="local"           # local | docker
 WORKSPACE=""           # Docker 模式下的工作目录

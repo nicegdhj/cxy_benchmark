@@ -1,8 +1,8 @@
 #!/bin/bash
 
 python eval_judge.py --infer-task baseline   \
-                    --output-dir /Users/jia/MyProjects/pythonProjects/cmcc_cxy/Bprocss/benchmark/outputs/fmt \
-                    --eval-version v3_test \
+                    --output-dir fmt \
+                    --eval-version v2_new_eval \
                     --concurrency  8\
                     --eval-tasks \
                         task_1_suite \
