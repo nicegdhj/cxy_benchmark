@@ -10,6 +10,7 @@ from ais_bench.benchmark.registry import ICL_EVALUATORS
 from ais_bench.benchmark.openicl.icl_evaluator.icl_base_evaluator import BaseEvaluator
 from ais_bench.benchmark.utils.config.build import build_model_from_cfg
 from ais_bench.benchmark.utils.logging.logger import AISLogger
+from ais_bench.benchmark.utils.postprocess.model_postprocessors import extract_non_reasoning_content
 
 DEFAULT_PROMPT_TEMPLATE = """You are a fair and strict evaluator. Please score the following student's answer based on the correct answer.
 The maximum score you can give is {max_score}.
@@ -28,12 +29,11 @@ class LLMJudgeEvaluator(BaseEvaluator):
         super().__init__()
         self.prompt_template = prompt_template or DEFAULT_PROMPT_TEMPLATE
         self.logger = AISLogger()
-        if model_cfg:
-            # 显式传入了配置，直接使用
-            self.model_cfg = model_cfg
+        env_model_cfg = self._build_eval_model_cfg_from_env()
+        if env_model_cfg:
+            self.model_cfg = env_model_cfg
         else:
-            # 未传入配置，尝试从 EVAL_* 环境变量自动构建评估模型配置
-            self.model_cfg = self._build_eval_model_cfg_from_env()
+            self.model_cfg = None
 
         if not self.model_cfg:
             self.logger.info(
@@ -62,9 +62,6 @@ class LLMJudgeEvaluator(BaseEvaluator):
             完整的 model_cfg dict，若必填变量缺失则返回 None。
         """
         from ais_bench.benchmark.models import MaaSAPI
-        from ais_bench.benchmark.utils.postprocess.model_postprocessors import (
-            extract_non_reasoning_content,
-        )
 
         model_name  = os.environ.get("EVAL_MODEL_NAME")
         api_key     = os.environ.get("EVAL_API_KEY", "").strip()
@@ -95,6 +92,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
 
         if api_key:
             # ── 分支 A：MaaS API 模式（有 api_key，走云端 MaaS 服务）────────
+            from ais_bench.benchmark.utils.logging.logger import AISLogger
+            AISLogger().info('================使用MAAS打分模型=======================')
             eval_url = os.environ.get("EVAL_URL", "")
             if not all([model_name, eval_url]):
                 return None
@@ -107,6 +106,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 "host_port": int(os.environ.get("EVAL_HOST_PORT", "443")),
             }
         else:
+            from ais_bench.benchmark.utils.logging.logger import AISLogger
+            AISLogger().info('================使用本地打分模型=======================')
             # ── 分支 B：本地服务模式（无 api_key，走内网自托管服务）──────────
             host_ip   = os.environ.get("EVAL_HOST_IP")
             host_port = os.environ.get("EVAL_HOST_PORT")
@@ -133,7 +134,6 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 return {'error': 'Predictions and references must have the same length'}
 
         score_kwargs['predictions'] = self.pred_postprocess(score_kwargs.get('predictions', []))
-
         # Enforce `test_set` in `score_kwargs` is `original_dataset`
         score_kwargs['test_set'] = original_dataset
         results = self.score(**score_kwargs)
@@ -146,7 +146,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
         total_max_score = 0.0
         subdivision_scores = defaultdict(float)
         subdivision_max_scores = defaultdict(float)
-        self.logger.info(details)
+        # self.logger.info(details)
         for i, detail in enumerate(details):
             if i < len(original_dataset):
                 example = original_dataset[i]
@@ -234,17 +234,49 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 judgements = loop.run_until_complete(_run_api_inference())
         else:
             judgements = self.model.generate(prompts, max_out_len=128)
-        
         details = []
         for i, (pred, ref, judge_output, max_score) in enumerate(zip(predictions, references, judgements, max_scores)):
             score = 0.0
-            matches = re.findall(r'([\d.]+)', str(judge_output))
-            if matches:
+            if judge_output is None or str(judge_output).strip() == "":
+                raise ValueError(f"Empty or missing judge output at index {i}. "
+                     f"Prompt: {prompts[i][:100]}...")  
+            
+            # 1. 过滤掉大模型思考过程的 <think>...</think>，以免提取到里面的时间或举例数字
+            clean_output = str(judge_output)
+            clean_output = extract_non_reasoning_content(clean_output)
+            
+            # 2. 优先通过正则表达式尝试提取 "score": 数字
+            score_match = re.search(r'["\']score["\']\s*:\s*["\']?([\d.]+)["\']?', clean_output, flags=re.IGNORECASE)
+            
+            if score_match:
+                extracted_str = score_match.group(1)
+                self.logger.info(f"Extracted score from JSON field: {extracted_str}")
                 try:
-                    score = float(matches[-1])
+                    score = float(extracted_str)
                     score = min(max(score, 0.0), max_score)
                 except ValueError:
                     pass
+            else:
+                # 3. 实在没有则回退：先尝试找独占一行的纯分数
+                line_match = re.search(r'^\s*([\d.]+)\s*$', clean_output, flags=re.MULTILINE)
+                if line_match:
+                    extracted_str = line_match.group(1)
+                    self.logger.info(f"No score field, but found a standalone number on a line: {extracted_str}")
+                    try:
+                        score = float(extracted_str)
+                        score = min(max(score, 0.0), max_score)
+                    except ValueError:
+                        pass
+                else:
+                    # 4. 如果连独占一行的数字都没有，退回到找整个文本的最后一个数字
+                    matches = re.findall(r'([\d.]+)', clean_output)
+                    self.logger.info(f"No score field found, fallback to digits (taking the last one): {matches}")
+                    if matches:
+                        try:
+                            score = float(matches[-1])
+                            score = min(max(score, 0.0), max_score)
+                        except ValueError:
+                            pass
             
             details.append({
                 'prompt': prompts[i],
