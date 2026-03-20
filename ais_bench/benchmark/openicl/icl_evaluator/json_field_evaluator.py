@@ -173,6 +173,11 @@ class JsonFieldEvaluator(BaseEvaluator):
     - "value_only": 只比较值（忽略键名差异）
     - "contains": 包含匹配（pred 包含 gold）
     - "flexible": 灵活匹配（支持部分匹配）
+
+    strict_mode：
+    - False（默认）：各字段加权平均，支持部分得分
+    - True：AND 逻辑，所有参评字段（weight > 0）都必须精确匹配才算正确，
+      否则整个样本得 0 分。weight=0 的字段不参与评分。
     """
 
     def __init__(
@@ -180,11 +185,13 @@ class JsonFieldEvaluator(BaseEvaluator):
         field_config: Dict[str, Dict] = None,
         default_match_type: str = "exact",
         return_details: bool = False,
+        strict_mode: bool = False,
     ) -> None:
         super().__init__()
         self.field_config = field_config or {}
         self.default_match_type = default_match_type
         self.return_details = return_details
+        self.strict_mode = strict_mode
 
     def _get_field_config(self, field_name: str) -> Dict:
         """获取字段配置，不存在则返回默认值"""
@@ -196,7 +203,12 @@ class JsonFieldEvaluator(BaseEvaluator):
         """比较单个字段，返回分数 0-1"""
 
         if match_type == "exact":
-            return 1.0 if pred_val == gold_val else 0.0
+            if pred_val == gold_val:
+                return 1.0
+            # 类型不同但字符串表示相同（如 3 vs "3"）视为匹配
+            if str(pred_val).strip() == str(gold_val).strip():
+                return 1.0
+            return 0.0
 
         elif match_type == "value_only":
             # 对于嵌套结构，提取所有值进行比较
@@ -250,6 +262,10 @@ class JsonFieldEvaluator(BaseEvaluator):
                 match_type = config.get("match_type", self.default_match_type)
                 weight = config.get("weight", 1.0)
 
+                # strict_mode 下 weight=0 的字段不参与评分
+                if self.strict_mode and weight == 0:
+                    continue
+
                 pred_value = (
                     pred_json.get(field_name) if isinstance(pred_json, dict) else None
                 )
@@ -274,7 +290,11 @@ class JsonFieldEvaluator(BaseEvaluator):
                 result["field_scores"] = {"__overall__": score}
             return result
 
-        overall_score = weighted_score / total_weight if total_weight > 0 else 0.0
+        if self.strict_mode:
+            # AND 逻辑：所有参评字段都必须得 1.0，否则整体为 0
+            overall_score = 1.0 if (field_scores and all(s == 1.0 for s in field_scores.values())) else 0.0
+        else:
+            overall_score = weighted_score / total_weight if total_weight > 0 else 0.0
 
         result = {
             "accuracy": overall_score,

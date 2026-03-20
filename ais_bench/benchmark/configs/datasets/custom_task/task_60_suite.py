@@ -49,10 +49,11 @@ task_60_eval_cfg = dict(
         type=JsonFieldEvaluator,
         field_config={
             "投诉类型": {"match_type": "exact", "weight": 1.0},
-            "投诉类型判断依据": {"match_type": "rouge", "weight": 0.5},
+            "投诉类型判断依据": {"match_type": "exact", "weight": 0},
         },
-        default_match_type="flexible",
+        default_match_type="exact",
         return_details=True,
+        strict_mode=True,
     ),
 )
 

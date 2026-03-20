@@ -55,7 +55,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --fmt-dir)       FMT_DIR="$2";       shift 2 ;;
         --version)       EVAL_VERSION="$2";  shift 2 ;;
-        --concurrency)   CONCURRENCY="$2";   shift 2 ;;
+        --score-worker-concurrency) CONCURRENCY="$2"; shift 2 ;;
         --eval-tasks)    EVAL_TASKS="$2";    shift 2 ;;
         --dry-run)       DRY_RUN=true;       shift 1 ;;
         --local)         MODE="local";       shift 1 ;;
@@ -194,7 +194,6 @@ for name in "${candidates[@]}"; do
         cmd="docker run --rm \
             --memory=128g --memory-swap=128g --shm-size=16g \
             --env-file ${ENV_FILE} \
-            -e LOCAL_CONCURRENCY=${CONCURRENCY} \
             -v ${DATA_DIR}:/app/data \
             -v ${FMT_DIR}:/data/fmt \
             -v ${CODE_DIR}/eval_judge.py:/app/eval_judge.py \
@@ -204,14 +203,14 @@ for name in "${candidates[@]}"; do
                 --infer-task ${name} \
                 --output-dir /data/fmt \
                 --eval-version ${EVAL_VERSION} \
-                --concurrency ${CONCURRENCY} \
+                --score-worker-concurrency ${CONCURRENCY} \
                 ${eval_tasks_args}"
     else
         cmd="python ${PROJECT_ROOT}/eval_judge.py \
             --infer-task ${name} \
             --output-dir ${FMT_DIR} \
             --eval-version ${EVAL_VERSION} \
-            --concurrency ${CONCURRENCY} \
+            --score-worker-concurrency ${CONCURRENCY} \
             ${eval_tasks_args}"
     fi
 

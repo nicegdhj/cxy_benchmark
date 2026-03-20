@@ -91,10 +91,11 @@ task_1_eval_cfg = dict(
         type=JsonFieldEvaluator,
         field_config={
             "业务类别": {"match_type": "exact", "weight": 1.0},
-            "信息提取": {"match_type": "value_only", "weight": 1.0},
+            "信息提取": {"match_type": "exact", "weight": 1.0},
         },
-        default_match_type="flexible",
+        default_match_type="exact",
         return_details=True,
+        strict_mode=True,
     ),
 )
 

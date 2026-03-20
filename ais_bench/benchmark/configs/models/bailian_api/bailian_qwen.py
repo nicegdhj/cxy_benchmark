@@ -23,7 +23,7 @@ models = [
         api_key="sk-113a66cc6c464374a4d6f06b7306132f",
         url=os.environ["QWEN_PLUS_URL"],
         max_out_len=512,
-        batch_size=int(os.environ.get("EVAL_CONCURRENCY", "5")),
+        batch_size=int(os.environ.get("LOCAL_CONCURRENCY", "20")),
         trust_remote_code=False,
         verbose=os.environ.get("EVAL_VERBOSE", "false").lower() == "true",
         generation_kwargs=dict(

@@ -77,14 +77,14 @@ def parse_args():
     )
     parser.add_argument(
         "--model",
-        default=os.environ.get("EVAL_MODEL_NAME", "qwen-plus"),
-        help="模型名称，透传给 EVAL_MODEL_NAME 环境变量（默认 qwen-plus）",
+        default=os.environ.get("LOCAL_MODEL_NAME", "qwen3-14b"),
+        help="推理模型名称，用于报告标识（默认读取 LOCAL_MODEL_NAME）",
     )
     parser.add_argument(
         "--concurrency",
         type=int,
-        default=int(os.environ.get("EVAL_CONCURRENCY", "5")),
-        help="并发请求数，透传给 EVAL_CONCURRENCY 环境变量（默认 5）",
+        default=int(os.environ.get("LOCAL_CONCURRENCY", "20")),
+        help="推理并发请求数，透传给 LOCAL_CONCURRENCY（默认 20）",
     )
     parser.add_argument(
         "--model-config",
@@ -376,10 +376,8 @@ def main():
     args = parse_args()
 
     # 注入到环境变量（子进程 ais_bench 会继承）
-    os.environ["EVAL_MODEL_NAME"] = args.model
-    os.environ["EVAL_CONCURRENCY"] = str(args.concurrency)
-    # local_qwen 的 batch_size 读取 LOCAL_CONCURRENCY，同步注入保证两层并发一致
-    os.environ.setdefault("LOCAL_CONCURRENCY", str(args.concurrency))
+    # local_qwen 的 batch_size 读取 LOCAL_CONCURRENCY
+    os.environ["LOCAL_CONCURRENCY"] = str(args.concurrency)
 
     data_dir = Path(args.data_dir).resolve()
     output_dir = Path(args.output_dir).resolve()

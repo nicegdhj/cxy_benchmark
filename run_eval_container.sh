@@ -91,7 +91,6 @@ echo "   工作目录: ${WORKSPACE}"
 docker run -itd \
     --name "${CONTAINER_NAME}" \
     --env-file "${ENV_FILE}" \
-    -e LOCAL_CONCURRENCY=20 \
     --memory=128g \
     --memory-swap=128g \
     --shm-size=16g \

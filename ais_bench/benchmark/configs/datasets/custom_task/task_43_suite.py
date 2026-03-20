@@ -79,8 +79,9 @@ task_43_eval_cfg = dict(
             "分类结果": {"match_type": "exact", "weight": 1.0},
             "分类标号": {"match_type": "exact", "weight": 1.0},
         },
-        default_match_type="flexible",
+        default_match_type="exact",
         return_details=True,
+        strict_mode=True,
     ),
 )
 

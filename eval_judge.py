@@ -6,8 +6,12 @@ eval_judge.py - 评测专用脚本
 基于 eval_entry.py 推理阶段产出的 infer_meta.json，
 复用推理结果执行评测，支持版本化管理和按需重跑。
 
+执行策略：
+  - 规则型任务：多进程并行（并发数由 SCORE_WORKER_CONCURRENCY 控制）
+  - LLM 打分任务：串行执行（打分模型 API 并发由 SCORE_LLM_CONCURRENCY 控制）
+
 用法:
-    # 评测所有任务（规则型优先，LLM 型靠后）
+    # 评测所有任务（规则型并行，LLM 型串行）
     python eval_judge.py --infer-task round_1
 
     # 只评测指定任务，按传入顺序执行
@@ -25,6 +29,7 @@ import shutil
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
@@ -65,10 +70,10 @@ def parse_args():
         help="输出根目录（默认 outputs/）",
     )
     parser.add_argument(
-        "--concurrency",
+        "--score-worker-concurrency",
         type=int,
-        default=int(os.environ.get("LOCAL_CONCURRENCY", "5")),
-        help="评测并发数，透传给 ais_bench --max-num-workers（默认读取 LOCAL_CONCURRENCY，否则 5）",
+        default=int(os.environ.get("SCORE_WORKER_CONCURRENCY", "4")),
+        help="规则型评测并行进程数（默认读取 SCORE_WORKER_CONCURRENCY，否则 4）",
     )
     parser.add_argument(
         "--task-timeout",
@@ -98,8 +103,8 @@ def detect_evaluator_type(suite_name: str) -> str:
     return "rule"
 
 
-def sort_tasks_by_eval_type(suites: list) -> list:
-    """将任务按评估器类型排序：规则型优先，LLM 型靠后。"""
+def split_tasks_by_eval_type(suites: list) -> tuple:
+    """将任务按评估器类型分组：规则型 和 LLM 型。"""
     rule_tasks = []
     llm_tasks = []
     for suite in suites:
@@ -107,7 +112,7 @@ def sort_tasks_by_eval_type(suites: list) -> list:
             llm_tasks.append(suite)
         else:
             rule_tasks.append(suite)
-    return rule_tasks + llm_tasks
+    return rule_tasks, llm_tasks
 
 
 # ── 内存清理（与 eval_entry.py 保持一致） ───────────────────────────
@@ -137,7 +142,6 @@ def run_eval_for_task(
     model_config: str,
     infer_task_dir: Path,
     eval_dir: Path,
-    concurrency: int = 5,
     task_timeout: int = 3600,
 ) -> dict:
     """对单个任务执行评测，搬运结果到 eval_dir。"""
@@ -156,7 +160,6 @@ def run_eval_for_task(
         "--reuse", timestamp,
         "--models", model_config,
         "--datasets", suite,
-        "--max-num-workers", str(concurrency),
     ]
 
     start_time = time.time()
@@ -213,6 +216,8 @@ def _parse_eval_result(work_dir: Path, suite: str) -> tuple:
     num_samples = None
 
     # 从 summary 解析准确率
+    # CSV 格式：dataset,version,metric,mode,score[,score2...]
+    # 只取 metric == "accuracy" 的行（避免把 parse_success_rate、field_* 等混在一起求平均）
     for summary_path in work_dir.glob("summary/summary_*.txt"):
         try:
             text = summary_path.read_text(encoding="utf-8")
@@ -233,6 +238,9 @@ def _parse_eval_result(work_dir: Path, suite: str) -> tuple:
                     break
                 parts = lines[i].strip().split(",")
                 if len(parts) >= 5:
+                    metric_name = parts[2].strip()
+                    if metric_name != "accuracy":
+                        continue
                     try:
                         total_acc += float(parts[-1])
                         valid_count += 1
@@ -295,6 +303,67 @@ def _move_eval_outputs(work_dir: Path, eval_dir: Path, suite: str):
         logs_dir = work_dir / "logs"
         if logs_dir.exists() and not any(logs_dir.iterdir()):
             logs_dir.rmdir()
+
+
+# ── 规则型任务并行执行 ────────────────────────────────────────────────
+def _run_rule_tasks_parallel(
+    rule_suites: list,
+    meta: dict,
+    model_config: str,
+    infer_task_dir: Path,
+    eval_dir: Path,
+    max_workers: int,
+    task_timeout: int,
+) -> list:
+    """使用线程池并行执行规则型评测任务。"""
+    print(f"\n📌 规则型评测：{len(rule_suites)} 个任务，并发={max_workers}")
+    print("-" * 50)
+
+    future_to_suite = {}
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for suite in rule_suites:
+            task_info = meta["tasks"][suite]
+            timestamp = task_info["timestamp"]
+            future = executor.submit(
+                run_eval_for_task,
+                suite=suite,
+                timestamp=timestamp,
+                task_info=task_info,
+                eval_type="rule",
+                model_config=model_config,
+                infer_task_dir=infer_task_dir,
+                eval_dir=eval_dir,
+                task_timeout=task_timeout,
+            )
+            future_to_suite[future] = suite
+
+        # 按完成顺序收集结果，但最终按原始顺序返回
+        results_map = {}
+        for future in as_completed(future_to_suite):
+            suite = future_to_suite[future]
+            try:
+                result = future.result()
+                icon = "✅" if result["status"] == "success" else "❌"
+                acc = f"{result['accuracy']:.2f}%" if result["accuracy"] is not None else "N/A"
+                print(f"   {icon} {suite:30s} 耗时: {result['duration_sec']}s  准确率: {acc}")
+                results_map[suite] = result
+            except Exception as e:
+                print(f"   ❌ {suite} 异常: {e}")
+                task_info = meta["tasks"][suite]
+                results_map[suite] = {
+                    "task": task_info["task_name"],
+                    "suite": suite,
+                    "type": task_info["type"],
+                    "eval_type": "rule",
+                    "status": "error",
+                    "accuracy": None,
+                    "num_samples": task_info.get("num_samples"),
+                    "duration_sec": 0,
+                    "returncode": -1,
+                }
+
+    # 按原始顺序返回
+    return [results_map[s] for s in rule_suites]
 
 
 # ── 生成评测报告 ─────────────────────────────────────────────────────
@@ -411,9 +480,8 @@ def main():
         print(f"   请指定新的 --eval-version 或删除已有目录")
         sys.exit(1)
 
-    # 3. 确定待评测任务列表
+    # 3. 确定待评测任务列表并分组
     if args.eval_tasks:
-        # 按用户指定顺序，校验是否存在于 infer_meta 中
         task_suites = []
         for suite in args.eval_tasks:
             if suite not in meta["tasks"]:
@@ -421,45 +489,63 @@ def main():
             else:
                 task_suites.append(suite)
     else:
-        # 自动排序：规则型优先，LLM 型靠后
-        task_suites = sort_tasks_by_eval_type(list(meta["tasks"].keys()))
+        task_suites = list(meta["tasks"].keys())
 
     if not task_suites:
         print("❌ 没有可评测的任务")
         sys.exit(1)
 
+    rule_suites, llm_suites = split_tasks_by_eval_type(task_suites)
+
     print("=" * 60)
-    print(f"📋 infer_task    : {args.infer_task}")
-    print(f"📋 eval_version  : {eval_version}")
-    print(f"📋 model         : {model_name} ({model_config})")
-    print(f"📋 concurrency   : {args.concurrency}")
-    print(f"📋 tasks ({len(task_suites)})")
-    for s in task_suites:
-        eval_type = detect_evaluator_type(s)
-        print(f"   - {s} [{eval_type}]")
+    print(f"📋 infer_task              : {args.infer_task}")
+    print(f"📋 eval_version            : {eval_version}")
+    print(f"📋 model                   : {model_name} ({model_config})")
+    print(f"📋 score_worker_concurrency: {args.score_worker_concurrency}")
+    print(f"📋 规则型任务 ({len(rule_suites)})")
+    for s in rule_suites:
+        print(f"   - {s}")
+    print(f"📋 LLM 打分任务 ({len(llm_suites)})")
+    for s in llm_suites:
+        print(f"   - {s}")
     print("=" * 60)
 
-    # 4. 逐任务执行评测
     results = []
-    for i, suite in enumerate(task_suites, 1):
-        task_info = meta["tasks"][suite]
-        timestamp = task_info["timestamp"]
-        eval_type = detect_evaluator_type(suite)
 
-        print(f"\n[{i}/{len(task_suites)}] 🔍 评测 [{eval_type}]: {suite} (reuse={timestamp})")
-
-        result = run_eval_for_task(
-            suite=suite,
-            timestamp=timestamp,
-            task_info=task_info,
-            eval_type=eval_type,
+    # 4a. 规则型任务：并行执行
+    if rule_suites:
+        rule_results = _run_rule_tasks_parallel(
+            rule_suites=rule_suites,
+            meta=meta,
             model_config=model_config,
             infer_task_dir=infer_task_dir,
             eval_dir=eval_dir,
-            concurrency=args.concurrency,
+            max_workers=args.score_worker_concurrency,
             task_timeout=args.task_timeout,
         )
-        results.append(result)
+        results.extend(rule_results)
+
+    # 4b. LLM 打分任务：串行执行（打分模型 API 并发由 SCORE_LLM_CONCURRENCY 控制）
+    if llm_suites:
+        print(f"\n📌 LLM 打分评测：{len(llm_suites)} 个任务，串行执行")
+        print("-" * 50)
+        for i, suite in enumerate(llm_suites, 1):
+            task_info = meta["tasks"][suite]
+            timestamp = task_info["timestamp"]
+
+            print(f"\n[{i}/{len(llm_suites)}] 🔍 评测 [llm]: {suite} (reuse={timestamp})")
+
+            result = run_eval_for_task(
+                suite=suite,
+                timestamp=timestamp,
+                task_info=task_info,
+                eval_type="llm",
+                model_config=model_config,
+                infer_task_dir=infer_task_dir,
+                eval_dir=eval_dir,
+                task_timeout=args.task_timeout,
+            )
+            results.append(result)
 
     # 5. 生成报告
     generate_eval_report(

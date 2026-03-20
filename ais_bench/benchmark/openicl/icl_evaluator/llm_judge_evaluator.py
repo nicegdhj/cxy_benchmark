@@ -32,12 +32,12 @@ class LLMJudgeEvaluator(BaseEvaluator):
             # 显式传入了配置，直接使用
             self.model_cfg = model_cfg
         else:
-            # 未传入配置，尝试从 EVAL_* 环境变量自动构建评估模型配置
+            # 未传入配置，尝试从 SCORE_* 环境变量自动构建打分模型配置
             self.model_cfg = self._build_eval_model_cfg_from_env()
 
         if not self.model_cfg:
             self.logger.info(
-                "LLMJudgeEvaluator: model_cfg is None 且未检测到 EVAL_* 环境变量，"
+                "LLMJudgeEvaluator: model_cfg is None 且未检测到 SCORE_* 环境变量，"
                 "评估器将无法调用 LLM 评分。"
             )
             self.model = None
@@ -46,17 +46,17 @@ class LLMJudgeEvaluator(BaseEvaluator):
 
     @staticmethod
     def _build_eval_model_cfg_from_env() -> dict:
-        """从 EVAL_* 环境变量构建评估模型配置（与推理的 LOCAL_* 变量完全解耦）。
+        """从 SCORE_* 环境变量构建打分模型配置（与推理的 LOCAL_* 变量完全解耦）。
 
         自动分支：
-          - 检测到 EVAL_API_KEY（非空）→ MaaS API 模式
-              必填：EVAL_MODEL_NAME, EVAL_API_KEY, EVAL_URL
-          - 未检测到 EVAL_API_KEY         → 本地服务模式
-              必填：EVAL_MODEL_NAME, EVAL_HOST_IP, EVAL_HOST_PORT
-              可选：EVAL_URL（默认自动拼接 /v1/chat/completions）
+          - 检测到 SCORE_API_KEY（非空）→ MaaS API 模式
+              必填：SCORE_MODEL_NAME, SCORE_API_KEY, SCORE_URL
+          - 未检测到 SCORE_API_KEY         → 本地服务模式
+              必填：SCORE_MODEL_NAME, SCORE_HOST_IP, SCORE_HOST_PORT
+              可选：SCORE_URL（默认自动拼接 /v1/chat/completions）
 
         公共可选变量：
-          LOCAL_CONCURRENCY（并发数，默认 100），EVAL_VERBOSE（日志，默认 false）
+          SCORE_LLM_CONCURRENCY（并发数，默认 5），EVAL_VERBOSE（日志，默认 false）
 
         Returns:
             完整的 model_cfg dict，若必填变量缺失则返回 None。
@@ -66,9 +66,9 @@ class LLMJudgeEvaluator(BaseEvaluator):
             extract_non_reasoning_content,
         )
 
-        model_name  = os.environ.get("EVAL_MODEL_NAME")
-        api_key     = os.environ.get("EVAL_API_KEY", "").strip()
-        concurrency = int(os.environ.get("LOCAL_CONCURRENCY", "100"))
+        model_name  = os.environ.get("SCORE_MODEL_NAME")
+        api_key     = os.environ.get("SCORE_API_KEY", "").strip()
+        concurrency = int(os.environ.get("SCORE_LLM_CONCURRENCY", "5"))
         verbose     = os.environ.get("EVAL_VERBOSE", "false").lower() == "true"
 
         # 公共基础字段
@@ -95,36 +95,36 @@ class LLMJudgeEvaluator(BaseEvaluator):
 
         if api_key:
             # ── 分支 A：MaaS API 模式（有 api_key，走云端 MaaS 服务）────────
-            eval_url = os.environ.get("EVAL_URL", "")
-            if not all([model_name, eval_url]):
+            score_url = os.environ.get("SCORE_URL", "")
+            if not all([model_name, score_url]):
                 return None
             return {
                 **base_cfg,
                 "api_key": api_key,
-                "url": eval_url,
+                "url": score_url,
                 # MaaS 模式下 host_ip / host_port 从 url 中隐含，给占位值避免校验报错
-                "host_ip": os.environ.get("EVAL_HOST_IP", "localhost"),
-                "host_port": int(os.environ.get("EVAL_HOST_PORT", "443")),
+                "host_ip": os.environ.get("SCORE_HOST_IP", "localhost"),
+                "host_port": int(os.environ.get("SCORE_HOST_PORT", "443")),
             }
         else:
             # ── 分支 B：本地服务模式（无 api_key，走内网自托管服务）──────────
-            host_ip   = os.environ.get("EVAL_HOST_IP")
-            host_port = os.environ.get("EVAL_HOST_PORT")
+            host_ip   = os.environ.get("SCORE_HOST_IP")
+            host_port = os.environ.get("SCORE_HOST_PORT")
             if not all([model_name, host_ip, host_port]):
                 return None
             try:
                 host_port_int = int(host_port)
             except ValueError:
                 return None
-            eval_url = os.environ.get(
-                "EVAL_URL",
+            score_url = os.environ.get(
+                "SCORE_URL",
                 f"http://{host_ip}:{host_port}/v1/chat/completions",
             )
             return {
                 **base_cfg,
                 "host_ip": host_ip,
                 "host_port": host_port_int,
-                "url": eval_url,
+                "url": score_url,
             }
             
     def evaluate(self, k, n, original_dataset: Dataset, **score_kwargs):

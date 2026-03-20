@@ -93,11 +93,12 @@ task_44_eval_cfg = dict(
         field_config={
             "faultNumber": {"match_type": "exact", "weight": 1.0},
             "fault_time": {"match_type": "exact", "weight": 1.0},
-            "caller_and_callee": {"match_type": "rouge", "weight": 1.0},
-            "fault_location": {"match_type": "rouge", "weight": 1.0},
+            "caller_and_callee": {"match_type": "exact", "weight": 1.0},
+            "fault_location": {"match_type": "exact", "weight": 1.0},
         },
-        default_match_type="flexible",
+        default_match_type="exact",
         return_details=True,
+        strict_mode=True,
     ),
 )
 
