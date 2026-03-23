@@ -81,6 +81,12 @@ def parse_args():
         default=int(os.environ.get("EVAL_TASK_TIMEOUT", "3600")),
         help="单个评测任务最大执行时间（秒），超时强制终止并跳过。默认3600秒",
     )
+    parser.add_argument(
+        "--skip-llm",
+        action="store_true",
+        default=False,
+        help="跳过 LLM 打分类型的评测任务，只执行规则型评测",
+    )
     return parser.parse_args()
 
 
@@ -217,7 +223,8 @@ def _parse_eval_result(work_dir: Path, suite: str) -> tuple:
 
     # 从 summary 解析准确率
     # CSV 格式：dataset,version,metric,mode,score[,score2...]
-    # 只取 metric == "accuracy" 的行（避免把 parse_success_rate、field_* 等混在一起求平均）
+    # 排除 parse_success_rate、field_* 等辅助指标，只保留主评分指标
+    _EXCLUDED_METRIC_PREFIXES = ("parse_success_rate", "field_")
     for summary_path in work_dir.glob("summary/summary_*.txt"):
         try:
             text = summary_path.read_text(encoding="utf-8")
@@ -239,13 +246,12 @@ def _parse_eval_result(work_dir: Path, suite: str) -> tuple:
                 parts = lines[i].strip().split(",")
                 if len(parts) >= 5:
                     metric_name = parts[2].strip()
-                    if metric_name != "accuracy":
-                        continue
-                    try:
-                        total_acc += float(parts[-1])
-                        valid_count += 1
-                    except (ValueError, TypeError):
-                        pass
+                    if not metric_name.startswith(_EXCLUDED_METRIC_PREFIXES):
+                        try:
+                            total_acc += float(parts[-1])
+                            valid_count += 1
+                        except (ValueError, TypeError):
+                            pass
 
             if valid_count > 0:
                 accuracy = round(total_acc / valid_count, 2)
@@ -526,7 +532,11 @@ def main():
         results.extend(rule_results)
 
     # 4b. LLM 打分任务：串行执行（打分模型 API 并发由 SCORE_LLM_CONCURRENCY 控制）
-    if llm_suites:
+    if llm_suites and args.skip_llm:
+        print(f"\n⏭️  跳过 LLM 打分评测（--skip-llm）：共 {len(llm_suites)} 个任务")
+        for s in llm_suites:
+            print(f"   - {s}")
+    elif llm_suites:
         print(f"\n📌 LLM 打分评测：{len(llm_suites)} 个任务，串行执行")
         print("-" * 50)
         for i, suite in enumerate(llm_suites, 1):

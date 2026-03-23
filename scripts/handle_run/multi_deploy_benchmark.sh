@@ -10,7 +10,7 @@
 # 
 # 使用方式：
 #   修改下方的 PACKAGE_PATH 及 TARGETS 变量，然后执行本脚本。
-#   bash multi_deploy_benchmark.sh
+#   bash ,.sh
 # ==============================================================================
 
 set -euo pipefail

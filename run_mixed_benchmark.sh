@@ -21,10 +21,11 @@
 # ==============================================================================
 
 # ── 参数解析 ─────────────────────────────────────────────────────────
-WORKSPACE="/opt/eval_workspace"   # 默认目录
+WORKSPACE="./eval_workspace"   # 默认目录
 IMAGE_TAG="benchmark-eval:latest"     # 默认镜像 tag
 IMAGE_TAR=""                      # tar 包路径（可选）
 CODE_DIR=""                       # 业务代码目录（默认由 workspace 推导）
+SKIP_LLM="false"                  # 是否跳过 LLM 打分评测（true=跳过，false=不跳过）
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -43,6 +44,10 @@ while [[ $# -gt 0 ]]; do
         --image-tag)
             IMAGE_TAG="$2"
             shift 2
+            ;;
+        --skip-llm)
+            SKIP_LLM="true"
+            shift
             ;;
         -h|--help)
             sed -n '3,20p' "$0" | sed 's/^# //;s/^#//'
@@ -116,7 +121,7 @@ if [ -z "${_EVAL_BACKGROUND}" ]; then
     echo "🛑 终止任务:     docker stop \$(docker ps -q --filter ancestor=${IMAGE_TAG})"
     echo "---------------------------------------------------"
     export _EVAL_BACKGROUND=1
-    nohup bash "$0" --workspace "${WORKSPACE}" --code-dir "${CODE_DIR}" --image-tag "${IMAGE_TAG}" > "${LOG_FILE}" 2>&1 &
+    nohup bash "$0" --workspace "${WORKSPACE}" --code-dir "${CODE_DIR}" --image-tag "${IMAGE_TAG}" $( [ "$SKIP_LLM" = "true" ] && echo "--skip-llm" ) > "${LOG_FILE}" 2>&1 &
     echo "✅ 后台 PID: $!，安全断开 SSH 即可。"
     exit 0
 fi
@@ -155,7 +160,6 @@ docker run --rm \
             ifeval_0_shot_gen_str \
             math500_gen_0_shot_cot_chat_prompt \
             aime2025_gen_0_shot_chat_prompt \
-            humaneval_gen_0_shot \
             telemath_gen_0_cot_shot \
             teleqna_gen_0_shot \
             tspec_gen_0_shot \
@@ -163,7 +167,7 @@ docker run --rm \
             tele_exam_gen_0_shot \
             tele_exam_gen_0_shot_str
 
-## livecodebench_0_shot_chat_v6 \
+## livecodebench_0_shot_chat_v6 \  humaneval_gen_0_shot \
 
 INFER_RC=$?
 if [ ${INFER_RC} -ne 0 ]; then
@@ -193,7 +197,9 @@ docker run --rm \
     -v "${CODE_DIR}/scripts:/app/scripts" \
     "${IMAGE_TAG}" \
     python eval_judge.py \
-        --infer-task "${TASK_ID}"
+        --infer-task "${TASK_ID}" \
+        --eval-version eval_init \
+        $( [ "$SKIP_LLM" = "true" ] && echo "--skip-llm" )
 
 if [ $? -eq 0 ]; then
     echo "==================================================="

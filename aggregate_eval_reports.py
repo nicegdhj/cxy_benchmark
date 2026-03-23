@@ -101,9 +101,10 @@ def find_eval_report(group_dir: Path, eval_version: str) -> Path | None:
 
 def process(fmt_dir: str, eval_version: str, output_base_dir: str):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    target_dir = os.path.join(output_base_dir, f"aggregated_reports_{timestamp}")
+    fmt_name = Path(fmt_dir).resolve().name  # e.g. "fmt_exp0319"
+    target_dir = os.path.join(output_base_dir, f"{fmt_name}_aggregated_reports_{timestamp}")
     os.makedirs(target_dir, exist_ok=True)
-    summary_excel_path = os.path.join(target_dir, f"总体汇总_{timestamp}.xlsx")
+    summary_excel_path = os.path.join(target_dir, f"{fmt_name}_总体汇总.xlsx")
 
     task_mapping, df_task_mapping, id_to_name, df_exp_mapping = load_mappings(output_base_dir)
 
@@ -163,18 +164,18 @@ def process(fmt_dir: str, eval_version: str, output_base_dir: str):
         mapped_suite = get_mapped_suite(raw_suite, task_mapping)
         row_dict = {"Task": mapped_suite}
         for group_tuple in exp_groups_sorted:
-            mapped_exp = group_tuple[1]
+            raw_exp = group_tuple[0]
             report_data = all_reports[group_tuple]
             matching = next(
                 (t for t in report_data.get("tasks", [])
                  if t.get("suite", t.get("task")) == raw_suite),
                 None,
             )
-            row_dict[mapped_exp] = matching.get("accuracy") if matching else None
+            row_dict[raw_exp] = matching.get("accuracy") if matching else None
         task_rows.append(row_dict)
 
     df_overview = pd.DataFrame(task_rows)
-    cols = ["Task"] + [t[1] for t in exp_groups_sorted]
+    cols = ["Task"] + [t[0] for t in exp_groups_sorted]
     df_overview = df_overview[cols]
     if not df_overview.empty:
         df_overview.set_index("Task", inplace=True)
@@ -185,8 +186,8 @@ def process(fmt_dir: str, eval_version: str, output_base_dir: str):
         worksheet = writer.sheets["总体对比"]
 
         yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
-        red_fill    = PatternFill(start_color="FF9999", end_color="FF9999", fill_type="solid")
-        green_fill  = PatternFill(start_color="99FF99", end_color="99FF99", fill_type="solid")
+        red_fill = PatternFill(start_color="FF9999", end_color="FF9999", fill_type="solid")
+        green_fill = PatternFill(start_color="99FF99", end_color="99FF99", fill_type="solid")
 
         has_baseline = baseline_tuple is not None
         if has_baseline:
@@ -233,18 +234,18 @@ def process(fmt_dir: str, eval_version: str, output_base_dir: str):
             for t in report_data.get("tasks", []):
                 raw_suite = t.get("suite", t.get("task", "unknown"))
                 tasks_list.append({
-                    "suite":       raw_suite,
-                    "task":        get_mapped_suite(raw_suite, task_mapping),
-                    "type":        t.get("type", "-"),
-                    "eval_type":   t.get("eval_type", "-"),
-                    "status":      t.get("status", "-"),
-                    "accuracy":    t.get("accuracy"),
+                    "suite": raw_suite,
+                    "task": get_mapped_suite(raw_suite, task_mapping),
+                    "type": t.get("type", "-"),
+                    "eval_type": t.get("eval_type", "-"),
+                    "status": t.get("status", "-"),
+                    "accuracy": t.get("accuracy"),
                     "num_samples": t.get("num_samples"),
                     "duration_sec": t.get("duration_sec"),
                 })
             df_tasks = pd.DataFrame(tasks_list)
 
-            sheet_name = str(mapped_name)[:31]
+            sheet_name = str(raw_name)[:31]
             base = sheet_name
             i = 1
             while sheet_name in writer.sheets:
@@ -282,7 +283,8 @@ def process(fmt_dir: str, eval_version: str, output_base_dir: str):
             if not jsonl_files:
                 continue
 
-            task_out_dir = os.path.join(target_dir, mapped_suite, mapped_name)
+            mapped_suite = get_mapped_suite(suite, task_mapping)
+            task_out_dir = os.path.join(target_dir, mapped_suite, raw_name)
             os.makedirs(task_out_dir, exist_ok=True)
 
             for jf in jsonl_files:
