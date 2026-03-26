@@ -119,7 +119,7 @@ identity_datasets = [
     dict(
         abbr='identity_exploration',
         type=IdentityExplorationDataset,
-        path='ais_bench/datasets/Identity_Exploration',  
+        path='data/Identity_Exploration',  
         name='test_identity.jsonl',
         reader_cfg=identity_reader_cfg,
         infer_cfg=identity_infer_cfg,
