@@ -61,7 +61,11 @@ class LLMJudgeEvaluator(BaseEvaluator):
         Returns:
             完整的 model_cfg dict，若必填变量缺失则返回 None。
         """
-        from ais_bench.benchmark.models import MaaSAPI
+        api_type    = os.environ.get("EVAL_API_TYPE", "maas").lower()
+        if "bailian" in api_type:
+            from ais_bench.benchmark.models.api_models.bailian_api import BailianAPI as EVAL_API_CLASS
+        else:
+            from ais_bench.benchmark.models.api_models.maas_api import MaaSAPI as EVAL_API_CLASS
 
         model_name  = os.environ.get("EVAL_MODEL_NAME")
         api_key     = os.environ.get("EVAL_API_KEY", "").strip()
@@ -70,7 +74,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
 
         # 公共基础字段
         base_cfg = dict(
-            type=MaaSAPI,
+            type=EVAL_API_CLASS,
             attr="service",
             abbr="eval_model",
             path="",

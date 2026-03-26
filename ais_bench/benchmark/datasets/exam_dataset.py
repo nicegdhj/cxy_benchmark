@@ -181,6 +181,15 @@ class ExamDataset(BaseDataset):
                     question_raw = item.get("question", "").strip()
                     answer = _normalize_answer(item.get("answer"))
 
+                    has_image = bool(item.get("has_image", False))
+                    need_plot = bool(item.get("need_plot", False))
+
+                    if has_image or need_plot:
+                        logger.debug(
+                            f"[ExamDataset] Skipping question with image/plot requirement in {file_path}"
+                        )
+                        continue
+
                     if not question_raw:
                         logger.debug(
                             f"[ExamDataset] Skipping empty question in {file_path} ({q_type})"
@@ -199,8 +208,8 @@ class ExamDataset(BaseDataset):
                             "answer": answer,
                             "type": q_type,
                             "score": _parse_score(item.get("score")),
-                            "has_image": bool(item.get("has_image", False)),
-                            "need_plot": bool(item.get("need_plot", False)),
+                            "has_image": has_image,
+                            "need_plot": need_plot,
                             "plot_desc": item.get("plot_desc", ""),
                             "subdivision": subdivision,
                         }
