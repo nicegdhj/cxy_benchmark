@@ -25,7 +25,7 @@ WORKSPACE="./eval_workspace"   # 默认目录
 IMAGE_TAG="benchmark-eval:latest"     # 默认镜像 tag
 IMAGE_TAR=""                      # tar 包路径（可选）
 CODE_DIR=""                       # 业务代码目录（默认由 workspace 推导）
-SKIP_LLM="false"                  # 是否跳过 LLM 打分评测（true=跳过，false=不跳过）
+SKIP_LLM="true"                  # 是否跳过 LLM 打分评测（true=跳过，false=不跳过）
 
 while [[ $# -gt 0 ]]; do
     case "$1" in

@@ -6,16 +6,14 @@ import os
 
 # 强制设置命令行参数
 sys.argv = [
-    'ais_bench', 
-    '--models', 'bailian_qwen_plus',
+    'ais_bench',
+    '--models', 'bailian_qwen',
     '--datasets', 
         'telequad_gen_0_shot',
     '--debug',
     '--work-dir', './outputs',
     '--max-num-workers', '1',  
-    '--num-prompts', '1',
-    '--mode','eval',
-    '--reuse','20260317_144540'
+    '--num-prompts', '1'
 ]
 #'--models', 'maas_api',
 #'--reuse',"20260227_113125"

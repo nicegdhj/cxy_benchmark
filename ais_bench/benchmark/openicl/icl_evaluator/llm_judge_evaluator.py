@@ -49,7 +49,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
         """从 SCORE_* 环境变量构建打分模型配置（与推理的 LOCAL_* 变量完全解耦）。
 
         自动分支：
-          - 检测到 SCORE_API_KEY（非空）→ MaaS API 模式
+          - 检测到 SCORE_API_KEY（非空）→ API 模式
               必填：SCORE_MODEL_NAME, SCORE_API_KEY, SCORE_URL
           - 未检测到 SCORE_API_KEY         → 本地服务模式
               必填：SCORE_MODEL_NAME, SCORE_HOST_IP, SCORE_HOST_PORT
@@ -57,11 +57,12 @@ class LLMJudgeEvaluator(BaseEvaluator):
 
         公共可选变量：
           SCORE_LLM_CONCURRENCY（并发数，默认 5），EVAL_VERBOSE（日志，默认 false）
+          SCORE_MODEL_TYPE（模型类型，默认 maas；设为 vllm 则使用 VLLMCustomAPIChat）
 
         Returns:
             完整的 model_cfg dict，若必填变量缺失则返回 None。
         """
-        from ais_bench.benchmark.models import MaaSAPI
+        from ais_bench.benchmark.models import MaaSAPI, VLLMCustomAPIChat
         from ais_bench.benchmark.utils.postprocess.model_postprocessors import (
             extract_non_reasoning_content,
         )
@@ -70,10 +71,14 @@ class LLMJudgeEvaluator(BaseEvaluator):
         api_key     = os.environ.get("SCORE_API_KEY", "").strip()
         concurrency = int(os.environ.get("SCORE_LLM_CONCURRENCY", "5"))
         verbose     = os.environ.get("EVAL_VERBOSE", "false").lower() == "true"
+        model_type  = os.environ.get("SCORE_MODEL_TYPE", "maas").strip().lower()
+
+        # 根据 SCORE_MODEL_TYPE 选择模型类（vllm → VLLMCustomAPIChat，其他 → MaaSAPI）
+        model_cls = VLLMCustomAPIChat if model_type == "vllm" else MaaSAPI
 
         # 公共基础字段
         base_cfg = dict(
-            type=MaaSAPI,
+            type=model_cls,
             attr="service",
             abbr="eval_model",
             path="",
@@ -200,6 +205,13 @@ class LLMJudgeEvaluator(BaseEvaluator):
             prompt = self.prompt_template.format(max_score=max_score, reference=ref, prediction=pred)
             prompts.append(prompt)
             
+        self.logger.info(
+            f"[LLMJudge] 打分模型: type={type(self.model).__name__}, "
+            f"url={getattr(self.model, 'url', 'N/A')}, "
+            f"model={getattr(self.model, 'model', 'N/A')}, "
+            f"共 {len(prompts)} 条待评分"
+        )
+
         if getattr(self.model, 'is_api', False):
             import asyncio
             from ais_bench.benchmark.models.output import RequestOutput

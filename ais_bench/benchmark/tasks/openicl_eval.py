@@ -357,7 +357,11 @@ class OpenICLEvalTask(BaseTask):
                     {"is_fc_model": self.model_cfg.get("returns_tool_calls")}
                 )
             if "LLMJudgeEvaluator" in self.eval_cfg["evaluator"]["type"]:
-                self.eval_cfg["evaluator"].update({"model_cfg": self.model_cfg})
+                if "model_cfg" not in self.eval_cfg["evaluator"] and not os.environ.get("SCORE_MODEL_NAME"):
+                    raise ValueError(
+                        "LLMJudgeEvaluator 未配置打分模型：请在 eval_cfg 中指定 model_cfg，"
+                        "或设置 SCORE_MODEL_NAME 等环境变量。"
+                    )
             icl_evaluator: BaseEvaluator = ICL_EVALUATORS.build(
                 self.eval_cfg["evaluator"]
             )
