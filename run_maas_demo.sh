@@ -14,7 +14,7 @@ set -a; source "$(dirname "$0")/.env"; set +a
 
 # ais_bench --models maas --datasets task_60_suite --debug --num-prompts 1
 
-ais_bench --models bailian_qwen --datasets telequad_gen_0_shot --debug  --num-prompts 1
+ais_bench --models bailian_qwen --datasets identity_gen_0_shot --debug  --num-prompts 1
 
 
 
@@ -41,6 +41,10 @@ ais_bench --models bailian_qwen --datasets telequad_gen_0_shot --debug  --num-pr
 # 'telequad_gen_0_shot.py',
 # 'tele_exam_gen_0_shot.py',
 # 'tele_exam_gen_0_shot_str.py',
+#            opseval_gen_0_shot
+#            identity_gen_0_shot
+#            exam_gen_0_shot
+
 
 
 
