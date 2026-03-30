@@ -165,7 +165,10 @@ docker run --rm \
             tspec_gen_0_shot \
             telequad_gen_0_shot \
             tele_exam_gen_0_shot \
-            tele_exam_gen_0_shot_str
+            tele_exam_gen_0_shot_str \
+            opseval_gen_0_shot \
+            identity_gen_0_shot \
+            exam_gen_0_shot
 
 ## livecodebench_0_shot_chat_v6 \  humaneval_gen_0_shot \
 

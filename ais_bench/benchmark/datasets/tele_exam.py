@@ -149,7 +149,7 @@ class TeleExamSubDataset(BaseDataset):
                     answer = item.get('answer', '').strip() or item.get('correct answer', '').strip()
                     if not question or not answer:
                         continue
-                    
+
                     data_obj = {
                         'question': question,
                         'answer': answer,
@@ -157,7 +157,7 @@ class TeleExamSubDataset(BaseDataset):
                     }
                     if 'score' in item:
                         data_obj['score'] = item['score']
-                        
+
                     raw_data.append(data_obj)
 
         if not raw_data:

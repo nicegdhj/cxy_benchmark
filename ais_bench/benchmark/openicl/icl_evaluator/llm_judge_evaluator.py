@@ -10,6 +10,7 @@ from ais_bench.benchmark.registry import ICL_EVALUATORS
 from ais_bench.benchmark.openicl.icl_evaluator.icl_base_evaluator import BaseEvaluator
 from ais_bench.benchmark.utils.config.build import build_model_from_cfg
 from ais_bench.benchmark.utils.logging.logger import AISLogger
+from ais_bench.benchmark.utils.postprocess.model_postprocessors import extract_non_reasoning_content
 
 DEFAULT_PROMPT_TEMPLATE = """You are a fair and strict evaluator. Please score the following student's answer based on the correct answer.
 The maximum score you can give is {max_score}.
@@ -21,6 +22,7 @@ Student's Answer:
 {prediction}
 
 Please output the score only as a number at the end of your response."""
+
 
 @ICL_EVALUATORS.register_module()
 class LLMJudgeEvaluator(BaseEvaluator):
@@ -67,13 +69,13 @@ class LLMJudgeEvaluator(BaseEvaluator):
             extract_non_reasoning_content,
         )
 
-        model_name  = os.environ.get("SCORE_MODEL_NAME")
-        api_key     = os.environ.get("SCORE_API_KEY", "").strip()
+        model_name = os.environ.get("SCORE_MODEL_NAME")
+        api_key = os.environ.get("SCORE_API_KEY", "").strip()
         concurrency = int(os.environ.get("SCORE_LLM_CONCURRENCY", "5"))
-        verbose     = os.environ.get("EVAL_VERBOSE", "false").lower() == "true"
-        model_type  = os.environ.get("SCORE_MODEL_TYPE", "maas").strip().lower()
+        verbose = os.environ.get("EVAL_VERBOSE", "false").lower() == "true"
+        model_type = os.environ.get("SCORE_MODEL_TYPE", "maas").strip().lower()
 
-        # 根据 SCORE_MODEL_TYPE 选择模型类（vllm → VLLMCustomAPIChat，其他 → MaaSAPI）
+        # 根据 SCORE_MODEL_TYPE 选择模型类（vllm → VLLMCustomAPIChat 外网百炼等，其他 → MaaSAPI 内网服务没有 apikey
         model_cls = VLLMCustomAPIChat if model_type == "vllm" else MaaSAPI
 
         # 公共基础字段
@@ -99,7 +101,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
         )
 
         if api_key:
-            # ── 分支 A：MaaS API 模式（有 api_key，走云端 MaaS 服务）────────
+            # ── 分支 A：API 模式（有 api_key，走云端服务）────────
+            AISLogger().info('================Bailian打分模型=======================')
             score_url = os.environ.get("SCORE_URL", "")
             if not all([model_name, score_url]):
                 return None
@@ -112,8 +115,10 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 "host_port": int(os.environ.get("SCORE_HOST_PORT", "443")),
             }
         else:
+
+            AISLogger().info('================使用本地打分模型 MaaStype=======================')
             # ── 分支 B：本地服务模式（无 api_key，走内网自托管服务）──────────
-            host_ip   = os.environ.get("SCORE_HOST_IP")
+            host_ip = os.environ.get("SCORE_HOST_IP")
             host_port = os.environ.get("SCORE_HOST_PORT")
             if not all([model_name, host_ip, host_port]):
                 return None
@@ -131,27 +136,26 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 "host_port": host_port_int,
                 "url": score_url,
             }
-            
+
     def evaluate(self, k, n, original_dataset: Dataset, **score_kwargs):
         if 'predictions' in score_kwargs and 'references' in score_kwargs:
             if len(score_kwargs['predictions']) != len(score_kwargs['references']):
                 return {'error': 'Predictions and references must have the same length'}
 
         score_kwargs['predictions'] = self.pred_postprocess(score_kwargs.get('predictions', []))
-
         # Enforce `test_set` in `score_kwargs` is `original_dataset`
         score_kwargs['test_set'] = original_dataset
         results = self.score(**score_kwargs)
         if 'error' in results:
             return results
-            
+
         details = results.get('details', [])
-        
+
         total_score = 0.0
         total_max_score = 0.0
         subdivision_scores = defaultdict(float)
         subdivision_max_scores = defaultdict(float)
-        self.logger.info(details)
+        # self.logger.info(details)
         for i, detail in enumerate(details):
             if i < len(original_dataset):
                 example = original_dataset[i]
@@ -160,36 +164,36 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 detail['example_abbr'] = f"{subdiv}_{idx}"
             else:
                 subdiv = 'unknown'
-                
+
             score = detail.get('llm_score', 0.0)
             max_score = detail.get('max_score', 1.0)
-            
+
             total_score += score
             total_max_score += max_score
             subdivision_scores[subdiv] += score
             subdivision_max_scores[subdiv] += max_score
-            
+
         # eval_results = {
         #     'llm_judge_score_sum': round(total_score, 2),
         #     'llm_judge_max_score_sum': round(total_max_score, 2),
         # }
-        eval_results={}
+        eval_results = {}
         for subdiv in subdivision_scores:
             score = subdivision_scores[subdiv]
             max_score = subdivision_max_scores[subdiv]
             if max_score == 0:
-                percentage = 0.0     
+                percentage = 0.0
             else:
                 percentage = (score / max_score) * 100
             eval_results[f'{subdiv}/llm_judge_percentage'] = round(percentage, 2)
-                
+
         eval_results['details'] = details
         return eval_results
 
     def score(self, predictions: List, references: List, test_set: Dataset = None) -> dict:
         if not self.model:
             return {'error': 'Model instance could not be created for LLMJudgeEvaluator.'}
-            
+
         prompts = []
         max_scores = []
         for i, (pred, ref) in enumerate(zip(predictions, references)):
@@ -200,11 +204,11 @@ class LLMJudgeEvaluator(BaseEvaluator):
                     match = re.search(r'([\d.]+)', str(score_val))
                     if match:
                         max_score = float(match.group(1))
-            
+
             max_scores.append(max_score)
             prompt = self.prompt_template.format(max_score=max_score, reference=ref, prediction=pred)
             prompts.append(prompt)
-            
+
         self.logger.info(
             f"[LLMJudge] 打分模型: type={type(self.model).__name__}, "
             f"url={getattr(self.model, 'url', 'N/A')}, "
@@ -216,28 +220,28 @@ class LLMJudgeEvaluator(BaseEvaluator):
             import asyncio
             from ais_bench.benchmark.models.output import RequestOutput
             import aiohttp
-            
+
             async def _run_api_inference():
                 async with aiohttp.ClientSession(trust_env=True) as session:
                     outputs = [RequestOutput(False) for _ in prompts]
                     tasks = [
                         self.model.generate(
-                            input_data=prompt, 
-                            max_out_len=128, 
-                            output=output, 
+                            input_data=prompt,
+                            max_out_len=128,
+                            output=output,
                             session=session
                         )
                         for prompt, output in zip(prompts, outputs)
                     ]
                     await asyncio.gather(*tasks)
                     return [out.content for out in outputs]
-                    
+
             try:
                 loop = asyncio.get_event_loop()
             except RuntimeError:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-                
+
             if loop.is_running():
                 import nest_asyncio
                 nest_asyncio.apply()
@@ -246,18 +250,50 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 judgements = loop.run_until_complete(_run_api_inference())
         else:
             judgements = self.model.generate(prompts, max_out_len=128)
-        
         details = []
         for i, (pred, ref, judge_output, max_score) in enumerate(zip(predictions, references, judgements, max_scores)):
             score = 0.0
-            matches = re.findall(r'([\d.]+)', str(judge_output))
-            if matches:
+            if judge_output is None or str(judge_output).strip() == "":
+                raise ValueError(f"Empty or missing judge output at index {i}. "
+                                 f"Prompt: {prompts[i][:100]}...")
+
+            # 1. 过滤掉大模型思考过程的 <think>...</think>，以免提取到里面的时间或举例数字
+            clean_output = str(judge_output)
+            clean_output = extract_non_reasoning_content(clean_output)
+
+            # 2. 优先通过正则表达式尝试提取 "score": 数字
+            score_match = re.search(r'["\']score["\']\s*:\s*["\']?([\d.]+)["\']?', clean_output, flags=re.IGNORECASE)
+
+            if score_match:
+                extracted_str = score_match.group(1)
+                self.logger.info(f"Extracted score from JSON field: {extracted_str}")
                 try:
-                    score = float(matches[-1])
+                    score = float(extracted_str)
                     score = min(max(score, 0.0), max_score)
                 except ValueError:
                     pass
-            
+            else:
+                # 3. 实在没有则回退：先尝试找独占一行的纯分数
+                line_match = re.search(r'^\s*([\d.]+)\s*$', clean_output, flags=re.MULTILINE)
+                if line_match:
+                    extracted_str = line_match.group(1)
+                    self.logger.info(f"No score field, but found a standalone number on a line: {extracted_str}")
+                    try:
+                        score = float(extracted_str)
+                        score = min(max(score, 0.0), max_score)
+                    except ValueError:
+                        pass
+                else:
+                    # 4. 如果连独占一行的数字都没有，退回到找整个文本的最后一个数字
+                    matches = re.findall(r'([\d.]+)', clean_output)
+                    self.logger.info(f"No score field found, fallback to digits (taking the last one): {matches}")
+                    if matches:
+                        try:
+                            score = float(matches[-1])
+                            score = min(max(score, 0.0), max_score)
+                        except ValueError:
+                            pass
+
             details.append({
                 'prompt': prompts[i],
                 'pred': pred,
@@ -266,5 +302,5 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 'llm_score': score,
                 'max_score': max_score
             })
-            
+
         return {'details': details}
