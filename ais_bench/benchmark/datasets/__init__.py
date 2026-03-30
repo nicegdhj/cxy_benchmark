@@ -4,8 +4,14 @@ from ais_bench.benchmark.datasets.gsm8k import * # noqa: F401, F403
 from ais_bench.benchmark.datasets.ceval import * # noqa: F401, F403
 from ais_bench.benchmark.datasets.boolq import * # noqa: F401, F403
 from ais_bench.benchmark.datasets.mmlu import * # noqa: F401, F403
+from ais_bench.benchmark.datasets.mmlu_redux import * # noqa: F401, F403
 from ais_bench.benchmark.datasets.gpqa import * # noqa: F401, F403
 from ais_bench.benchmark.datasets.math import * # noqa: F401, F403
+from ais_bench.benchmark.datasets.telemath import * # noqa: F401, F403
+from ais_bench.benchmark.datasets.teleqna import * # noqa: F401, F403
+from ais_bench.benchmark.datasets.telequad import * # noqa: F401, F403
+from ais_bench.benchmark.datasets.tele_exam import * # noqa: F401, F403
+from ais_bench.benchmark.datasets.opseval import * # noqa: F401, F403
 from ais_bench.benchmark.datasets.drop_simple_eval import * # noqa: F401, F403
 from ais_bench.benchmark.datasets.synthetic import *
 from ais_bench.benchmark.datasets.mmlu_pro import * # noqa: F401, F403
@@ -52,3 +58,5 @@ from ais_bench.benchmark.datasets.tnews import * # noqa: F401, F403
 from ais_bench.benchmark.datasets.videomme import *
 from ais_bench.benchmark.datasets.mmstar import * # noqa: F401, F403
 from ais_bench.benchmark.datasets.dapo_math import * # noqa: F401, F403
+from ais_bench.benchmark.datasets.identity_exploration import * # noqa: F401, F403
+from ais_bench.benchmark.datasets.exam_dataset import * # noqa: F401, F403

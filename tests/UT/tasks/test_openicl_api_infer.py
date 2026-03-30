@@ -54,8 +54,8 @@ class TestOpenICLApiInferTask(unittest.TestCase):
         self.temp_dir = tempfile.mkdtemp()
         self.cfg = ConfigDict({
             "models": [{
-                "type": "test_model",
-                "batch_size": 10,
+                "type": "ais_bench.benchmark.models.VLLMCustomAPIChat",
+                "batch_size": 1,
                 "generation_kwargs": {
                     "num_return_sequences": 1
                 }

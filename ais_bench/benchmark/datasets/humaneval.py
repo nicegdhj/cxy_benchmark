@@ -100,6 +100,14 @@ class HumanEvalEvaluator(BaseEvaluator):
                 preds = [preds]
             for pred in preds:
                 humaneval_preds.append({'task_id': refer, 'completion': pred})
+        logger.info(f"Total humaneval_preds: {len(humaneval_preds)}")
+        if humaneval_preds:
+            sample_ids = [p['task_id'] for p in humaneval_preds[:3]]
+            logger.info(f"First 3 task_ids: {sample_ids}")
+            # 检查是否有非法 task_id（不含 "HumanEval/"）
+            invalid_ids = [tid for tid in sample_ids if not str(tid).startswith("HumanEval/")]
+            if invalid_ids:
+                logger.info(f"❌ Invalid task_id format detected: {invalid_ids}")
         with tempfile.TemporaryDirectory() as tmp_dir:
             out_dir = osp.join(tmp_dir, 'human_eval.json')
             write_jsonl(out_dir, humaneval_preds)

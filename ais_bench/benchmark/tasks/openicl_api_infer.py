@@ -1,4 +1,5 @@
 import argparse
+import atexit
 import os
 import sys
 import threading
@@ -12,6 +13,24 @@ from typing import Dict
 import pickle
 from mmengine.config import Config, ConfigDict
 from collections import defaultdict
+
+# 全局追踪所有已创建的共享内存名称，用于 atexit 兜底清理
+_ACTIVE_SHM_NAMES: list = []
+
+
+def _atexit_cleanup_shms():
+    """进程退出时兜底清理所有未释放的共享内存段。"""
+    for name in _ACTIVE_SHM_NAMES:
+        try:
+            shm = shared_memory.SharedMemory(name=name, create=False)
+            shm.close()
+            shm.unlink()
+        except (FileNotFoundError, OSError):
+            pass
+    _ACTIVE_SHM_NAMES.clear()
+
+
+atexit.register(_atexit_cleanup_shms)
 
 from ais_bench.benchmark.global_consts import WORKERS_NUM
 from ais_bench.benchmark.registry import ICL_INFERENCERS, TASKS, ICL_RETRIEVERS
@@ -246,6 +265,7 @@ class OpenICLApiInferTask(BaseTask):
         check_virtual_memory_usage(dataset_bytes=dataset_bytes, threshold_percent=80)
 
         dataset_shm = shared_memory.SharedMemory(create=True, size=dataset_bytes)
+        _ACTIVE_SHM_NAMES.append(dataset_shm.name)
 
         buf = dataset_shm.buf
         indexes = {}
@@ -256,10 +276,13 @@ class OpenICLApiInferTask(BaseTask):
             indexes[index] = (index, offset, length)
             offset += length
             index += 1
+        dataset_size = len(pickled_dataset)
+        # 数据已写入共享内存，立即释放临时 pickle 列表以回收内存
+        del pickled_dataset
         padding_indexes = {i: indexes.get(k) for i, k in enumerate(global_indexes)}
         if not self.pressure:
             padding_indexes[len(global_indexes)] = None
-        return len(pickled_dataset), dataset_shm, padding_indexes
+        return dataset_size, dataset_shm, padding_indexes
 
     def _deliver_concurrency_for_workers(self):
         """Split total concurrency across worker processes as evenly as possible.
@@ -450,9 +473,22 @@ class OpenICLApiInferTask(BaseTask):
         Args:
             data_list: Data list to warm up
         """
+        self.logger.info(
+            f"Available inferencers: {list(ICL_INFERENCERS.module_dict.keys())}"
+        )
         warm_up_inferencer: BaseApiInferencer = ICL_INFERENCERS.build(
             self.inferencer_cfg
         )
+        self.logger.info(f"Full class path: {type(warm_up_inferencer)}")
+        import copy
+
+        cfg_to_log = copy.deepcopy(self.inferencer_cfg)
+
+        # 如果存在 api_key，删除或替换
+        if "api_key" in cfg_to_log.get("model_cfg", {}):
+            cfg_to_log["model_cfg"]["api_key"] = "****"
+
+        # self.logger.info(f"模型推理参数: {cfg_to_log}")
         # warmup
         if self.warmup_size > 0:
             task_state_manager.update_task_state({"status": "warmup"})
@@ -529,10 +565,6 @@ class OpenICLApiInferTask(BaseTask):
         )
         message_shms = {}
         # Message queue collecting per-process request state; polled periodically
-
-        # Initialize threads as None to avoid UnboundLocalError in exception handler
-        pb_thread = None
-        token_thread = None
 
         try:
             processes = []
@@ -613,8 +645,7 @@ class OpenICLApiInferTask(BaseTask):
                 f"Keyboard interrupt!!! Task [{task_abbr_from_cfg(self.cfg)}] will be terminated"
             )
             self.stop_evt.set()
-            if pb_thread:
-                pb_thread.join()
+            pb_thread.join()
             pb.set_message_flag(1)
             if processes:
                 for p in processes:
@@ -629,12 +660,9 @@ class OpenICLApiInferTask(BaseTask):
                         p.join(timeout=TASK_WAIT_TIME)
         finally:
             self.stop_evt.set()
-            if pb_thread:
-                pb_thread.join()
-            if "pb" in locals():
-                pb.set_message_flag(1)
-            if token_thread:
-                token_thread.join()
+            pb_thread.join()
+            pb.set_message_flag(1)
+            token_thread.join()
             for pid, shm in message_shms.items():
                 self._cleanup_shms(shm)
             self._cleanup_shms(dataset_shm)
@@ -647,13 +675,17 @@ class OpenICLApiInferTask(BaseTask):
             shm: Shared memory object to clean up
         """
         try:
+            name = shm.name
             shm.close()
             shm.unlink()
-            self.logger.debug(f"Cleanup shared memory: {shm.name}")
+            # 从 atexit 兜底列表中移除已正常清理的条目
+            if name in _ACTIVE_SHM_NAMES:
+                _ACTIVE_SHM_NAMES.remove(name)
+            self.logger.debug(f"Cleanup shared memory: {name}")
         except (FileNotFoundError, OSError) as e:
             # shared memory already cleaned up or not found
             self.logger.debug(
-                f"Shared memory {shm.name} already cleaned up or not found: {e}"
+                f"Shared memory already cleaned up or not found: {e}"
             )
 
     def _set_default_value(self, cfg: ConfigDict, key: str, value: Any):

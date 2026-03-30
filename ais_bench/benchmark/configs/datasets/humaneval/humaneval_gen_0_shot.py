@@ -23,7 +23,7 @@ humaneval_datasets = [
     dict(
         abbr='openai_humaneval',
         type=HumanevalDataset,
-        path='ais_bench/datasets/humaneval/human-eval-v2-20210705.jsonl',  # 数据集路径，使用相对路径时相对于源码根路径，支持绝对路径
+        path='data/humaneval/human-eval-v2-20210705.jsonl',  # 数据集路径，使用相对路径时相对于源码根路径，支持绝对路径
         reader_cfg=humaneval_reader_cfg,
         infer_cfg=humaneval_infer_cfg,
         eval_cfg=humaneval_eval_cfg,

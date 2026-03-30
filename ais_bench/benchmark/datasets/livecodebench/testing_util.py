@@ -96,7 +96,8 @@ def run_test(sample, test=None, debug=False, timeout=6):
     otherwise it'll just return an input and output pair.
     """
     # Disable functionalities that can make destructive changes to the test.
-    reliability_guard()
+    # 限制单个测试用例最大内存为 512MB，防止生成代码无限申请内存导致 OOM
+    reliability_guard(maximum_memory_bytes=1024 * 1024 * 1024)
 
     if debug:
         print(f'start = {datetime.now().time()}')
@@ -706,13 +707,22 @@ def reliability_guard(maximum_memory_bytes=None):
     if maximum_memory_bytes is not None:
         import resource
 
-        resource.setrlimit(resource.RLIMIT_AS,
-                           (maximum_memory_bytes, maximum_memory_bytes))
-        resource.setrlimit(resource.RLIMIT_DATA,
-                           (maximum_memory_bytes, maximum_memory_bytes))
-        if not platform.uname().system == 'Darwin':
-            resource.setrlimit(resource.RLIMIT_STACK,
+        try:
+            resource.setrlimit(resource.RLIMIT_AS,
                                (maximum_memory_bytes, maximum_memory_bytes))
+        except (ValueError, resource.error):
+            pass
+        try:
+            resource.setrlimit(resource.RLIMIT_DATA,
+                               (maximum_memory_bytes, maximum_memory_bytes))
+        except (ValueError, resource.error):
+            pass
+        if not platform.uname().system == 'Darwin':
+            try:
+                resource.setrlimit(resource.RLIMIT_STACK,
+                                   (maximum_memory_bytes, maximum_memory_bytes))
+            except (ValueError, resource.error):
+                pass
 
     faulthandler.disable()
 

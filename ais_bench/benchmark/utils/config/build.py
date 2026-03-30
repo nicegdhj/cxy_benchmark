@@ -123,7 +123,11 @@ def build_dataset_from_cfg(dataset_cfg: ConfigDict):
 def build_model_from_cfg(model_cfg: ConfigDict):
     logger.debug(f"Building model from config: type={model_cfg.get('type')} abbr={model_cfg.get('abbr')}")
     model_cfg = copy.deepcopy(model_cfg)
-    model_name = model_cfg.get("type", "").split(".")[-1]
+    _type_val = model_cfg.get("type", "")
+    if isinstance(_type_val, str):
+        model_name = _type_val.split(".")[-1]
+    else:
+        model_name = getattr(_type_val, "__name__", str(_type_val))
     errors = _validate_model_cfg(model_cfg)
     if errors:
         logger.warning(f"Model config validation failed for {model_name}: {errors}")

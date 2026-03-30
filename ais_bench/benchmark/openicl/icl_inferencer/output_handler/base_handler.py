@@ -16,9 +16,17 @@ import janus
 from ais_bench.benchmark.models.output import Output
 from ais_bench.benchmark.utils.logging.logger import AISLogger
 from ais_bench.benchmark.utils.results import safe_write
-from ais_bench.benchmark.openicl.icl_inferencer.output_handler.db_utils import init_db, save_numpy_to_db
+from ais_bench.benchmark.openicl.icl_inferencer.output_handler.db_utils import (
+    init_db,
+    save_numpy_to_db,
+)
 from ais_bench.benchmark.utils.logging.error_codes import ICLI_CODES
-from ais_bench.benchmark.utils.logging.exceptions import AISBenchImplementationError, ParameterValueError, FileOperationError, AISBenchRuntimeError
+from ais_bench.benchmark.utils.logging.exceptions import (
+    AISBenchImplementationError,
+    ParameterValueError,
+    FileOperationError,
+    AISBenchRuntimeError,
+)
 
 DB_REF_KEY = "__db_ref__"
 DB_DATA_DIR = "db_data"
@@ -56,7 +64,12 @@ class BaseInferencerOutputHandler:
         self.save_every = save_every
 
     @abstractmethod
-    def get_prediction_result(self, output: Union[str, Output], gold: Optional[str] = None, input: Optional[Union[str, List[str]]] = None) -> dict:
+    def get_prediction_result(
+        self,
+        output: Union[str, Output],
+        gold: Optional[str] = None,
+        input: Optional[Union[str, List[str]]] = None,
+    ) -> dict:
         """
         Get the prediction result.
 
@@ -68,8 +81,10 @@ class BaseInferencerOutputHandler:
         Returns:
             dict: Prediction result
         """
-        raise AISBenchImplementationError(ICLI_CODES.UNKNOWN_ERROR,
-                                       f"Method {self.__class__.__name__} hasn't been implemented yet")
+        raise AISBenchImplementationError(
+            ICLI_CODES.UNKNOWN_ERROR,
+            f"Method {self.__class__.__name__} hasn't been implemented yet",
+        )
 
     def get_result(
         self,
@@ -97,9 +112,7 @@ class BaseInferencerOutputHandler:
         # Performance mode: only store metrics
         if self.perf_mode and isinstance(output, Output):
             result_data = output.get_metrics()
-            result_data = self._extract_and_write_arrays(
-                result_data, conn
-            )
+            result_data = self._extract_and_write_arrays(result_data, conn)
 
         elif isinstance(output, str):
             # Accuracy mode: store full input/output data
@@ -118,7 +131,9 @@ class BaseInferencerOutputHandler:
             self.all_success = False
             if isinstance(output, Output) and hasattr(output, "error_info"):
                 result_data["error_info"] = output.error_info
-                self.logger.debug(f"Failed operation at data id {output.uuid}, error info: {result_data['error_info']}")
+                self.logger.debug(
+                    f"Failed operation at data id {output.uuid}, error info: {result_data['error_info']}"
+                )
             else:
                 self.logger.warning(
                     f"No error info available for failed operation at data id {output.uuid}"
@@ -142,8 +157,10 @@ class BaseInferencerOutputHandler:
             ValueError: If save_dir is invalid
         """
         if not isinstance(save_dir, str) or not save_dir.strip():
-            raise ParameterValueError(ICLI_CODES.UNKNOWN_ERROR,
-                                      f"'save_dir' must be a non-empty string representing a directory path, but got {save_dir}")
+            raise ParameterValueError(
+                ICLI_CODES.UNKNOWN_ERROR,
+                f"'save_dir' must be a non-empty string representing a directory path, but got {save_dir}",
+            )
 
         file_path = Path(save_dir)
         try:
@@ -169,7 +186,9 @@ class BaseInferencerOutputHandler:
                 failed_data_name = data_abbr + "_failed.jsonl"
                 file_path = Path(save_dir) / failed_data_name
                 safe_write(results_dict, file_path)
-                self.logger.debug(f"Process {os.getpid()} write failed results to {file_path}")
+                self.logger.debug(
+                    f"Process {os.getpid()} write failed results to {file_path}"
+                )
 
         except Exception as e:
             raise FileOperationError(
@@ -282,21 +301,19 @@ class BaseInferencerOutputHandler:
             try:
                 id = save_numpy_to_db(conn, arr, self.save_every)
             except Exception as e:
-                self.logger.warning(f"Failed to save numpy array to database: {str(e)}, will not save this array to database")
+                self.logger.warning(
+                    f"Failed to save numpy array to database: {str(e)}, will not save this array to database"
+                )
                 return None
 
             # Return serializable placeholder
             return {DB_REF_KEY: id}
 
-
         # dict -> recursively process values
         if isinstance(obj, dict):
             # Use dict comprehension for better performance
             out = {
-                str(k): self._extract_and_write_arrays(
-                    v, conn
-                )
-                for k, v in obj.items()
+                str(k): self._extract_and_write_arrays(v, conn) for k, v in obj.items()
             }
             return out
 
@@ -337,11 +354,13 @@ class BaseInferencerOutputHandler:
         Raises:
             FileOperationError: If file operations fail
         """
-        self.logger.debug("Running cache consumer to process queued results,"
-                     f"save_dir: {save_dir}, "
-                     f"file_name: {file_name}, "
-                     f"perf_mode: {perf_mode}, "
-                     f"save_every: {save_every}")
+        self.logger.debug(
+            "Running cache consumer to process queued results,"
+            f"save_dir: {save_dir}, "
+            f"file_name: {file_name}, "
+            f"perf_mode: {perf_mode}, "
+            f"save_every: {save_every}"
+        )
         db_path = Path(save_dir) / (Path(file_name).stem + ".db")
         db_name = db_path.name.replace("tmp_", "")
         conn = init_db(db_path)
@@ -351,64 +370,63 @@ class BaseInferencerOutputHandler:
         Path(save_dir).mkdir(parents=True, exist_ok=True)
 
         with open(json_path, "a", encoding="utf-8") as f:
-                cache_data = []
+            cache_data = []
 
-                while True:
-                    try:
-                        item = self.cache_queue.sync_q.get(timeout=1)
-                    except queue.Empty:
-                        time.sleep(0.1)
-                        continue
+            while True:
+                try:
+                    item = self.cache_queue.sync_q.get(timeout=1)
+                except queue.Empty:
+                    time.sleep(0.1)
+                    continue
 
-                    if item is None:
-                        break
-                    try:
-                        uid = str(uuid.uuid4())[:8]
+                if item is None:
+                    break
+                try:
+                    uid = str(uuid.uuid4())[:8]
+                    result_data = self.get_result(conn, *item[2:])
+                    id, data_abbr = item[0], item[1]
+                    json_data = {
+                        "data_abbr": data_abbr,
+                        "id": id,
+                    }
 
-                        result_data = self.get_result(conn, *item[2:])
-                        id, data_abbr = item[0], item[1]
-                        json_data = {
+                    json_data.update(result_data)
+                    if perf_mode:
+                        json_data["db_name"] = db_name
+                        self.results_dict[data_abbr][uid] = json_data
+                    else:
+                        # accuracy mode: only save successful results in data_abbr.jsonl. otherwise, save to tmp file.
+                        if result_data["success"]:
+                            self.results_dict[data_abbr][uid] = json_data
+                    if not result_data["success"]:
+                        fail_data = {
                             "data_abbr": data_abbr,
                             "id": id,
+                            "input": item[2],
+                            "error_info": result_data["error_info"],
                         }
+                        self.failed_results_dict[data_abbr][uid] = fail_data
 
-                        json_data.update(result_data)
-                        if perf_mode:
-                            json_data["db_name"] = db_name
-                            self.results_dict[data_abbr][uid] = json_data
-                        else:
-                            # accuracy mode: only save successful results in data_abbr.jsonl. otherwise, save to tmp file.
-                            if result_data["success"]:
-                                self.results_dict[data_abbr][uid] = json_data
-                        if not result_data["success"]:
-                            fail_data = {
-                                "data_abbr": data_abbr,
-                                "id": id,
-                                "input": item[2],
-                                "error_info": result_data["error_info"],
-                            }
-                            self.failed_results_dict[data_abbr][uid] = fail_data
+                    # Pre-compute JSON string to avoid repeated serialization
+                    json_str = json.dumps(json_data, ensure_ascii=False) + "\n"
+                    # self.logger.debug(f"Saving result to cache_data: {json_str}")
+                    cache_data.append(json_str)
 
-                        # Pre-compute JSON string to avoid repeated serialization
-                        json_str = json.dumps(json_data, ensure_ascii=False) + '\n'
-                        # self.logger.debug(f"Saving result to cache_data: {json_str}")
-                        cache_data.append(json_str)
+                    # Write batch if reached save_every threshold
+                    if len(cache_data) == save_every:
+                        f.writelines(cache_data)
+                        f.flush()  # Ensure data is written
+                        cache_data = []
 
-                        # Write batch if reached save_every threshold
-                        if len(cache_data) == save_every:
-                            f.writelines(cache_data)
-                            f.flush()  # Ensure data is written
-                            cache_data = []
+                except Exception as e:
+                    # Continue processing other items
+                    self.logger.debug(f"Failed to process item {item}: {str(e)}")
+                    continue
 
-                    except Exception as e:
-                        # Continue processing other items
-                        self.logger.debug(f"Failed to process item {item}: {str(e)}")
-                        continue
-
-                # Write remaining cache data
-                if cache_data:
-                    f.writelines(cache_data)
-                    f.flush()
+            # Write remaining cache data
+            if cache_data:
+                f.writelines(cache_data)
+                f.flush()
 
         # Handle database file based on performance mode
         conn.commit()
@@ -436,12 +454,15 @@ class BaseInferencerOutputHandler:
             try:
                 empty = next(Path(json_path.parent).iterdir(), None) is None
                 if empty:
-                    self.logger.debug(f"Cleaning up empty directory: {json_path.parent}")
+                    self.logger.debug(
+                        f"Cleaning up empty directory: {json_path.parent}"
+                    )
                     shutil.rmtree(json_path.parent)
             except Exception as e:
-                self.logger.warning(f"Could not clean up directory {json_path.parent}: {str(e)}")
+                self.logger.warning(
+                    f"Could not clean up directory {json_path.parent}: {str(e)}"
+                )
         self.logger.debug(f"Process {os.getpid()} cache consumer finished")
-
 
     def stop_cache_consumer(self) -> None:
         """
@@ -453,6 +474,8 @@ class BaseInferencerOutputHandler:
         try:
             self.cache_queue.sync_q.put(None)
         except Exception as e:
-            raise AISBenchRuntimeError(ICLI_CODES.UNKNOWN_ERROR, f"Failed to send stop signal to cache consumer: {str(e)}")
+            raise AISBenchRuntimeError(
+                ICLI_CODES.UNKNOWN_ERROR,
+                f"Failed to send stop signal to cache consumer: {str(e)}",
+            )
         self.logger.debug("Stop signal sent to cache consumer")
-

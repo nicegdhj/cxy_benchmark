@@ -624,7 +624,20 @@ class BFCLV3FunctionCallInferencer(BaseApiInferencer):
             self.impl.convert_message_to_prompt_list, inference_data["message"]
         )
         tools = inference_data.get("tools") if self.returns_tool_calls else None
+        self.logger.info(f"[Model Input] Index={index}, Dataset={data_abbr}")
+        if isinstance(prompt_list, list):
+            for i, msg in enumerate(prompt_list):
+                role = msg.get('role', 'N/A')
+                content_preview = msg
+                self.logger.info(f"  Message[{i}][{role}]: {content_preview}...")
+        elif isinstance(prompt_list, str):
+            preview = prompt_list[:300].replace('\n', '\\n')
+            self.logger.info(f"  Prompt string: {preview}...")
+        else:
+            self.logger.warning(f"  Unexpected prompt_list type: {type(prompt_list)}")
 
+        if tools:
+            self.logger.info(f"  Tools: {len(tools)} functions provided")        
         inference_log.append(
             {
                 "single_turn_inference_data": inference_data,
@@ -634,6 +647,7 @@ class BFCLV3FunctionCallInferencer(BaseApiInferencer):
         await self.model.generate(
             prompt_list, self.model.max_out_len, output, session=session, tools=tools
         )
+        self.logger.info(f"  Output: {repr(output.content)}")          
         if output.success:
             await self.status_counter.rev()
             inference_log.append(

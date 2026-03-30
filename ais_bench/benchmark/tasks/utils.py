@@ -49,6 +49,9 @@ def create_message_share_memory():
     # Set flag to 2, indicating child process is ready for first batch data deserialization
     # Use struct.pack_into to avoid memoryview assignment issues on macOS
     struct.pack_into(FMT, buf, 0, 0, 0, 0, 0, 0, 0)
+    # 注册到全局 atexit 兜底清理列表
+    from ais_bench.benchmark.tasks.openicl_api_infer import _ACTIVE_SHM_NAMES
+    _ACTIVE_SHM_NAMES.append(shm.name)
     return shm
 
 

@@ -14,6 +14,8 @@ from ais_bench.benchmark.datasets.utils.datasets import get_data_path
 from ais_bench.benchmark.utils.logging.logger import AISLogger
 
 
+logger = AISLogger(__name__)
+
 # Version prefix for BFCL dataset files
 VERSION_PREFIX = "BFCL_v3"
 
@@ -124,6 +126,7 @@ class BFCLDataset(BaseDataset):
             ]
             
         # Validate that dataset and ground truth have matching lengths
+        logger.info(f"dataset length: {len(dataset)}")
         if len(dataset) != len(ground_truth):
             raise ValueError(
                 f"Dataset and ground truth have different lengths: {len(dataset)} != {len(ground_truth)}"
@@ -224,6 +227,9 @@ class BFCLEvaluator(BaseEvaluator):
             # For function calling models, parse JSON and extract function calls
             decoded_output = []
             for invoked_function in result:
+                if not isinstance(invoked_function, dict) or not invoked_function:
+                    logger.info(default_decode_ast_prompting(result, language))
+                    return default_decode_ast_prompting(result, language)
                 name = list(invoked_function.keys())[0]
                 params = json.loads(invoked_function[name])
                 decoded_output.append({name: params})
@@ -527,6 +533,7 @@ class BFCLSingleTurnEvaluator(BFCLEvaluator):
                 model_result_item = self.decode_ast(
                     model_result_item, language="Python"
                 )
+                logger.info(f"model_result_item: {model_result_item}")
             except Exception as e:
                 # Record AST decoding failure
                 details.append(
@@ -587,9 +594,10 @@ class BFCLSingleTurnEvaluator(BFCLEvaluator):
                 details.append(temp)
 
         score = correct_count / len(predictions)
+        formatted_score = round(score * 100, 1) 
         return {
-            "accuracy": score,
-            "correct_count": correct_count,
-            "total_count": len(predictions),
+            "accuracy": formatted_score,
+            # "correct_count": correct_count,
+            # "total_count": len(predictions),
             "details": details,
         }

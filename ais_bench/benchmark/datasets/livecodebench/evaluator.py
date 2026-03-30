@@ -367,7 +367,7 @@ def code_execution_metrics(
     # execute the code
     references = [(doc['code'], doc['input'], doc['output'])
                   for doc in samples]
-    with ProcessPoolExecutor() as executor:
+    with ProcessPoolExecutor(max_workers=min(4, len(generations))) as executor:
         args_list = zip(generations, references)
         results = executor.map(evaluate_score, args_list)
     all_results = list(results)

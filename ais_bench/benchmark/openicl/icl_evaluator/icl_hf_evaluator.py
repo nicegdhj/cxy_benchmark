@@ -7,7 +7,9 @@ import numpy as np
 from datasets import Dataset
 
 from ais_bench.benchmark.registry import ICL_EVALUATORS
-from ais_bench.benchmark.utils.postprocess.text_postprocessors import general_postprocess
+from ais_bench.benchmark.utils.postprocess.text_postprocessors import (
+    general_postprocess,
+)
 
 from ais_bench.benchmark.openicl.icl_evaluator.icl_base_evaluator import BaseEvaluator
 
@@ -38,8 +40,8 @@ class HuggingfaceEvaluator(BaseEvaluator):
             dict: preprocessed results.
         """
         return {
-            'predictions': predictions,
-            'references': references,
+            "predictions": predictions,
+            "references": references,
         }
 
     def _postprocess(self, scores: dict) -> dict:
@@ -70,20 +72,37 @@ class HuggingfaceEvaluator(BaseEvaluator):
         np.random.seed(self.seed)
         if len(predictions) != len(references):
             return {
-                'error':
-                'predictions and references have different '
-                f'length. len(predictions): {len(predictions)}, '
-                f'len(references): {len(references)}'
+                "error": "predictions and references have different "
+                f"length. len(predictions): {len(predictions)}, "
+                f"len(references): {len(references)}"
             }
         # use codes pre-downloaded to repo, avoid downloading
-        local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                  'hf_metrics', self.metric + '.py')
+        local_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "hf_metrics",
+            self.metric + ".py",
+        )
         if os.path.exists(local_path):
             metric = evaluate.load(local_path)
         else:
             metric = evaluate.load(self.metric)
+        self.logger.info("=== Debug: Raw Inputs (Before Preprocessing) ===")
+        for i in range(min(3, len(predictions))):  # 只打前3条，避免日志爆炸
+            self.logger.info(
+                f"[Sample {i}] Pred: {repr(predictions[i])} | Ref: {repr(references[i])}"
+            )
         scores = metric.compute(**self._preprocess(predictions, references))
+        self.logger.info("=== Debug: After Preprocessing ===")
+        processed = self._preprocess(predictions, references)
+        proc_preds = processed.get("predictions", [])
+        proc_refs = processed.get("references", [])
+        for i in range(min(3, len(proc_preds))):
+            self.logger.info(
+                f"[Sample {i}] Pred: {repr(proc_preds[i])} | Ref: {repr(proc_refs[i])}"
+            )
+        self.logger.info(f"=== Debug: Raw Scores (from metric.compute) ===\n{scores}")
         result = self._postprocess(scores)
+        self.logger.info(f"=== Debug: Final Result (after _postprocess) ===\n{result}")
         random.setstate(random_state)
         np.random.set_state(np_random_state)
         return result
@@ -94,7 +113,7 @@ class AccEvaluator(HuggingfaceEvaluator):
     """Accuracy evaluator."""
 
     def __init__(self) -> None:
-        super().__init__(metric='accuracy')
+        super().__init__(metric="accuracy")
 
     def _preprocess(self, predictions: List, references: List) -> dict:
         """Preprocess the final predictions and references to needed format.
@@ -107,8 +126,7 @@ class AccEvaluator(HuggingfaceEvaluator):
             dict: preprocessed results.
         """
         mapping_to_int_dict = {
-            label: idx
-            for idx, label in enumerate(set(map(str, references)))
+            label: idx for idx, label in enumerate(set(map(str, references)))
         }
         pred_set = set(predictions)
         for pred in pred_set:
@@ -117,8 +135,8 @@ class AccEvaluator(HuggingfaceEvaluator):
         golds = [mapping_to_int_dict[str(gold)] for gold in references]
         preds = [mapping_to_int_dict[str(pred)] for pred in predictions]
         return {
-            'predictions': preds,
-            'references': golds,
+            "predictions": preds,
+            "references": golds,
         }
 
     def _postprocess(self, scores: dict) -> dict:
@@ -130,8 +148,26 @@ class AccEvaluator(HuggingfaceEvaluator):
         Returns:
             dict: postprocessed scores.
         """
-        scores['accuracy'] *= 100
+        scores["accuracy"] *= 100
         return scores
+
+    def score(self, predictions: List, references: List) -> dict:
+        result = super().score(predictions, references)
+        if "error" in result:
+            return result
+
+        details = []
+        for p, r in zip(predictions, references):
+            details.append(
+                {
+                    "pred": p,
+                    "answer": r,
+                    "eval_res": str(p).strip() == str(r).strip(),
+                    "eval_details": None,
+                }
+            )
+        result["details"] = details
+        return result
 
 
 @ICL_EVALUATORS.register_module()
@@ -140,7 +176,7 @@ class AccContaminationEvaluator(AccEvaluator):
 
     def score(self, predictions: List, references: List, test_set: Dataset) -> dict:
         """Evaluate the predictions and references by their contamination status.
-        
+
         Args:
             predictions (List): List of predictions of each sample.
             references (List): List of targets for each sample.
@@ -150,41 +186,44 @@ class AccContaminationEvaluator(AccEvaluator):
         """
         clean_predictions, clean_references = [], []
         input_contaminated_predictions, input_contaminated_references = [], []
-        input_and_label_contaminated_predictions, \
-            input_and_label_contaminated_references = [], []
-        for pred, ref, is_clean in zip(predictions, references,
-                                       test_set['is_clean']):
-            if is_clean == 'clean':
+        (
+            input_and_label_contaminated_predictions,
+            input_and_label_contaminated_references,
+        ) = [], []
+        for pred, ref, is_clean in zip(predictions, references, test_set["is_clean"]):
+            if is_clean == "clean":
                 clean_predictions.append(pred)
                 clean_references.append(ref)
-            elif is_clean == 'input contamination':
+            elif is_clean == "input contamination":
                 input_contaminated_predictions.append(pred)
                 input_contaminated_references.append(ref)
-            elif is_clean == 'input-and-label contamination':
+            elif is_clean == "input-and-label contamination":
                 input_and_label_contaminated_predictions.append(pred)
                 input_and_label_contaminated_references.append(ref)
         clean_results = super().score(clean_predictions, clean_references)
         input_contaminated_results = super().score(
-            input_contaminated_predictions, input_contaminated_references)
+            input_contaminated_predictions, input_contaminated_references
+        )
         input_and_label_contaminated_results = super().score(
             input_and_label_contaminated_predictions,
-            input_and_label_contaminated_references)
+            input_and_label_contaminated_references,
+        )
 
         # rename the keys of the results, add 'clean, 'input contaminated',
         # 'input-and-label contaminated' as prefixes
-        clean_results = {f'{k} - clean': v for k, v in clean_results.items()}
+        clean_results = {f"{k} - clean": v for k, v in clean_results.items()}
         input_contaminated_results = {
-            f'{k} - input contaminated': v
+            f"{k} - input contaminated": v
             for k, v in input_contaminated_results.items()
         }
         input_and_label_contaminated_results = {
-            f'{k} - input-and-label contaminated': v
+            f"{k} - input-and-label contaminated": v
             for k, v in input_and_label_contaminated_results.items()
         }
         return {
             **clean_results,
             **input_contaminated_results,
-            **input_and_label_contaminated_results
+            **input_and_label_contaminated_results,
         }
 
 
@@ -196,7 +235,7 @@ class RougeEvaluator(HuggingfaceEvaluator):
     """
 
     def __init__(self) -> None:
-        super().__init__(metric='rouge')
+        super().__init__(metric="rouge")
 
     def _postprocess(self, scores: dict) -> dict:
         """Postprocess for final scores.
@@ -215,20 +254,20 @@ class BleuEvaluator(HuggingfaceEvaluator):
     """Bleu evaluator."""
 
     def __init__(self) -> None:
-        super().__init__(metric='sacrebleu')
+        super().__init__(metric="sacrebleu")
 
 
 class BleuFloresEvaluator(HuggingfaceEvaluator):
     """Bleu evaluator using flores200 tokenize."""
 
     def __init__(self) -> None:
-        super().__init__(metric='sacrebleu')
+        super().__init__(metric="sacrebleu")
 
     def _preprocess(self, predictions: List, references: List) -> dict:
         return {
-            'predictions': predictions,
-            'references': references,
-            'tokenize': 'flores200',
+            "predictions": predictions,
+            "references": references,
+            "tokenize": "flores200",
         }
 
 
@@ -237,7 +276,7 @@ class MccEvaluator(AccEvaluator):
     """Matthews correlation evaluator."""
 
     def __init__(self) -> None:
-        super(AccEvaluator, self).__init__(metric='matthews_correlation')
+        super(AccEvaluator, self).__init__(metric="matthews_correlation")
 
     def _postprocess(self, scores: dict) -> dict:
         """Postprocess for final scores.
@@ -248,7 +287,7 @@ class MccEvaluator(AccEvaluator):
         Returns:
             dict: postprocessed scores.
         """
-        scores['matthews_correlation'] *= 100
+        scores["matthews_correlation"] *= 100
         return scores
 
 
@@ -257,7 +296,7 @@ class SquadEvaluator(HuggingfaceEvaluator):
     """Squad evaluator."""
 
     def __init__(self) -> None:
-        super().__init__(metric='squad')
+        super().__init__(metric="squad")
 
     def _preprocess(self, predictions: List, references: List) -> dict:
         """Preprocess the final predictions and references to needed format.
@@ -269,20 +308,17 @@ class SquadEvaluator(HuggingfaceEvaluator):
         Returns:
             dict: preprocessed results.
         """
-        p_list = [{
-            'prediction_text': pred.split('\n')[0],
-            'id': str(i)
-        } for i, pred in enumerate(predictions)]
-        r_list = [{
-            'answers': {
-                'answer_start': [0],
-                'text': [ref]
-            },
-            'id': str(i)
-        } for i, ref in enumerate(references)]
+        p_list = [
+            {"prediction_text": pred.split("\n")[0], "id": str(i)}
+            for i, pred in enumerate(predictions)
+        ]
+        r_list = [
+            {"answers": {"answer_start": [0], "text": [ref]}, "id": str(i)}
+            for i, ref in enumerate(references)
+        ]
         return {
-            'predictions': p_list,
-            'references': r_list,
+            "predictions": p_list,
+            "references": r_list,
         }
 
     def _postprocess(self, scores: dict) -> dict:
@@ -294,7 +330,7 @@ class SquadEvaluator(HuggingfaceEvaluator):
         Returns:
             dict: postprocessed scores.
         """
-        return scores['f1']
+        return scores["f1"]
 
 
 @ICL_EVALUATORS.register_module()
@@ -318,6 +354,7 @@ class EDAccEvaluator(AccEvaluator):
     def __init__(self) -> None:
         super().__init__()
         from rapidfuzz.distance import Levenshtein
+
         self.dist = Levenshtein.distance
 
     def _preprocess(self, predictions: List, references: List) -> dict:
@@ -337,28 +374,27 @@ class EDAccEvaluator(AccEvaluator):
         for i in range(len(predictions)):
             pred, ref = predictions[i], references[i]
             dists = []
-            for cands in ref['candidates']:
+            for cands in ref["candidates"]:
                 if isinstance(cands, str):
                     d = self.dist(pred, cands)
                 else:
                     d = np.min([self.dist(pred, cand) for cand in cands])
                 dists.append(d)
             preds.append(np.argmin(dists))
-            golds.append(ref['label'])
+            golds.append(ref["label"])
 
         return {
-            'predictions': preds,
-            'references': golds,
+            "predictions": preds,
+            "references": golds,
         }
 
 
 @ICL_EVALUATORS.register_module()
 class AccwithDetailsEvaluator(BaseEvaluator):
-
     def score(self, predictions, references, origin_prompt) -> dict:
 
         if len(predictions) != len(references):
-            return {'error': 'preds and refrs have different length.'}
+            return {"error": "preds and refrs have different length."}
 
         details = {}
         correct, total = 0, 0
@@ -366,16 +402,17 @@ class AccwithDetailsEvaluator(BaseEvaluator):
             is_correct = pred == ref
             correct += is_correct
             details[str(index)] = {
-                'prompt': origin_prompt[index],
-                'pred': pred,
-                'refr': ref,
-                'is_correct': is_correct,
+                "prompt": origin_prompt[index],
+                "pred": pred,
+                "refr": ref,
+                "is_correct": is_correct,
             }
             total += 1
 
-        results = {'accuracy': correct / total * 100, 'details': details}
+        results = {"accuracy": correct / total * 100, "details": details}
 
         return results
+
 
 @ICL_EVALUATORS.register_module()
 class LEvalEMEvaluator(BaseEvaluator):
@@ -386,21 +423,15 @@ class LEvalEMEvaluator(BaseEvaluator):
 
     def score(self, predictions, references):
         if len(predictions) != len(references):
-            return {
-                'error': 'predictions and references have different '
-                'length'
-            }
-        predictions = [
-            general_postprocess(prediction) for prediction in predictions
-        ]
+            return {"error": "predictions and references have different length"}
+        predictions = [general_postprocess(prediction) for prediction in predictions]
         processed_answers = [general_postprocess(i) for i in references]
 
         cnt = 0
-        for pred, ans, origin_ans in zip(predictions, processed_answers,
-                                         references):
+        for pred, ans, origin_ans in zip(predictions, processed_answers, references):
             if ans in pred or origin_ans in pred:
                 cnt += 1
 
         score = cnt / len(predictions) * 100
 
-        return {'accuracy': score}
+        return {"accuracy": score}

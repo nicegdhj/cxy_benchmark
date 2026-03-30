@@ -79,6 +79,10 @@ class GenInferencer(BaseApiInferencer, BaseLocalInferencer):
         output.uuid = uid
         await self.status_counter.post()
         await self.model.generate(input, max_out_len, output, session=session, **data)
+        self.logger.info(f"  Input: {repr(input[:200])}...")
+        self.logger.info(f"  Output: {repr(output.content)}")    
+        if gold is not None:
+            self.logger.info(f"  Gold: {repr(gold)}")             
         if output.success:
             await self.status_counter.rev()
         else:

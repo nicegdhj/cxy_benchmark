@@ -87,7 +87,6 @@ class LocalRunner(BaseRunner):
         monitor_p = multiprocessing.Process(
             target=monitor_process,
             args=(task_names, tasks[0]['work_dir'], self.debug, 0.5)
-
         )
         self.logger.debug(f"Task monitor process started (PID: {monitor_p.pid})")
 

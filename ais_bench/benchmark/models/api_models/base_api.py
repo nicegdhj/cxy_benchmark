@@ -210,6 +210,7 @@ class BaseAPIModel(BaseModel):
         else:
             self.session = session
             close_session = False
+        self.logger.info("-------------------开始构建请求---------------")
         request_body = await self.get_request_body(
             input_data, max_out_len, output, **args
         )
@@ -235,8 +236,10 @@ class BaseAPIModel(BaseModel):
         for _ in range(self.retry):
             try:
                 if self.stream:
+                    self.logger.info("-------------------开始流式推理---------------")
                     await self.stream_infer(request_body, output)
                 else:
+                    self.logger.info("-------------------开始非流式推理---------------")
                     await self.text_infer(request_body, output)
                 # break retry loop when request is successful
                 break
@@ -266,6 +269,9 @@ class BaseAPIModel(BaseModel):
 
     async def stream_infer(self, request_body: dict, output: Output):
         await output.record_time_point()
+        self.logger.info(f"[HTTP] Preparing to send POST request to: {self.url}")
+        self.logger.info(f"[HTTP] Headers: {self.headers}")
+        self.logger.info(f"[HTTP] Request body: {request_body}")
         async with self.session.post(
             url=self.url, json=request_body, headers=self.headers
         ) as response:

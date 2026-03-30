@@ -3,8 +3,8 @@ from ais_bench.benchmark.openicl.icl_retriever import ZeroRetriever
 from ais_bench.benchmark.openicl.icl_inferencer import GenInferencer
 from ais_bench.benchmark.openicl.icl_evaluator import AccEvaluator
 from ais_bench.benchmark.datasets import CEvalDataset
-from ais_bench.benchmark.utils.postprocess.text_postprocessors import first_capital_postprocess
-
+from ais_bench.benchmark.utils.postprocess.text_postprocessors import first_capital_postprocess, \
+    first_option_postprocess
 
 ceval_subject_mapping = {
     'computer_network': ['Computer Network', '计算机网络', 'STEM'],
@@ -56,10 +56,14 @@ ceval_subject_mapping = {
     'urban_and_rural_planner': ['Urban and Rural Planner', '注册城乡规划师', 'Other'],
     'accountant': ['Accountant', '注册会计师', 'Other'],
     'fire_engineer': ['Fire Engineer', '注册消防工程师', 'Other'],
-    'environmental_impact_assessment_engineer': ['Environmental Impact Assessment Engineer', '环境影响评价工程师', 'Other'],
+    'environmental_impact_assessment_engineer': ['Environmental Impact Assessment Engineer', '环境影响评价工程师',
+                                                 'Other'],
     'tax_accountant': ['Tax Accountant', '税务师', 'Other'],
     'physician': ['Physician', '医师资格', 'Other'],
 }
+# ceval_subject_mapping = {
+#     'computer_network': ['Computer Network', '计算机网络', 'STEM'],
+# }
 ceval_all_sets = list(ceval_subject_mapping.keys())
 
 ceval_datasets = []
@@ -77,20 +81,20 @@ for _split in ['val']:
 
         ceval_eval_cfg = dict(
             evaluator=dict(type=AccEvaluator),
-            pred_postprocessor=dict(type=first_capital_postprocess))
-
+            pred_postprocessor=dict(type=first_option_postprocess, options='ABCDE'))
         ceval_datasets.append(
             dict(
                 type=CEvalDataset,
-                path='ais_bench/datasets/ceval/formal_ceval',  # 数据集路径，使用相对路径时相对于源码根路径，支持绝对路径
+                path='data/ceval/formal_ceval',  # 数据集路径，使用相对路径时相对于源码根路径，支持绝对路径
                 name=_name,
                 abbr='ceval-' + _name if _split == 'val' else 'ceval-test-' +
-                _name,
+                                                              _name,
                 reader_cfg=dict(
                     input_columns=['question', 'A', 'B', 'C', 'D'],
                     output_column='answer',
                     train_split='dev',
-                    test_split=_split),
+                    test_split=_split,
+                ),
                 infer_cfg=ceval_infer_cfg,
                 eval_cfg=ceval_eval_cfg,
             ))

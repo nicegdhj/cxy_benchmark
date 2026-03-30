@@ -1,6 +1,7 @@
 # AISBench
 
 ### 本项目fork自[AISBench](https://github.com/AISBench/benchmark)进行修改, 详情请见原始项目
+
 ---
 
 ## 1. 项目概览
@@ -235,6 +236,28 @@ ais_bench --mode perf --models vllm_api_new --datasets demo_gsm8k_chat
 - `predictions/`: 模型输出的原始 JSONL 文件。
 - `results/`: 精度计算结果。
 - `summary/`: 最终的性能或精度汇总报告。
+
+### 第六步：深入的评估结果明细 (_details.jsonl)
+
+除了核心分数的 summary 报告外，每次评测都会在 `results/` 目录下生成一个与结果同名的 `_details.jsonl` 文件（例如 `qwen-plus-api_details.jsonl`），以便更直观地逐条核对模型实际输出。
+
+该文件采用了字典形式的一行一记录（JSONL）结构，并基于样本数据的唯一 `id` 进行强制去重。其核心数据结构高度统一：
+
+```json
+{
+  "prediction": { 
+      "id": "数据唯一标识",
+      "origin_prompt": "提交给模型的原始Prompt",
+      "prediction": "模型预测结果",
+      "gold": "参考答案(如适用)"
+      // ... (以及原本该数据集包含的原始字段)
+  }, 
+  "eval_res": 分数或者 true/false (true代表该条样本评估通过),
+  "eval_details": 评分细节或者 null (当存在子项详细分数或者 LLM 裁判反馈依据时记录于此)
+}
+```
+
+通过观察 `_details.jsonl` 文件，无需深入日志即可直观比对每一条 Bad Case 是因为哪些参数不匹配或推理报错导致的。
 
 ## 8. 数据集配置详解
 
@@ -595,16 +618,18 @@ ais_bench --models vllm_api_general_chat --datasets custom_eval_suite
 ais_bench --models vllm_api_general_chat --datasets custom_eval_suite --debug
 ```
 
-
-
 # 激活环境
+
 conda activate ais_bench
 
 # 运行单个任务
+
 ais_bench --models maas --datasets task_1_suite
 
 # 运行多个任务
+
 ais_bench --models maas --datasets task_1_suite,task_2_suite,task_3_suite
 
 # 带调试信息
+
 ais_bench --models maas --datasets task_2_suite --debug

@@ -17,9 +17,7 @@ bfcl_infer_cfg = dict(
 )
 
 bfcl_eval_cfg = dict(
-    evaluator=dict(
-        type=BFCLSingleTurnEvaluator, category=bfcl_category
-    ),
+    evaluator=dict(type=BFCLSingleTurnEvaluator, category=bfcl_category),
 )
 
 bfcl_datasets = [
@@ -27,9 +25,9 @@ bfcl_datasets = [
         abbr=f"BFCL-v3-{bfcl_category}",
         type=BFCLDataset,
         category=bfcl_category,
-        path="",
+        path="data/BFCL",  # Local dataset path
         reader_cfg=bfcl_reader_cfg,
         infer_cfg=bfcl_infer_cfg,
         eval_cfg=bfcl_eval_cfg,
     )
-] 
+]

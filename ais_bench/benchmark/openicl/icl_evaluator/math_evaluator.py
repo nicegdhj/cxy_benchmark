@@ -2,7 +2,8 @@ from ais_bench.benchmark.openicl.icl_evaluator import BaseEvaluator
 from ais_bench.benchmark.registry import ICL_EVALUATORS
 from ais_bench.benchmark.utils.logging.exceptions import AISBenchImportError
 from ais_bench.benchmark.utils.logging.error_codes import UTILS_CODES
-
+from ais_bench.benchmark.utils.logging.logger import AISLogger
+logger = AISLogger()
 
 @ICL_EVALUATORS.register_module()
 class MATHEvaluator(BaseEvaluator):

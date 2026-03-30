@@ -10,9 +10,7 @@ from ais_bench.benchmark.registry import MODELS
 from ais_bench.benchmark.utils.prompt import PromptList
 from ais_bench.benchmark.models import BaseAPIModel, APITemplateParser
 from ais_bench.benchmark.models.output import RequestOutput, Output
-from ais_bench.benchmark.openicl.icl_inferencer.output_handler.ppl_inferencer_output_handler import (
-    PPLRequestOutput,
-)
+from ais_bench.benchmark.openicl.icl_inferencer.output_handler.ppl_inferencer_output_handler import PPLRequestOutput
 
 PromptType = Union[PromptList, str]
 
@@ -111,6 +109,15 @@ class MaaSAPI(BaseAPIModel):
             stream=self.stream,
             messages=messages,
         )
+        if self.generation_kwargs and 'enable_thinking' in self.generation_kwargs:
+            enable_thinking = self.generation_kwargs['enable_thinking']
+            new_messages = []
+            for msg in request_body['messages']:
+                if msg['role'] == 'user':
+                    msg = msg.copy()
+                    msg['content'] = msg['content'] + "/no_think"
+                new_messages.append(msg)
+            request_body['messages'] = new_messages
         standard_params = {"temperature", "top_p"}
         all_params = {}
         if self.generation_kwargs:

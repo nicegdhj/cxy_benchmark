@@ -1,7 +1,7 @@
 absl-py
 accelerate>=0.19.0
 cpm_kernels
-datasets>=2.12.0,<=3.6.0
+datasets>=2.12.0
 einops>=0.5.0
 evaluate>=0.3.0
 func_timeout
@@ -21,6 +21,7 @@ openai
 opencv-python-headless
 orjson
 pandas
+openpyxl
 plotly
 prettytable
 protobuf
@@ -50,3 +51,7 @@ tree_sitter_languages>=1.10.2
 typer
 Pillow==11.2.1
 janus
+math_verify
+latex2sympy2_extended
+human-eval
+langdetect

@@ -4,7 +4,7 @@ from ais_bench.benchmark.openicl.icl_inferencer import GenInferencer
 from ais_bench.benchmark.datasets.ifeval import IFEvalDataset, IFEvaluator
 
 ifeval_reader_cfg = dict(
-    input_columns=['prompt'], output_column='reference')
+    input_columns=['prompt'], output_column='reference', )
 
 ifeval_infer_cfg = dict(
     prompt_template=dict(
@@ -22,7 +22,7 @@ ifeval_datasets = [
     dict(
         abbr='ifeval',
         type=IFEvalDataset,
-        path='ais_bench/datasets/ifeval/input_data.jsonl',
+        path='data/ifeval/input_data.jsonl',
         reader_cfg=ifeval_reader_cfg,
         infer_cfg=ifeval_infer_cfg,
         eval_cfg=ifeval_eval_cfg)
