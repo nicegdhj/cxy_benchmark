@@ -262,6 +262,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                     pass
             else:
                 # 3. 实在没有则回退：先尝试找独占一行的纯分数
+                # self.logger.info(clean_output)
                 line_match = re.search(r'^\s*([\d.]+)\s*$', clean_output, flags=re.MULTILINE)
                 if line_match:
                     extracted_str = line_match.group(1)

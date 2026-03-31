@@ -45,11 +45,12 @@ DATASETS = [
     # 'teledata_gen_0_shot.py',
     # 'telequad_gen_0_shot.py',
     # 'tele_exam_gen_0_shot.py',
-    # 'tele_exam_gen_0_shot_str.py',
+    'tele_exam_gen_0_shot_str.py',
     # 'identity_gen_0_shot.py',
-    'exam_gen_0_shot.py'
+    # 'exam_gen_0_shot.py'
+    # 'opseval_gen_0_shot.py'
 ]
-
+# MODEL = 'maas_api'
 MODEL = 'bailian_qwen_plus'
 WORK_DIR = './outputs'
 
@@ -67,8 +68,9 @@ def run_single_dataset(dataset_name):
             '--work-dir', WORK_DIR,
             '--max-num-workers', '1',
             '--debug',
-            # '--num-prompts', '5',
-            # '--reuse','20260326_163957'
+            '--num-prompts', '10',
+            '--mode','eval',
+            '--reuse','20260331_191224'
         ]
         
         from ais_bench.benchmark.cli.task_manager import TaskManager
