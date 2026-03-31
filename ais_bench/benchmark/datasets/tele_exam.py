@@ -147,6 +147,11 @@ class TeleExamSubDataset(BaseDataset):
                     question = item.get('question', '').strip()
                     # 优先使用 correct answer（若非空）
                     answer = item.get('answer', '').strip() or item.get('correct answer', '').strip()
+                    # 判题符号标准化
+                    if answer == '×':
+                        answer = '错误'
+                    elif answer == '√':
+                        answer = '正确'
                     if not question or not answer:
                         continue
 
