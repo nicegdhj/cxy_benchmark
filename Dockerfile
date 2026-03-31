@@ -43,10 +43,14 @@ RUN pip install --no-cache-dir -e . --no-deps
 # ── 强制升级 huggingface-hub（绕过其他包的版本约束）────────────────
 # transformers 5.x 要求 >=1.3.0，但部分包会将其拉低到 0.34.x
 # 在所有依赖装完后最后强制覆盖，确保运行时版本正确
-RUN pip install --no-cache-dir --force-reinstall "huggingface-hub==1.5.0"
+RUN pip install --no-cache-dir --force-reinstall "huggingface-hub==1.5.0" "fsspec[http]>=2023.1.0,<=2026.2.0"
 
 # ── 提前下载 NLTK 数据（离线环境无法临时下载）──────────────────────
-RUN python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"
+# 下载后校验目录存在，避免网络问题导致静默失败
+ENV NLTK_DATA=/usr/local/nltk_data
+RUN python -c "import nltk; nltk.download('punkt', download_dir='${NLTK_DATA}'); nltk.download('punkt_tab', download_dir='${NLTK_DATA}')" \
+    && test -d /usr/local/nltk_data/tokenizers/punkt_tab \
+    || (echo '❌ NLTK punkt_tab 下载失败，请检查网络！' && exit 1)
 
 # ── 数据 / 输出 / 代码 均通过 -v 挂载，不打包进镜像 ─────────────────
 # -v /host/data:/app/data
