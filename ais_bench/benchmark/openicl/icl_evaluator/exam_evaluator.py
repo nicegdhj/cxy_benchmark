@@ -225,7 +225,7 @@ class ExamDynamicEvaluator(BaseEvaluator):
                     details[detail_idx]["got_score"] = item_score_ if correct else 0.0
                     details[detail_idx].pop("_pending_math", None)
             except Exception as e:
-                logger.error(
+                logger.warning(
                     f"[ExamDynamicEvaluator] MATHEvaluator failed: {e}. "
                     "Falling back to exact string match."
                 )
@@ -264,7 +264,7 @@ class ExamDynamicEvaluator(BaseEvaluator):
                     details[detail_idx].pop("_pending_llm", None)
 
             except Exception as e:
-                logger.error(
+                logger.warning(
                     f"[ExamDynamicEvaluator] LLM judge failed: {e}. "
                     "Subjective questions will get 0 score."
                 )

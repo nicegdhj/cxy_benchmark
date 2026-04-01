@@ -254,8 +254,21 @@ class LLMJudgeEvaluator(BaseEvaluator):
         for i, (pred, ref, judge_output, max_score) in enumerate(zip(predictions, references, judgements, max_scores)):
             score = 0.0
             if judge_output is None or str(judge_output).strip() == "":
-                raise ValueError(f"Empty or missing judge output at index {i}. "
-                                 f"Prompt: {prompts[i][:100]}...")
+                self.logger.warning(f"Empty or missing judge output at index {i}, score set to 0. "
+                                    f"Prompt: {prompts[i][:100]}...")
+
+                #  self.logger.error(ICLE_CODES.UNKNOWN_ERROR, f"Empty or
+                #  missing judge output at index {i}, score set to 0. "f"Prompt{prompts[i][:100]}...")
+
+                details.append({
+                    'prompt': prompts[i],
+                    'pred': pred,
+                    'refr': ref,
+                    'judge_output': "",
+                    'score': 0.0,
+                    'llm_error': 'empty judge output',
+                })
+                continue
 
             # 1. 过滤掉大模型思考过程的 <think>...</think>，以免提取到里面的时间或举例数字
             clean_output = str(judge_output)
@@ -274,6 +287,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                     pass
             else:
                 # 3. 实在没有则回退：先尝试找独占一行的纯分数
+                # self.logger.info(clean_output)
                 line_match = re.search(r'^\s*([\d.]+)\s*$', clean_output, flags=re.MULTILINE)
                 if line_match:
                     extracted_str = line_match.group(1)
