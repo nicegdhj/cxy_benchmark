@@ -273,6 +273,21 @@ class ExamDynamicEvaluator(BaseEvaluator):
                     details[detail_idx]["got_score"] = 0.0
                     details[detail_idx]["llm_error"] = str(e)
 
+        # 为每条 detail 构建 eval_details，供 openicl_eval.py 写入 JSONL
+        for detail in details:
+            eval_d = {
+                "type": detail.get("type"),
+                "item_score": detail.get("item_score"),
+                "got_score": detail.get("got_score"),
+                "skipped": detail.get("skipped"),
+                "correct": detail.get("correct"),
+            }
+            if "llm_judge_output" in detail:
+                eval_d["llm_judge_output"] = detail["llm_judge_output"]
+            if "llm_error" in detail:
+                eval_d["llm_error"] = detail["llm_error"]
+            detail["eval_details"] = eval_d
+
         return {"details": details}
 
     # ── evaluate() —— 整体评估入口 ──────────────────────────────

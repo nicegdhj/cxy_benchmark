@@ -129,6 +129,7 @@ class MaaSAPI(BaseAPIModel):
                 request_body[param] = all_params[param]
         if self.stream:
             request_body["stream"] = True
+        request_body["max_tokens"] = max_out_len
         return request_body
 
     async def parse_stream_response(self, json_content, output):

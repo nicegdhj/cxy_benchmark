@@ -267,6 +267,12 @@ class LLMJudgeEvaluator(BaseEvaluator):
                     'judge_output': "",
                     'score': 0.0,
                     'llm_error': 'empty judge output',
+                    'eval_details': {
+                        'llm_score': 0.0,
+                        'max_score': max_score,
+                        'judge_output': "",
+                        'llm_error': 'empty judge output',
+                    },
                 })
                 continue
 
@@ -314,7 +320,12 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 'refr': ref,
                 'judge_output': judge_output,
                 'llm_score': score,
-                'max_score': max_score
+                'max_score': max_score,
+                'eval_details': {
+                    'llm_score': score,
+                    'max_score': max_score,
+                    'judge_output': judge_output,
+                },
             })
 
         return {'details': details}
