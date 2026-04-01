@@ -12,8 +12,14 @@ from ais_bench.benchmark.utils.config.build import build_model_from_cfg
 from ais_bench.benchmark.utils.logging.logger import AISLogger
 from ais_bench.benchmark.utils.postprocess.model_postprocessors import extract_non_reasoning_content
 
-DEFAULT_PROMPT_TEMPLATE = """You are a fair and strict evaluator. Please score the following student's answer based on the correct answer.
+DEFAULT_PROMPT_TEMPLATE = """You are an objective and intelligent evaluator. Your task is to score the student's answer against the correct reference answer. 
 The maximum score you can give is {max_score}.
+
+Evaluation Criteria:
+1. Math & Engineering Equivalence: If the answer involves formulas or equations, focus on mathematical equivalence. Ignore different algebraic arrangements (e.g., `t^2/2` vs `1/2 t^2`), extraneous assignments (e.g., `y(t) = `), and purely typographical or LaTeX syntax differences (e.g., `\frac` vs `\dfrac`, missing brackets, spaces).
+2. Semantic Text Equivalence: If the answer is natural language, evaluate based on core meaning and semantic similarity rather than exact string matching. Do not penalize for synonyms, paraphrasing, or varying levels of detail as long as the core concept is correct (e.g., "山" and "山川" should be considered semantically equivalent if they refer to the same core entity).
+3. Minor Errors: Ignore differences in punctuation, capitalization, and minor typos that do not alter the fundamental meaning or correctness.
+4. Partial Credit: If the student's answer is partially correct or captures only part of a complex reference answer, award a proportional score based on {max_score}. If the answer is fundamentally wrong or contradictory, score 0.
 
 Correct Answer:
 {reference}
@@ -30,12 +36,13 @@ class LLMJudgeEvaluator(BaseEvaluator):
         super().__init__()
         self.prompt_template = prompt_template or DEFAULT_PROMPT_TEMPLATE
         self.logger = AISLogger()
-        if model_cfg:
+        env_model_cfg = self._build_eval_model_cfg_from_env()
+        if env_model_cfg:
             # 显式传入了配置，直接使用
-            self.model_cfg = model_cfg
+            self.model_cfg = env_model_cfg
         else:
             # 未传入配置，尝试从 SCORE_* 环境变量自动构建打分模型配置
-            self.model_cfg = self._build_eval_model_cfg_from_env()
+            self.model_cfg = None
 
         if not self.model_cfg:
             self.logger.info(
@@ -64,23 +71,23 @@ class LLMJudgeEvaluator(BaseEvaluator):
         Returns:
             完整的 model_cfg dict，若必填变量缺失则返回 None。
         """
-        from ais_bench.benchmark.models import MaaSAPI, VLLMCustomAPIChat
+        from ais_bench.benchmark.models import VLLMCustomAPIChat
         from ais_bench.benchmark.utils.postprocess.model_postprocessors import (
             extract_non_reasoning_content,
         )
-
+        model_type  = os.environ.get("SCORE_MODEL_TYPE", "maas").lower()
+        if "bailian" in model_type:
+            from ais_bench.benchmark.models.api_models.bailian_api import BailianAPI as EVAL_API_CLASS
+        else:
+            from ais_bench.benchmark.models.api_models.maas_api import MaaSAPI as EVAL_API_CLASS
         model_name = os.environ.get("SCORE_MODEL_NAME")
         api_key = os.environ.get("SCORE_API_KEY", "").strip()
         concurrency = int(os.environ.get("SCORE_LLM_CONCURRENCY", "5"))
         verbose = os.environ.get("EVAL_VERBOSE", "false").lower() == "true"
-        model_type = os.environ.get("SCORE_MODEL_TYPE", "maas").strip().lower()
-
-        # 根据 SCORE_MODEL_TYPE 选择模型类（vllm → VLLMCustomAPIChat 外网百炼等，其他 → MaaSAPI 内网服务没有 apikey
-        model_cls = VLLMCustomAPIChat if model_type == "vllm" else MaaSAPI
 
         # 公共基础字段
         base_cfg = dict(
-            type=model_cls,
+            type=EVAL_API_CLASS,
             attr="service",
             abbr="eval_model",
             path="",
@@ -165,8 +172,12 @@ class LLMJudgeEvaluator(BaseEvaluator):
             else:
                 subdiv = 'unknown'
 
-            score = detail.get('llm_score', 0.0)
+            score = detail.get('llm_score')  # None 表示大模型调用失败，不计入统计
             max_score = detail.get('max_score', 1.0)
+
+            if score is None:
+                # 大模型调用失败，跳过本条，不累加分数和最大分
+                continue
 
             total_score += score
             total_max_score += max_score
@@ -265,7 +276,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                     'pred': pred,
                     'refr': ref,
                     'judge_output': "",
-                    'score': 0.0,
+                    'llm_score': None,  # 大模型调用失败，得分设为空，不计入最终统计
                     'llm_error': 'empty judge output',
                 })
                 continue
