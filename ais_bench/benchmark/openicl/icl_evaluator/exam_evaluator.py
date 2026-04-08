@@ -377,6 +377,7 @@ class ExamDynamicEvaluator(BaseEvaluator):
             if "llm_error" in detail:
                 eval_d["llm_error"] = detail["llm_error"]
             detail["eval_details"] = eval_d
+            detail["eval_res"] = str(detail.get("got_score"))
 
         return {"details": details}
 
