@@ -12,34 +12,22 @@ from ais_bench.benchmark.utils.config.build import build_model_from_cfg
 from ais_bench.benchmark.utils.logging.logger import AISLogger
 from ais_bench.benchmark.utils.postprocess.model_postprocessors import extract_non_reasoning_content
 
-DEFAULT_PROMPT_TEMPLATE = """You are a strict and highly precise academic evaluator. Your goal is to determine the factual and logical alignment between a Student's Answer and the Reference Answer.
+DEFAULT_PROMPT_TEMPLATE = """You are an objective and intelligent evaluator. Your task is to score the student's answer against the correct reference answer. 
+The maximum score you can give is {max_score}.
 
-The maximum possible score is {max_score}.
+Evaluation Criteria:
+1. Math & Engineering Equivalence: If the answer involves formulas or equations, focus on mathematical equivalence. Ignore different algebraic arrangements (e.g., `t^2/2` vs `1/2 t^2`), extraneous assignments (e.g., `y(t) = `), and purely typographical or LaTeX syntax differences (e.g., `\frac` vs `\dfrac`, missing brackets, spaces).
+2. Semantic Text Equivalence: If the answer is natural language, evaluate based on core meaning and semantic similarity rather than exact string matching. Do not penalize for synonyms, paraphrasing, or varying levels of detail as long as the core concept is correct (e.g., "山" and "山川" should be considered semantically equivalent if they refer to the same core entity).
+3. Minor Errors: Ignore differences in punctuation, capitalization, and minor typos that do not alter the fundamental meaning or correctness.
+4. Partial Credit: If the student's answer is partially correct or captures only part of a complex reference answer, award a proportional score based on {max_score}. If the answer is fundamentally wrong or contradictory, score 0.
 
-### CRITICAL EVALUATION PROTOCOLS:
-1. **Fact Over Form (Anti-Hallucination):** Do not be misled by structured formatting, professional tone, or complex vocabulary. If the Student's Answer is logically sound but factually contradicts the Reference Answer, or reaches a different conclusion, it must be penalized heavily.
-2. **The "Zero-Tolerance" Rule:** - If the core conclusion, final result, or fundamental principle is wrong, the maximum score allowed is 0, regardless of how well-written the explanation is.
-   - For multiple-choice or short-answer questions, if the key identifier (e.g., the specific value, name, or label) is wrong, the score is 0.
-3. **Math & Engineering Equivalence:** Focus on value and functional equivalence. $t^2/2$ and $0.5t^2$ are identical. However, an error in a sign (+/-) or a coefficient (e.g., 2 vs 5) indicates a fundamental failure—score 0 for that component.
-4. **Semantic Grounding:** In natural language, "semantic equivalence" means the core information must match. If the student includes extra "fluff" that is irrelevant but correct, ignore it. If the student includes extra information that contradicts the Reference, score 0.
-5. **Partial Credit Calibration:** Only award partial credit if the student correctly identifies specific sub-components of a multi-part Reference Answer. Do not award credit for "effort" or "related but incorrect knowledge."
+Correct Answer:
+{reference}
 
-### SCORING SCALE:
-- **Full Score ({max_score}):** Perfectly equivalent in meaning/value.
-- **Partial :** Only used if the question has multiple independent parts and the student got some parts 100% right and others 100% wrong.
-- **Zero (0):** Fundamentally incorrect, contradictory, or missed the core point, no matter how "structured" it looks.
+Student's Answer:
+{prediction}
 
----
-**Reference Answer:** {reference}
-
-**Student's Answer:** {prediction}
-
-### EVALUATION PROCESS:
-1. Compare the core conclusion of both answers.
-2. Check for factual contradictions.
-3. Determine if the student's reasoning leads to the correct result.
-
-**Final Score (Output the number only):**"""
+Please output the score only as a number at the end of your response."""
 
 
 @ICL_EVALUATORS.register_module()
