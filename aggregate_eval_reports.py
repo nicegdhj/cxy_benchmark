@@ -93,6 +93,28 @@ def get_mapped_exp_name(raw_name: str, id_to_name: dict) -> str:
     return raw_name
 
 
+def _extract_origin_prompt_from_inference_log(pred_dict: dict) -> str:
+    """从 inference_log 中提取最后一条 user 消息作为 origin_prompt（兼容 BFCL 等任务）。"""
+    try:
+        logs = pred_dict.get("inference_log", [])
+        if not logs:
+            return "null"
+        turn = logs[0]
+        messages = (
+            turn.get("single_turn_inference_data", {}).get("message")
+            or turn.get("message")
+            or []
+        )
+        # 取最后一条 role=user 的 content
+        for msg in reversed(messages):
+            if isinstance(msg, dict) and msg.get("role") == "user":
+                content = msg.get("content", "null")
+                return content if content else "null"
+    except Exception:
+        pass
+    return "null"
+
+
 def find_eval_report(group_dir: Path, eval_version: str) -> Path | None:
     """找到 eval_{version}/report.json。"""
     report = group_dir / eval_version / "report.json"
@@ -305,6 +327,9 @@ def process(fmt_dir: str, eval_version: str, output_base_dir: str):
                                 origin_prompt = pred_raw.get("origin_prompt", "null")
                                 prediction_val = pred_raw.get("prediction", "null")
                                 gold = pred_raw.get("gold", "null")
+                                # 兼容 BFCL 等任务：origin_prompt 缺失时从 inference_log 回退提取
+                                if origin_prompt in (None, "null"):
+                                    origin_prompt = _extract_origin_prompt_from_inference_log(pred_raw)
                             elif isinstance(pred_raw, str):
                                 try:
                                     parsed = json.loads(pred_raw)
@@ -312,6 +337,8 @@ def process(fmt_dir: str, eval_version: str, output_base_dir: str):
                                         origin_prompt = parsed.get("origin_prompt", "null")
                                         prediction_val = parsed.get("prediction", "null")
                                         gold = parsed.get("gold", "null")
+                                        if origin_prompt in (None, "null"):
+                                            origin_prompt = _extract_origin_prompt_from_inference_log(parsed)
                                     else:
                                         prediction_val = pred_raw
                                 except json.JSONDecodeError:

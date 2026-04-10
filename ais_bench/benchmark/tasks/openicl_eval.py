@@ -482,6 +482,20 @@ class OpenICLEvalTask(BaseTask):
                         continue
                     written_ids.add(item_id)
 
+                    # Merge gold from evaluator details into prediction dict if not already present
+                    gold_val = None
+                    for _gold_key in ("gold", "references", "possible_answer", "answer"):
+                        _v = d.get(_gold_key)
+                        # unwrap single-element list produced by multi-shot grouping
+                        if isinstance(_v, list) and len(_v) == 1:
+                            _v = _v[0]
+                        if _v is not None:
+                            gold_val = _v
+                            break
+                    if gold_val is not None and "gold" not in pred_dict:
+                        pred_dict = dict(pred_dict)  # shallow copy to avoid mutating shared ref
+                        pred_dict["gold"] = gold_val
+
                     out_record = {
                         "prediction": pred_dict,
                         "eval_res": d.get("eval_res", d.get("correct", False)),
