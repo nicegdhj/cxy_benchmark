@@ -57,6 +57,7 @@ class MaaSJTAPI(BaseAPIModel):
         if api_key:
             self.headers["Authorization"] = f"Bearer {api_key}"
             self.logger.info("API key is set")
+        self.headers["Content-Type"] = "application/json"
         self.meta_template = (
             dict(
                 round=[
@@ -69,7 +70,7 @@ class MaaSJTAPI(BaseAPIModel):
             else meta_template
         )
         self.model = model if model else self._get_service_model_path()
-        self.url = self._get_url()
+        self.url = url if url and "chat/completions" in url else self._get_url()
         self.template_parser = APITemplateParser(self.meta_template)
         self.session = None
 
