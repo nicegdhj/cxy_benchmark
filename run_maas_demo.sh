@@ -14,9 +14,9 @@ set -a; source "$(dirname "$0")/.env"; set +a
 
 # ais_bench --models maas --datasets task_60_suite --debug --num-prompts 1
 
-#ais_bench --models local_qwen --datasets exam_gen_0_shot --debug  --num-prompts 1
+ais_bench --models local_qwen --datasets exam_gen_0_shot --debug  --num-prompts 1
 
-ais_bench --models bailian_qwen --datasets exam_gen_0_shot --debug
+#ais_bench --models bailian_qwen --datasets exam_gen_0_shot --debug
 
 
 

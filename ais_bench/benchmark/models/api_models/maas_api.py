@@ -143,9 +143,10 @@ class MaaSAPI(BaseAPIModel):
 
     async def parse_text_response(self, json_content, output):
         for item in json_content.get("choices", []):
-            if content := item["message"].get("content"):
-                output.content += content
-            if reasoning_content := item["message"].get("reasoning_content"):
+            msg = item["message"]
+            content = msg.get("content") or msg.get("reasoning_content") or msg.get("reasoning") or ""
+            output.content += content
+            if reasoning_content := msg.get("reasoning_content"):
                 output.reasoning_content += reasoning_content
         if json_content.get("usage"):
             output.output_tokens = json_content["usage"]["completion_tokens"]

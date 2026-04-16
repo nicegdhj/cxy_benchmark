@@ -260,7 +260,7 @@ if [[ "$RUN_MODE" == "infer" ]] || [[ "$RUN_MODE" == "all" ]]; then
         python eval_entry.py \
             --task-id "${TASK_ID}" \
             --model-config local_qwen \
-            --generic-datasets exam_gen_0_shot
+            --generic-datasets exam_gen_0_shot telemath_gen_0_cot_shot
 
 
     INFER_RC=$?

@@ -42,7 +42,7 @@ DEFAULT_LOCAL_MODEL_NAME=""
 #    infer       : 推理 + 评测（默认）
 #    infer-only  : 只跑推理，不评测
 #    judge-only  : 只跑评测（需先有推理结果）
-RUN_MODE="infer-only"
+RUN_MODE="infer"
 
 # 6. 推理任务ID（judge-only 模式时使用）：
 #    - 完整 task_id：如 "mixed_eval_20260415_103052"
@@ -51,7 +51,7 @@ RUN_MODE="infer-only"
 INFER_TASK_ID=""
 
 # 7. 评测版本号（用于指定评测方法，如 eval_init、eval_v2 等）
-EVAL_VERSION="eval_exam"
+EVAL_VERSION="eval_exam_v2"
 
 # 8. 定义目标：目录名:端口号:模型名:IP（后两项可留空使用默认值）
 #    格式说明：
@@ -62,9 +62,9 @@ EVAL_VERSION="eval_exam"
 TARGETS=(
 #    "qwen3_5_27b_think:9091:qwen3-27b:188.109.35.147"
 #    "qwen3_32b_think:10051:qwen3-32b:188.109.35.147"
-    "pt1_9_set81_think:10051:qwen3-32b:188.109.35.150"
+#    "pt1_9_set81_think:10051:qwen3-32b:188.109.35.150"
 #    "pt1_9_set81_nothink:10052:qwen3-32b:188.109.35.150"
-#    "pt3_7_set86_think:10051:qwen3-32b:188.109.35.152"
+    "pt3_7_set86_think:10051:qwen3-32b:188.109.35.152"
 #    "pt3_7_set86_nothink:10052:qwen3-32b:188.109.35.152"
 #    "qwen3_32b_nothink:10051:qwen3-32b:188.109.35.147"
 #    "qwen3_235b_think:30012:qwen3-235b:188.109.35.150"
