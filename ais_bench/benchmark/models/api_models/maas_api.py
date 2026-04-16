@@ -33,7 +33,7 @@ class MaaSAPI(BaseAPIModel):
         path: str = "",
         model: str = "",
         stream: bool = False,
-        max_out_len: int = 4096,
+        max_out_len: int = 32000,
         retry: int = 2,
         api_key: str = "",
         host_ip: str = "localhost",
