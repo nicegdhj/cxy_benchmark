@@ -100,6 +100,7 @@ class MaaSJTAPI(BaseAPIModel):
                 messages.append(msg)
         output.input = messages
         request_body = dict(
+            model=self.model,
             stream=self.stream,
             messages=messages,
         )
@@ -117,6 +118,10 @@ class MaaSJTAPI(BaseAPIModel):
         return request_body
 
     async def parse_stream_response(self, json_content, output):
+        if "error" in json_content:
+            output.content = f"API Error: {json_content['error']}"
+            output.success = False
+            return
         for item in json_content.get("choices", []):
             if item["delta"].get("content"):
                 output.content += item["delta"]["content"]
@@ -126,6 +131,10 @@ class MaaSJTAPI(BaseAPIModel):
             output.output_tokens = json_content["usage"]["completion_tokens"]
 
     async def parse_text_response(self, json_content, output):
+        if "error" in json_content:
+            output.content = f"API Error: {json_content['error']}"
+            output.success = False
+            return
         for item in json_content.get("choices", []):
             if content:=item["message"].get("content"):
                 output.content += content
