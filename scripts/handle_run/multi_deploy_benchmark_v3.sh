@@ -51,7 +51,7 @@ RUN_MODE="infer"
 INFER_TASK_ID=""
 
 # 7. 评测版本号（用于指定评测方法，如 eval_init、eval_v2 等）
-EVAL_VERSION="eval_exam_v2"
+EVAL_VERSION="eval_init"
 
 # 8. 定义目标：目录名:端口号:模型名:IP（后两项可留空使用默认值）
 #    格式说明：
@@ -60,11 +60,13 @@ EVAL_VERSION="eval_exam_v2"
 #      模型名   - 留空则使用 DEFAULT_LOCAL_MODEL_NAME
 #      IP       - 留空则使用 DEFAULT_LOCAL_HOST_IP
 TARGETS=(
+     "pt_v_0_2:9092:qwen3-32b:188.109.35.147"
+#     "telechat_36b:10052:telechat-36b:188.109.35.152"
 #    "qwen3_5_27b_think:9091:qwen3-27b:188.109.35.147"
 #    "qwen3_32b_think:10051:qwen3-32b:188.109.35.147"
 #    "pt1_9_set81_think:10051:qwen3-32b:188.109.35.150"
 #    "pt1_9_set81_nothink:10052:qwen3-32b:188.109.35.150"
-    "pt3_7_set86_think:10051:qwen3-32b:188.109.35.152"
+#    "pt3_7_set86_think:10051:qwen3-32b:188.109.35.152"
 #    "pt3_7_set86_nothink:10052:qwen3-32b:188.109.35.152"
 #    "qwen3_32b_nothink:10051:qwen3-32b:188.109.35.147"
 #    "qwen3_235b_think:30012:qwen3-235b:188.109.35.150"

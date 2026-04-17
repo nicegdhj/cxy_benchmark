@@ -129,7 +129,11 @@ class MaaSAPI(BaseAPIModel):
                 request_body[param] = all_params[param]
         if self.stream:
             request_body["stream"] = True
-        request_body["max_tokens"] = max_out_len
+        # 故意不发送 max_tokens：让服务端以 (max_model_len - input_tokens) 自动决定
+        # 输出上限，避免 max_tokens + input > max_model_len 触发 400 BadRequest。
+        # 副作用：think 模型可能输出很长的思考过程导致单条耗时增加；如需兜底
+        # 可解开下一行注释并在 config 的 max_out_len 设置一个合理值（如 8192）。
+        # request_body["max_tokens"] = max_out_len
         return request_body
 
     async def parse_stream_response(self, json_content, output):
