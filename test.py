@@ -1,9 +1,12 @@
 import sys
+import os
+
+# Add the script's directory to sys.path to allow importing ais_bench
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 if sys.platform == "darwin":
     import multiprocessing
     multiprocessing.set_start_method("fork", force=True)
-import os
-
 # # 强制设置命令行参数
 # sys.argv = [
 #     'ais_bench', 
