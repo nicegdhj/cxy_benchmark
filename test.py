@@ -2,7 +2,11 @@ import sys
 import os
 
 # Add the script's directory to sys.path to allow importing ais_bench
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+benchmark_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, benchmark_dir)
+
+# Also set PYTHONPATH so that any child processes spawned by TaskManager can inherit it
+os.environ["PYTHONPATH"] = benchmark_dir + os.pathsep + os.environ.get("PYTHONPATH", "")
 
 if sys.platform == "darwin":
     import multiprocessing

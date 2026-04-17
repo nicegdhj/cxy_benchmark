@@ -7,6 +7,10 @@ import os
 import os.path as osp
 import statistics
 import sys
+
+benchmark_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, benchmark_dir)
+
 import time
 from collections import Counter
 from inspect import signature

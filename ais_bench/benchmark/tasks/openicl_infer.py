@@ -4,6 +4,10 @@ import os.path as osp
 import random
 import threading
 import sys
+
+benchmark_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, benchmark_dir)
+
 import time
 from typing import Any
 
