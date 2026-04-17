@@ -39,17 +39,22 @@ DATASETS = [
     # 'aime2025_gen_0_shot_chat_prompt.py',
     # 'humaneval_gen_0_shot.py',
     # 'livecodebench_0_shot_chat_v6.py',
+    # 'identity_gen_0_shot.py',
     # 'telemath_gen_0_cot_shot.py',
+    # 'opseval_gen_0_shot.py'
     # 'teleqna_gen_0_shot.py',
     # 'tspec_gen_0_shot.py',
     # 'teledata_gen_0_shot.py',
     # 'telequad_gen_0_shot.py',
     # 'tele_exam_gen_0_shot.py',
-    #'tele_exam_gen_0_shot_str.py',
-    # 'identity_gen_0_shot.py',
+    # 'tele_exam_gen_0_shot_str.py',
     # 'exam_gen_0_shot.py'
-    # 'opseval_gen_0_shot.py'
+    # 'task_1_suite.py',
+    # 'task_34_suite.py',
+    # 'task_36_suite.py',
+    # 'task_43_suite.py',
     'task_44_suite.py',
+    # 'task_60_suite.py',
 ]
 # MODEL = 'maas_api'
 MODEL = 'bailian_qwen_plus'
@@ -70,8 +75,8 @@ def run_single_dataset(dataset_name):
             '--max-num-workers', '1',
             '--debug',
             '--num-prompts', '5',
-            '--mode','eval',
-            '--reuse','20260415_144745'
+            '--mode','infer',
+            # '--reuse','20260415_144745'
         ]
         
         from ais_bench.benchmark.cli.task_manager import TaskManager
