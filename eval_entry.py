@@ -95,6 +95,7 @@ def parse_args():
             "bailian_qwen",
             "bailian_qwen_no_stream",
             "local_qwen",
+            "maas_gateway",
         ],
         help="指定模型配置文件：maas=私域 MaaSAPI 等（默认 maas）",
     )

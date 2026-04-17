@@ -42,7 +42,7 @@ DEFAULT_LOCAL_MODEL_NAME=""
 #    infer       : 推理 + 评测（默认）
 #    infer-only  : 只跑推理，不评测
 #    judge-only  : 只跑评测（需先有推理结果）
-RUN_MODE="infer"
+RUN_MODE="judge-only"
 
 # 6. 推理任务ID（judge-only 模式时使用）：
 #    - 完整 task_id：如 "mixed_eval_20260415_103052"
@@ -51,7 +51,7 @@ RUN_MODE="infer"
 INFER_TASK_ID=""
 
 # 7. 评测版本号（用于指定评测方法，如 eval_init、eval_v2 等）
-EVAL_VERSION="eval_init"
+EVAL_VERSION="eval_init_batch"
 
 # 8. 定义目标：目录名:端口号:模型名:IP（后两项可留空使用默认值）
 #    格式说明：
