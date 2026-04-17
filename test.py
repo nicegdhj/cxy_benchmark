@@ -81,7 +81,7 @@ def run_single_dataset(dataset_name):
             '--work-dir', WORK_DIR,
             '--max-num-workers', '1',
             '--debug',
-            '--num-prompts', '5',
+            # '--num-prompts', '5',
             '--mode','infer',
             # '--reuse','20260415_144745'
         ]

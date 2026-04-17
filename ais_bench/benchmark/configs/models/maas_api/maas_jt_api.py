@@ -10,7 +10,7 @@ models = [
         abbr="maas-jt-api",
         path="",
         model="JT-NET-75B-8k",
-        stream=True,
+        stream=False,
         request_rate=0,
         retry=2,
         # 从.env取值，如果没取到默认 fallback 为 cxy_maas

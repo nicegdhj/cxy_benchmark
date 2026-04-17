@@ -55,7 +55,10 @@ class MaaSJTAPI(BaseAPIModel):
             verbose=verbose,
         )
         if api_key:
-            self.headers["Authorization"] = f"Bearer {api_key}"
+            if not api_key.startswith("Bearer "):
+                self.headers["Authorization"] = f"Bearer {api_key}"
+            else:
+                self.headers["Authorization"] = api_key
             self.logger.info("API key is set")
         self.headers["Content-Type"] = "application/json"
         self.meta_template = (
