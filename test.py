@@ -60,11 +60,11 @@ DATASETS = [
     # 'task_34_suite.py',
     # 'task_36_suite.py',
     # 'task_43_suite.py',
-    'task_44_suite.py',
-    # 'task_60_suite.py',
+    # 'task_44_suite.py',
+    'task_60_suite.py',
 ]
-# MODEL = 'maas_api'
-MODEL = 'bailian_qwen_plus'
+MODEL = 'maas_jt_api'
+# MODEL = 'bailian_qwen_plus'
 WORK_DIR = './outputs'
 
 def run_single_dataset(dataset_name):
