@@ -99,3 +99,22 @@ class BatchOut(BaseModel):
     notes: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class BatchReportRow(BaseModel):
+    model_id: int
+    model_name: str
+    task_id: int
+    task_key: str
+    prediction_id: int | None
+    evaluation_id: int | None
+    accuracy: float | None
+    num_samples: int | None
+    status: str
+
+
+class BatchReport(BaseModel):
+    batch_id: int
+    batch_name: str
+    generated_at: datetime
+    rows: list[BatchReportRow]
