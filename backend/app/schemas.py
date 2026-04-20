@@ -34,3 +34,33 @@ class ModelOut(BaseModel):
     model_config_key: str
     created_at: datetime
     updated_at: datetime
+
+
+class JudgeCreate(BaseModel):
+    name: str
+    host: str
+    port: int
+    model_name: str
+    auth_ref: str | None = None
+    extra_env_json: dict[str, str] = {}
+
+
+class JudgeUpdate(BaseModel):
+    host: str | None = None
+    port: int | None = None
+    model_name: str | None = None
+    auth_ref: str | None = None
+    extra_env_json: dict[str, str] | None = None
+
+
+class JudgeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    host: str
+    port: int
+    model_name: str
+    auth_ref: str | None
+    extra_env_json: dict[str, str]
+    created_at: datetime
+    updated_at: datetime
