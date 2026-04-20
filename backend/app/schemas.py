@@ -118,3 +118,23 @@ class BatchReport(BaseModel):
     batch_name: str
     generated_at: datetime
     rows: list[BatchReportRow]
+
+
+class JobOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    type: str
+    status: str
+    batch_id: int | None
+    model_id: int | None
+    task_id: int | None
+    pid: int | None
+    returncode: int | None
+    produces_prediction_id: int | None
+    produces_evaluation_id: int | None
+    dependency_job_id: int | None
+    log_path: str | None
+    created_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None
+    error_msg: str | None
