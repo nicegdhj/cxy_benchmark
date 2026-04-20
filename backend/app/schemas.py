@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import Any
-from pydantic import BaseModel, ConfigDict
+from typing import Any, Literal
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ModelCreate(BaseModel):
@@ -81,9 +81,9 @@ class TaskOut(BaseModel):
 
 class BatchCreate(BaseModel):
     name: str
-    mode: str = "all"  # infer | eval | all
-    model_ids: list[int]
-    task_ids: list[int]
+    mode: Literal["infer", "eval", "all"] = "all"
+    model_ids: list[int] = Field(..., min_length=1)
+    task_ids: list[int] = Field(..., min_length=1)
     default_eval_version: str = "eval_init"
     default_judge_id: int | None = None
     notes: str | None = None

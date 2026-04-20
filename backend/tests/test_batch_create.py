@@ -50,3 +50,19 @@ def test_create_batch_mode_infer_only_creates_infer_jobs(client):
         jobs = s.query(Job).filter_by(batch_id=bid).all()
         assert len(jobs) == 1
         assert jobs[0].type == "infer"
+
+
+def test_create_batch_mode_eval_only_creates_eval_jobs(client):
+    mid, tid = _prep(client)
+    r = client.post("/api/v1/batches", json={
+        "name": "eval-only",
+        "mode": "eval",
+        "model_ids": [mid],
+        "task_ids": [tid],
+    })
+    bid = r.json()["id"]
+    with get_session() as s:
+        jobs = s.query(Job).filter_by(batch_id=bid).all()
+        assert len(jobs) == 1
+        assert jobs[0].type == "eval"
+        assert jobs[0].dependency_job_id is None

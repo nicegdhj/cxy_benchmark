@@ -30,5 +30,5 @@ def list_(db: Session = Depends(db_session)):
 def get(bid: int, db: Session = Depends(db_session)):
     b = db.get(Batch, bid)
     if not b:
-        raise HTTPException(404)
+        raise HTTPException(status_code=404, detail=f"Batch {bid} not found")
     return b
