@@ -25,3 +25,12 @@ def test_get_task(client):
     tid = r.json()[0]["id"]
     r2 = client.get(f"/api/v1/tasks/{tid}")
     assert r2.status_code == 200
+    data = r2.json()
+    assert "key" in data
+    assert "type" in data
+    assert "suite_name" in data
+
+
+def test_get_task_404(client):
+    r = client.get("/api/v1/tasks/99999")
+    assert r.status_code == 404

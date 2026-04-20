@@ -18,5 +18,5 @@ def list_(db: Session = Depends(db_session)):
 def get(tid: int, db: Session = Depends(db_session)):
     t = db.get(Task, tid)
     if not t:
-        raise HTTPException(404)
+        raise HTTPException(status_code=404, detail="Task not found")
     return t

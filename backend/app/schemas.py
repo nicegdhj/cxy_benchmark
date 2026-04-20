@@ -76,3 +76,11 @@ class TaskOut(BaseModel):
     custom_task_num: int | None
     default_data_rel_path: str | None
     is_llm_judge: bool
+    created_at: datetime
+    key: str
+    type: str
+    suite_name: str
+    display_name: str | None
+    custom_task_num: int | None
+    default_data_rel_path: str | None
+    is_llm_judge: bool
