@@ -77,10 +77,25 @@ class TaskOut(BaseModel):
     default_data_rel_path: str | None
     is_llm_judge: bool
     created_at: datetime
-    key: str
-    type: str
-    suite_name: str
-    display_name: str | None
-    custom_task_num: int | None
-    default_data_rel_path: str | None
-    is_llm_judge: bool
+
+
+class BatchCreate(BaseModel):
+    name: str
+    mode: str = "all"  # infer | eval | all
+    model_ids: list[int]
+    task_ids: list[int]
+    default_eval_version: str = "eval_init"
+    default_judge_id: int | None = None
+    notes: str | None = None
+
+
+class BatchOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    mode: str
+    default_eval_version: str
+    default_judge_id: int | None
+    notes: str | None
+    created_at: datetime
+    updated_at: datetime
