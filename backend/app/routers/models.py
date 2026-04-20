@@ -18,7 +18,7 @@ def create(payload: ModelCreate, db: Session = Depends(db_session)):
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(409, "name already exists")
+        raise HTTPException(status_code=409, detail="A model with this name already exists")
     db.refresh(m)
     return m
 
