@@ -64,3 +64,15 @@ class JudgeOut(BaseModel):
     extra_env_json: dict[str, str]
     created_at: datetime
     updated_at: datetime
+
+
+class TaskOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    key: str
+    type: str
+    suite_name: str
+    display_name: str | None
+    custom_task_num: int | None
+    default_data_rel_path: str | None
+    is_llm_judge: bool
