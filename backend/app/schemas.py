@@ -1,0 +1,36 @@
+from datetime import datetime
+from typing import Any
+from pydantic import BaseModel, ConfigDict
+
+
+class ModelCreate(BaseModel):
+    name: str
+    host: str
+    port: int
+    model_name: str
+    concurrency: int = 20
+    gen_kwargs_json: dict[str, Any] = {}
+    model_config_key: str = "local_qwen"
+
+
+class ModelUpdate(BaseModel):
+    host: str | None = None
+    port: int | None = None
+    model_name: str | None = None
+    concurrency: int | None = None
+    gen_kwargs_json: dict[str, Any] | None = None
+    model_config_key: str | None = None
+
+
+class ModelOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    host: str
+    port: int
+    model_name: str
+    concurrency: int
+    gen_kwargs_json: dict[str, Any]
+    model_config_key: str
+    created_at: datetime
+    updated_at: datetime
