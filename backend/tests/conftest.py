@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from backend.app import db as db_mod
+from backend.app.config import get_settings
 from backend.app.main import app
 from backend.app.models import Base
 
@@ -16,7 +17,10 @@ def _fresh_db(tmp_path, monkeypatch):
     SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
     monkeypatch.setattr(db_mod, "_engine", engine)
     monkeypatch.setattr(db_mod, "_SessionLocal", SessionLocal)
+    # 清除 settings 缓存，确保每个测试使用独立配置
+    get_settings.cache_clear()
     yield
+    get_settings.cache_clear()
 
 
 @pytest.fixture

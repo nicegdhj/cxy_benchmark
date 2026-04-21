@@ -1,4 +1,6 @@
+from functools import lru_cache
 from pathlib import Path
+
 from pydantic_settings import BaseSettings
 
 
@@ -28,5 +30,6 @@ class Settings(BaseSettings):
         env_file = ".env"
 
 
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()

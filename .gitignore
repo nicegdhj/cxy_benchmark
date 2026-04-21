@@ -49,6 +49,9 @@ data/
 # Secrets
 .env
 
+# Git worktrees
+.worktrees/
+
 # GitHub workflows / CI config
 .github/
 

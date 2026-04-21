@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
@@ -21,7 +23,16 @@ def init_db():
     Base.metadata.create_all(_engine)
 
 
-def get_session() -> Session:
+@contextmanager
+def get_session():
+    """带 rollback 保障的 session 上下文管理器。异常时自动回滚。"""
     if _SessionLocal is None:
         init_db()
-    return _SessionLocal()
+    session = _SessionLocal()
+    try:
+        yield session
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
