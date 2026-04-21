@@ -7,9 +7,11 @@ from fastapi.responses import JSONResponse
 from backend.app.config import get_settings
 from backend.app.db import init_db
 from backend.app.routers import batches as batches_router
+from backend.app.routers import evaluations as evaluations_router
 from backend.app.routers import judges as judges_router
 from backend.app.routers import jobs as jobs_router
 from backend.app.routers import models as models_router
+from backend.app.routers import predictions as predictions_router
 from backend.app.routers import tasks as tasks_router
 from backend.app.services.worker import worker_loop
 
@@ -49,6 +51,8 @@ app.include_router(judges_router.router)
 app.include_router(tasks_router.router)
 app.include_router(batches_router.router)
 app.include_router(jobs_router.router)
+app.include_router(predictions_router.router)
+app.include_router(evaluations_router.router)
 
 
 @app.get("/api/v1/health")

@@ -120,6 +120,50 @@ class BatchReport(BaseModel):
     rows: list[BatchReportRow]
 
 
+class BatchRevisionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    batch_id: int
+    rev_num: int
+    change_type: str
+    change_summary: str | None
+    created_at: datetime
+
+
+class PredictionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    model_id: int
+    task_id: int
+    dataset_version_id: int | None
+    status: str
+    output_task_id: str | None
+    output_path: str | None
+    num_samples: int | None
+    duration_sec: float | None
+    job_id: int | None
+    created_at: datetime
+    finished_at: datetime | None
+    error_msg: str | None
+
+
+class EvaluationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    prediction_id: int
+    eval_version: str
+    judge_id: int | None
+    status: str
+    accuracy: float | None
+    details_path: str | None
+    num_samples: int | None
+    duration_sec: float | None
+    job_id: int | None
+    created_at: datetime
+    finished_at: datetime | None
+    error_msg: str | None
+
+
 class JobOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int

@@ -34,6 +34,13 @@ def _next_rev_num(db: Session, batch_id: int) -> int:
 def record_revision(
     db: Session, batch_id: int, change_type: str, change_summary: str
 ):
+    """
+    记录 BatchRevision 快照。
+
+    **调用顺序要求**：调用方须在修改 BatchCell 指针后（db.flush 后）、
+    db.commit 前调用本函数。_snapshot 读取的是 session 内当前 cell 状态，
+    而非数据库已提交状态。勿在 cell 修改前调用，否则快照不准确。
+    """
     rev = BatchRevision(
         batch_id=batch_id,
         rev_num=_next_rev_num(db, batch_id),
