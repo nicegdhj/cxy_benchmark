@@ -384,6 +384,17 @@ logger.exception("worker error")  # 自动附带 traceback
 ## 修复状态
 
 > 修复完成于 commit `0207b91`
+>
+> **第二轮修复（数据集 API + rerun API + status Enum）完成于 2026-04-21**
+>
+> | 级别 | ID | 描述 | 状态 | 修复文件 |
+> |------|----|------|------|----------|
+> | Important | I4 | record_revision 隐式前提 | ✅ 已修复 | `batch_service.py` |
+> | Minor | M2 | datasets API (`POST/GET /tasks/{id}/datasets`) | ✅ 已修复 | `tasks.py`, `schemas.py` |
+> | Minor | M2 | rerun API (`POST /batches/{id}/rerun`) | ✅ 已修复 | `batches.py`, `batch_service.py` |
+> | Minor | M4 | Prediction/Evaluation/Job status 改为 Enum | ✅ 已修复 | `models.py` |
+> | — | — | config.py 环境变量 extra 兼容 | ✅ 已修复 | `config.py` |
+> | — | — | 测试环境 workspace_dir 隔离 | ✅ 已修复 | `conftest.py` |
 
 | 级别 | ID | 描述 | 状态 | 修复文件 |
 |------|----|------|------|----------|
@@ -393,10 +404,10 @@ logger.exception("worker error")  # 自动附带 traceback
 | Important | I1 | 并发配额未实现 | ✅ 已修复 | `worker.py` |
 | Important | I2 | auth_token 未生效 | ✅ 已修复 | `main.py`, `deps.py` |
 | Important | I3 | get_settings() 无缓存 | ✅ 已修复 | `config.py` |
-| Important | I4 | record_revision 隐式前提 | ⏳ P2 延期 | — |
+| Important | I4 | record_revision 隐式前提 | ✅ 已修复 | `batch_service.py` |
 | Important | I5 | env 文件无清理 | ✅ 已修复 | `worker.py` |
 | Minor | M1 | dep is None 时崩溃 | ✅ 已修复（C1 中一并修复） | `worker.py` |
-| Minor | M2 | 多个 API 端点未实现 | ⏳ P1/P2 | — |
+| Minor | M2 | 多个 API 端点未实现 | ✅ 已修复 | 见下方详情 |
 | Minor | M3 | 批次路由无 rollback | ✅ 已修复（C2 中一并修复） | — |
-| Minor | M4 | Job.status 缺枚举约束 | ⏳ P2 延期 | — |
+| Minor | M4 | Job.status 缺枚举约束 | ✅ 已修复 | `models.py` |
 | Minor | M5 | Worker 使用 print | ✅ 已修复（C1 中一并修复） | `worker.py` |

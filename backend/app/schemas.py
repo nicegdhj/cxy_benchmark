@@ -79,6 +79,24 @@ class TaskOut(BaseModel):
     created_at: datetime
 
 
+class DatasetVersionCreate(BaseModel):
+    tag: str
+    is_default: bool = False
+    note: str | None = None
+
+
+class DatasetVersionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    task_id: int
+    tag: str
+    data_path: str
+    content_hash: str | None
+    is_default: bool
+    uploaded_at: datetime
+    note: str | None
+
+
 class BatchCreate(BaseModel):
     name: str
     mode: Literal["infer", "eval", "all"] = "all"
@@ -118,6 +136,13 @@ class BatchReport(BaseModel):
     batch_name: str
     generated_at: datetime
     rows: list[BatchReportRow]
+
+
+class BatchRerun(BaseModel):
+    model_ids: list[int] = Field(..., min_length=1)
+    task_ids: list[int] = Field(..., min_length=1)
+    what: Literal["infer", "eval", "both"] = "both"
+    dataset_version_id: int | None = None
 
 
 class BatchRevisionOut(BaseModel):

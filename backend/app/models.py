@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import (
     Column, Integer, String, Float, Boolean, ForeignKey,
-    DateTime, Text, JSON, UniqueConstraint,
+    DateTime, Text, JSON, UniqueConstraint, Enum,
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 
@@ -73,7 +73,7 @@ class Prediction(Base):
     model_id = Column(Integer, ForeignKey("models.id"), nullable=False)
     task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
     dataset_version_id = Column(Integer, ForeignKey("dataset_versions.id"))
-    status = Column(String, default="pending")
+    status = Column(Enum("pending", "running", "success", "failed"), default="pending")
     output_task_id = Column(String)  # ais_bench 的 task_id
     output_path = Column(String)
     num_samples = Column(Integer)
@@ -90,7 +90,7 @@ class Evaluation(Base):
     prediction_id = Column(Integer, ForeignKey("predictions.id"), nullable=False)
     eval_version = Column(String, nullable=False)
     judge_id = Column(Integer, ForeignKey("judges.id"))
-    status = Column(String, default="pending")
+    status = Column(Enum("pending", "running", "success", "failed"), default="pending")
     accuracy = Column(Float)
     details_path = Column(String)
     num_samples = Column(Integer)
@@ -141,7 +141,7 @@ class Job(Base):
     id = Column(Integer, primary_key=True)
     type = Column(String, nullable=False)  # infer | eval
     params_json = Column(JSON, default=dict)
-    status = Column(String, default="pending")
+    status = Column(Enum("pending", "running", "success", "failed", "cancelled"), default="pending")
     log_path = Column(String)
     pid = Column(Integer)
     returncode = Column(Integer)

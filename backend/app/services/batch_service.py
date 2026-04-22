@@ -51,6 +51,59 @@ def record_revision(
     db.add(rev)
 
 
+def rerun_batch(db: Session, batch_id: int, payload) -> list[Job]:
+    """为 batch 的指定子集创建新 jobs，返回新创建的 job 列表。"""
+    batch = db.get(Batch, batch_id)
+    if not batch:
+        raise ValueError("batch not found")
+
+    jobs_created = []
+    for mid in payload.model_ids:
+        for tid in payload.task_ids:
+            cell = db.get(BatchCell, (batch_id, mid, tid))
+            if not cell:
+                raise ValueError(f"cell not found for model={mid} task={tid}")
+
+            if payload.dataset_version_id is not None:
+                cell.dataset_version_id = payload.dataset_version_id
+
+            infer_job = None
+            if payload.what in ("infer", "both"):
+                infer_job = Job(
+                    type="infer", batch_id=batch_id,
+                    model_id=mid, task_id=tid,
+                    params_json={},
+                )
+                db.add(infer_job)
+                db.flush()
+                jobs_created.append(infer_job)
+
+            if payload.what in ("eval", "both"):
+                dep_id = infer_job.id if infer_job else None
+                # eval-only 时尝试用现有 prediction 作为依赖
+                if payload.what == "eval" and cell.current_prediction_id:
+                    # eval job 不需要 infer job 依赖，但需要 prediction 存在
+                    # 这里保持和 create_batch 相同的结构：eval job 的 dependency 指向 infer
+                    # 但 rerun 中 infer 可能不存在，所以 dependency_job_id 设为 None
+                    dep_id = None
+
+                eval_job = Job(
+                    type="eval", batch_id=batch_id,
+                    model_id=mid, task_id=tid,
+                    params_json={"eval_version": batch.default_eval_version},
+                    dependency_job_id=dep_id,
+                )
+                db.add(eval_job)
+                db.flush()
+                jobs_created.append(eval_job)
+
+    record_revision(
+        db, batch_id, "rerun",
+        f"rerun {payload.what} for models={payload.model_ids} tasks={payload.task_ids}",
+    )
+    return jobs_created
+
+
 def create_batch(db: Session, payload) -> Batch:
     # 校验 model/task 存在
     models = db.query(Model).filter(Model.id.in_(payload.model_ids)).all()

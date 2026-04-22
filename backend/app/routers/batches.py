@@ -8,9 +8,9 @@ from backend.app.models import (
     Batch, BatchCell, BatchRevision, Evaluation, Model, Prediction, Task,
 )
 from backend.app.schemas import (
-    BatchCreate, BatchOut, BatchReport, BatchReportRow, BatchRevisionOut,
+    BatchCreate, BatchOut, BatchReport, BatchReportRow, BatchRerun, BatchRevisionOut,
 )
-from backend.app.services.batch_service import create_batch
+from backend.app.services.batch_service import create_batch, rerun_batch
 
 
 router = APIRouter(prefix="/api/v1/batches", tags=["batches"])
@@ -123,3 +123,20 @@ def list_revisions(bid: int, db: Session = Depends(db_session)):
         .order_by(BatchRevision.rev_num)
         .all()
     )
+
+
+@router.post("/{bid}/rerun", status_code=status.HTTP_201_CREATED)
+def rerun(bid: int, payload: BatchRerun, db: Session = Depends(db_session)):
+    batch = db.get(Batch, bid)
+    if not batch:
+        raise HTTPException(status_code=404, detail=f"Batch {bid} not found")
+    try:
+        jobs = rerun_batch(db, bid, payload)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    db.commit()
+    return {
+        "batch_id": bid,
+        "jobs_created": len(jobs),
+        "job_ids": [j.id for j in jobs],
+    }

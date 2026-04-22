@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     class Config:
         env_prefix = "EVAL_BACKEND_"
         env_file = ".env"
+        extra = "ignore"
 
 
 @lru_cache(maxsize=1)
