@@ -42,7 +42,7 @@ DEFAULT_LOCAL_MODEL_NAME=""
 #    infer       : 推理 + 评测（默认）
 #    infer-only  : 只跑推理，不评测
 #    judge-only  : 只跑评测（需先有推理结果）
-RUN_MODE="judge-only"
+RUN_MODE="infer-only"
 
 # 6. 推理任务ID（judge-only 模式时使用）：
 #    - 完整 task_id：如 "mixed_eval_20260415_103052"
@@ -51,7 +51,7 @@ RUN_MODE="judge-only"
 INFER_TASK_ID=""
 
 # 7. 评测版本号（用于指定评测方法，如 eval_init、eval_v2 等）
-EVAL_VERSION="eval_init_batch"
+EVAL_VERSION="eval_init"
 
 # 8. 定义目标：目录名:端口号:模型名:IP（后两项可留空使用默认值）
 #    格式说明：
@@ -60,8 +60,11 @@ EVAL_VERSION="eval_init_batch"
 #      模型名   - 留空则使用 DEFAULT_LOCAL_MODEL_NAME
 #      IP       - 留空则使用 DEFAULT_LOCAL_HOST_IP
 TARGETS=(
-     "pt_v_0_2:9092:qwen3-32b:188.109.35.147"
+#     "pt_v_0_2:9092:qwen3-32b:188.109.35.147"
 #     "telechat_36b:10052:telechat-36b:188.109.35.152"
+     "pt3_7_set86_think:10051:qwen3-32b:188.109.35.195"
+     "pt1_9_set81_think:10052:qwen3-32b:188.109.35.195"
+
 #    "qwen3_5_27b_think:9091:qwen3-27b:188.109.35.147"
 #    "qwen3_32b_think:10051:qwen3-32b:188.109.35.147"
 #    "pt1_9_set81_think:10051:qwen3-32b:188.109.35.150"

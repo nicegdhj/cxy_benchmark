@@ -42,6 +42,7 @@ summary/
 tmp/
 *.log
 *.tmp
+*.db
 
 mydata
 data/
@@ -51,6 +52,9 @@ data/
 
 # Git worktrees
 .worktrees/
+
+# Local workspace directory
+workspace/
 
 # GitHub workflows / CI config
 .github/
