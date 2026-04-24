@@ -5,7 +5,8 @@ import { api, transformReportToMatrix } from '../../lib/api';
 import { Card, CardHeader, CardBody } from '../../components/ui/Card';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Modal } from '../../components/ui/Modal';
-import { ArrowLeft, BarChart3, GitBranch, RotateCcw, Table } from 'lucide-react';
+import { ArrowLeft, BarChart3, GitBranch, RotateCcw, Table, User } from 'lucide-react';
+import { userDisplay } from '../../lib/userDisplay';
 import { useNavigate } from 'react-router-dom';
 import { AccuracyBarChart } from './components/AccuracyBarChart';
 import { DurationBarChart } from './components/DurationBarChart';
@@ -51,6 +52,17 @@ export function BatchDetailPage() {
             }`}>{batch?.mode}</span>
             <span className="text-gray-400">{batch?.default_eval_version}</span>
             <span className="text-gray-400">{batch?.created_at ? new Date(batch.created_at).toLocaleString() : '-'}</span>
+            {batch?.created_by && (
+              <span className="flex items-center gap-1 text-gray-400">
+                <User size={13} />
+                {userDisplay(batch.created_by)}
+              </span>
+            )}
+            {batch?.last_modified_by && (
+              <span className="flex items-center gap-1 text-gray-400">
+                最后修改: {userDisplay(batch.last_modified_by)}
+              </span>
+            )}
           </div>
         </div>
         {revisions?.length > 0 && (

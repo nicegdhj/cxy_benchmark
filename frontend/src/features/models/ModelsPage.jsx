@@ -4,6 +4,7 @@ import { api } from '../../lib/api';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { Plus, Pencil, Trash2, Server } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 
 const DEFAULT_FORM = {
   name: '', model_config_key: 'local_qwen', model_name: '',
@@ -58,6 +59,7 @@ const CONFIG_BADGE = {
 
 export function ModelsPage() {
   const qc = useQueryClient();
+  const { canWrite } = useAuthStore();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(DEFAULT_FORM);
@@ -100,7 +102,7 @@ export function ModelsPage() {
           <h1 className="text-[22px] font-bold text-gray-900 leading-tight">评测模型</h1>
           <p className="text-sm text-gray-500 mt-0.5">共 {models?.length ?? 0} 个模型配置</p>
         </div>
-        <button className="btn-primary flex items-center gap-2 mt-0.5" onClick={openCreate}>
+        <button className="btn-primary flex items-center gap-2 mt-0.5" onClick={openCreate} disabled={!canWrite()} title={!canWrite() ? '需要操作员或管理员权限' : undefined}>
           <Plus size={16} /> 新增模型
         </button>
       </div>
@@ -128,8 +130,8 @@ export function ModelsPage() {
                       <h3 className="text-sm font-semibold text-gray-900">{m.name}</h3>
                     </div>
                     <div className="flex gap-1 ml-2 flex-shrink-0">
-                      <button onClick={() => openEdit(m)} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"><Pencil size={14} /></button>
-                      <button onClick={() => deleteMut.mutate(m.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={14} /></button>
+                      <button onClick={() => openEdit(m)} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed" disabled={!canWrite()}><Pencil size={14} /></button>
+                      <button onClick={() => deleteMut.mutate(m.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed" disabled={!canWrite()}><Trash2 size={14} /></button>
                     </div>
                   </div>
                   <dl className="space-y-1.5">

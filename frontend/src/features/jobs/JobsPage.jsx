@@ -4,7 +4,8 @@ import { api } from '../../lib/api';
 import { Card, CardBody } from '../../components/ui/Card';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { JobLogModal } from './JobLogModal';
-import { Activity, FileText, XCircle, AlertTriangle } from 'lucide-react';
+import { XCircle, AlertTriangle } from 'lucide-react';
+import { userDisplay } from '../../lib/userDisplay';
 
 const STATUS_FILTERS = [
   { value: '', label: '全部' },
@@ -65,16 +66,16 @@ export function JobsPage() {
           <table className="min-w-full">
             <thead>
               <tr className="border-b border-gray-100">
-                {['测评任务ID', '类型', '状态', '模型', '任务', '创建时间', '日志', '操作'].map(h => (
+                {['测评任务ID', '类型', '状态', '模型', '任务', '提交人', '创建时间', '日志', '操作'].map(h => (
                   <th key={h} className="px-4 py-3 text-center text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {isLoading ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-400">加载中...</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-gray-400">加载中...</td></tr>
               ) : jobs?.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">暂无记录</td></tr>
+                <tr><td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-400">暂无记录</td></tr>
               ) : jobs?.map(job => (
                 <tr key={job.id} className="trow transition-colors">
                   <td className="px-4 py-3.5 text-center text-[13px] text-primary-600 font-medium">
@@ -88,6 +89,9 @@ export function JobsPage() {
                   <td className="px-4 py-3.5 text-center"><StatusBadge status={job.status} /></td>
                   <td className="px-4 py-3.5 text-center text-[13px] text-gray-700 max-w-[160px] truncate">{job.model_name || '—'}</td>
                   <td className="px-4 py-3.5 text-center text-[12px] text-gray-500 font-mono">{job.task_key || '—'}</td>
+                  <td className="px-4 py-3.5 text-center text-[12px] text-gray-500">
+                    {job.created_by ? userDisplay(job.created_by) : '—'}
+                  </td>
                   <td className="px-4 py-3.5 text-center text-[12px] text-gray-500">{job.created_at ? new Date(job.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                   <td className="px-4 py-3.5 text-center">
                     <button
@@ -100,7 +104,7 @@ export function JobsPage() {
                   <td className="px-4 py-3.5 text-center">
                     {(job.status === 'pending' || job.status === 'running') && (
                       confirmCancelId === job.id ? (
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 justify-center">
                           <AlertTriangle size={13} className="text-amber-500" />
                           <span className="text-xs text-gray-500">确认？</span>
                           <button onClick={() => cancelMut.mutate(job.id)} disabled={cancelMut.isPending} className="text-xs text-red-600 font-medium hover:text-red-700 px-1">确认</button>
@@ -109,7 +113,7 @@ export function JobsPage() {
                       ) : (
                         <button
                           onClick={() => setConfirmCancelId(job.id)}
-                          className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
+                          className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors mx-auto"
                         >
                           <XCircle size={13} /> 取消
                         </button>

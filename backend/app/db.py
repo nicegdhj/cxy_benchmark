@@ -38,6 +38,15 @@ def init_db():
             except Exception:
                 pass
 
+    # 权限系统：迁移 + admin 初始化
+    from backend.app.services.migration import run_migrations
+    from backend.app.services.init_admin import ensure_admin
+
+    with _SessionLocal() as session:
+        run_migrations(session)
+        ensure_admin(session, settings.admin_username, settings.admin_password)
+        session.commit()
+
 
 @contextmanager
 def get_session():

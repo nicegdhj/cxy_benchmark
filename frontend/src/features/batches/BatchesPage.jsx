@@ -5,6 +5,7 @@ import { api } from '../../lib/api';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { Plus, ArrowRight, Activity, Info } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 
 const STATUS_CONFIG = {
   pending:  { label: '待执行', cls: 'bg-gray-100 text-gray-500' },
@@ -28,6 +29,7 @@ function StatusBadge({ status }) {
 export function BatchesPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { canWrite } = useAuthStore();
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({
     name: '', mode: 'all', model_ids: [], task_ids: [],
@@ -70,7 +72,7 @@ export function BatchesPage() {
           <h1 className="text-[22px] font-bold text-gray-900 leading-tight">测评管理</h1>
           <p className="text-sm text-gray-500 mt-0.5">共 {batches?.length ?? 0} 个评测批次</p>
         </div>
-        <button className="btn-primary flex items-center gap-2" onClick={() => setModalOpen(true)}>
+        <button className="btn-primary flex items-center gap-2" onClick={() => setModalOpen(true)} disabled={!canWrite()} title={!canWrite() ? '需要操作员或管理员权限' : undefined}>
           <Plus size={16} /> 创建任务
         </button>
       </div>

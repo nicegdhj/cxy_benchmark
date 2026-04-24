@@ -4,6 +4,7 @@ import { api } from '../../lib/api';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { Upload, Database, Check } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 
 const CATEGORY_COLORS = {
   '知识类':       'bg-sky-100 text-sky-700',
@@ -21,6 +22,7 @@ function CategoryBadge({ category }) {
 
 export function TasksPage() {
   const qc = useQueryClient();
+  const { canWrite } = useAuthStore();
   const [selectedTask, setSelectedTask] = useState(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadForm, setUploadForm] = useState({ tag: '', is_default: false, note: '', file: null });
@@ -120,7 +122,7 @@ export function TasksPage() {
                     <div className="mt-1"><CategoryBadge category={selectedTask.category} /></div>
                   )}
                 </div>
-                <button className="btn-primary flex items-center gap-2" onClick={() => setUploadOpen(true)}>
+                <button className="btn-primary flex items-center gap-2" onClick={() => setUploadOpen(true)} disabled={!canWrite()} title={!canWrite() ? '需要操作员或管理员权限' : undefined}>
                   <Upload size={15} /> 上传数据集
                 </button>
               </div>

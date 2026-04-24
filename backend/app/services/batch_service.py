@@ -32,7 +32,8 @@ def _next_rev_num(db: Session, batch_id: int) -> int:
 
 
 def record_revision(
-    db: Session, batch_id: int, change_type: str, change_summary: str
+    db: Session, batch_id: int, change_type: str, change_summary: str,
+    actor_user_id: int | None = None
 ):
     """
     记录 BatchRevision 快照。
@@ -47,11 +48,13 @@ def record_revision(
         change_type=change_type,
         change_summary=change_summary,
         snapshot_json=_snapshot(db, batch_id),
+        actor_user_id=actor_user_id,
     )
     db.add(rev)
 
 
-def rerun_batch(db: Session, batch_id: int, payload) -> list[Job]:
+def rerun_batch(db: Session, batch_id: int, payload,
+                actor_user_id: int | None = None) -> list[Job]:
     """为 batch 的指定子集创建新 jobs，返回新创建的 job 列表。"""
     batch = db.get(Batch, batch_id)
     if not batch:
@@ -73,6 +76,7 @@ def rerun_batch(db: Session, batch_id: int, payload) -> list[Job]:
                     type="infer", batch_id=batch_id,
                     model_id=mid, task_id=tid,
                     params_json={},
+                    created_by_user_id=actor_user_id,
                 )
                 db.add(infer_job)
                 db.flush()
@@ -92,19 +96,23 @@ def rerun_batch(db: Session, batch_id: int, payload) -> list[Job]:
                     model_id=mid, task_id=tid,
                     params_json={"eval_version": batch.default_eval_version},
                     dependency_job_id=dep_id,
+                    created_by_user_id=actor_user_id,
                 )
                 db.add(eval_job)
                 db.flush()
                 jobs_created.append(eval_job)
 
+    batch.last_modified_by_user_id = actor_user_id
     record_revision(
         db, batch_id, "rerun",
         f"rerun {payload.what} for models={payload.model_ids} tasks={payload.task_ids}",
+        actor_user_id=actor_user_id,
     )
     return jobs_created
 
 
-def create_batch(db: Session, payload) -> Batch:
+def create_batch(db: Session, payload,
+                 actor_user_id: int | None = None) -> Batch:
     # 校验 model/task 存在
     models = db.query(Model).filter(Model.id.in_(payload.model_ids)).all()
     if len(models) != len(payload.model_ids):
@@ -119,6 +127,8 @@ def create_batch(db: Session, payload) -> Batch:
         default_eval_version=payload.default_eval_version,
         default_judge_id=payload.default_judge_id,
         notes=payload.notes,
+        created_by_user_id=actor_user_id,
+        last_modified_by_user_id=actor_user_id,
     )
     db.add(batch)
     db.flush()
@@ -140,6 +150,7 @@ def create_batch(db: Session, payload) -> Batch:
                     type="infer", batch_id=batch.id,
                     model_id=m.id, task_id=t.id,
                     params_json={},
+                    created_by_user_id=actor_user_id,
                 )
                 db.add(infer_job)
                 db.flush()
@@ -149,8 +160,10 @@ def create_batch(db: Session, payload) -> Batch:
                     model_id=m.id, task_id=t.id,
                     params_json={"eval_version": batch.default_eval_version},
                     dependency_job_id=infer_job.id if infer_job else None,
+                    created_by_user_id=actor_user_id,
                 )
                 db.add(eval_job)
 
-    record_revision(db, batch.id, "create", f"create batch '{batch.name}'")
+    record_revision(db, batch.id, "create", f"create batch '{batch.name}'",
+                    actor_user_id=actor_user_id)
     return batch
