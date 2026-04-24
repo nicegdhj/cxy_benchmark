@@ -107,6 +107,15 @@ class BatchCreate(BaseModel):
     notes: str | None = None
 
 
+class UserBrief(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int | None
+    username: str
+    display_name: str | None
+    role: str
+    is_active: bool
+
+
 class BatchOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -115,6 +124,8 @@ class BatchOut(BaseModel):
     default_eval_version: str
     default_judge_id: int | None
     notes: str | None
+    created_by: UserBrief | None = None
+    last_modified_by: UserBrief | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -189,6 +200,15 @@ class EvaluationOut(BaseModel):
     error_msg: str | None
 
 
+class UserBrief(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int | None
+    username: str
+    display_name: str | None
+    role: str
+    is_active: bool
+
+
 class JobOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -203,6 +223,7 @@ class JobOut(BaseModel):
     produces_evaluation_id: int | None
     dependency_job_id: int | None
     log_path: str | None
+    created_by: UserBrief | None = None
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
