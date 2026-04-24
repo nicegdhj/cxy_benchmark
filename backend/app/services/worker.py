@@ -59,10 +59,13 @@ def _env_vars_for_model(model: Model) -> dict[str, str]:
                 "MAAS_HOST_PORT":   str(model.port or ""),
                 "MAAS_URL":         model.url or "",
                 "MAAS_CONCURRENCY": str(model.concurrency)}
-    elif key == "bailian":
+    elif key == "common_gateway":
         return {**base,
-                "QWEN_PLUS_URL":    model.url or "",
-                "LOCAL_CONCURRENCY": str(model.concurrency)}
+                "COMMON_MODEL_NAME":   model.model_name or "",
+                "COMMON_API_KEY":      model.api_key or "",
+                "COMMON_API_URL":      model.url or "",
+                "COMMON_CONCURRENCY":  str(model.concurrency)}
+
     else:
         # 未知 config_key：原样透传通用字段，让容器自行处理
         return {**base,

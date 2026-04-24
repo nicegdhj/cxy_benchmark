@@ -9,21 +9,20 @@ from ais_bench.benchmark.utils.postprocess.model_postprocessors import (
     extract_non_reasoning_content,
 )
 
-
 models = [
     dict(
         attr="service",
         type=VLLMCustomAPIChat,
-        abbr="bailian",
+        abbr="common_gateway",
         path="",
-        model="qwen-plus",
+        model=os.environ["COMMON_MODEL_NAME"],
         stream=False,
         request_rate=0,
         retry=2,
-        api_key=os.environ["QWEN_PLUS_API_KEY"],
-        url=os.environ["QWEN_PLUS_URL"],
-        max_out_len=512,
-        batch_size=int(os.environ.get("QWEN_PLUS_CONCURRENCY", "20")),
+        api_key=os.environ["COMMON_API_KEY"],
+        url=os.environ["COMMON_API_KEY"],
+        max_out_len=1024,
+        batch_size=int(os.environ.get("COMMON_CONCURRENCY", "5")),
         trust_remote_code=False,
         verbose=os.environ.get("EVAL_VERBOSE", "false").lower() == "true",
         generation_kwargs=dict(

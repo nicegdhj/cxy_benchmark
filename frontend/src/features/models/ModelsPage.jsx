@@ -12,9 +12,9 @@ const DEFAULT_FORM = {
 };
 
 const CONFIG_KEY_OPTIONS = [
-  { value: 'local_qwen',   label: 'local_qwen',   desc: '垂类模型配置（本地 vLLM 服务）' },
-  { value: 'maas_gateway', label: 'maas_gateway', desc: 'MaaS 服务（带网关鉴权）' },
-  { value: 'bailian',      label: 'bailian',      desc: '外部大模型服务（百炼 API）' },
+  { value: 'local_qwen',    label: 'local_qwen',    desc: '垂类模型配置（本地 vLLM 服务）' },
+  { value: 'maas_gateway',  label: 'maas_gateway',  desc: 'MaaS 服务（带网关鉴权）' },
+  { value: 'common_gateway',label: 'common_gateway',desc: '通用大模型 API 网关' },
 ];
 
 const CONFIG_FIELDS = {
@@ -32,7 +32,7 @@ const CONFIG_FIELDS = {
     { key: 'url',        label: '完整 URL', required: true,  placeholder: 'http://host:port/gateway/api/.../v1/chat/completions' },
     { key: 'concurrency',label: '并发数',   placeholder: '20' },
   ],
-  bailian: [
+  common_gateway: [
     { key: 'model_name', label: '模型名',  required: true, placeholder: 'qwen-plus' },
     { key: 'api_key',    label: 'API Key', required: true, placeholder: 'sk-...' },
     { key: 'url',        label: 'API URL', required: true, placeholder: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions' },
@@ -41,9 +41,9 @@ const CONFIG_FIELDS = {
 };
 
 const CARD_FIELDS = {
-  local_qwen:   ['model_name', 'host', 'port', 'concurrency'],
-  maas_gateway: ['model_name', 'host', 'port', 'url', 'concurrency'],
-  bailian:      ['model_name', 'url', 'concurrency'],
+  local_qwen:    ['model_name', 'host', 'port', 'concurrency'],
+  maas_gateway:  ['model_name', 'host', 'port', 'url', 'concurrency'],
+  common_gateway:['model_name', 'url', 'concurrency'],
 };
 
 const FIELD_LABELS = {
@@ -52,9 +52,9 @@ const FIELD_LABELS = {
 };
 
 const CONFIG_BADGE = {
-  local_qwen:   'bg-primary-50 text-primary-700 ring-1 ring-primary-200',
-  maas_gateway: 'bg-orange-50 text-orange-700 ring-1 ring-orange-200',
-  bailian:      'bg-purple-50 text-purple-700 ring-1 ring-purple-200',
+  local_qwen:    'bg-primary-50 text-primary-700 ring-1 ring-primary-200',
+  maas_gateway:  'bg-orange-50 text-orange-700 ring-1 ring-orange-200',
+  common_gateway:'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
 };
 
 export function ModelsPage() {
@@ -158,15 +158,17 @@ export function ModelsPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="label">Config_Key <span className="text-red-500">*</span></label>
-            <select className="input" value={form.model_config_key} onChange={e => setForm({ ...form, model_config_key: e.target.value })}>
+            <select
+              className="input"
+              value={form.model_config_key}
+              onChange={e => setForm({ ...form, model_config_key: e.target.value, name: e.target.value })}
+            >
               {CONFIG_KEY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             <p className="mt-1 text-xs text-gray-400">{CONFIG_KEY_OPTIONS.find(o => o.value === form.model_config_key)?.desc}</p>
           </div>
-          <div>
-            <label className="label">名称 <span className="text-red-500">*</span></label>
-            <input className="input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required placeholder="自定义展示名称" />
-          </div>
+          {/* 名称自动同步为 Config_Key，不再允许用户自定义 */}
+          <input type="hidden" value={form.name} readOnly />
           {activeFields.map(f => (
             <div key={f.key}>
               <label className="label">{f.label}{f.required && <span className="text-red-500">*</span>}</label>

@@ -66,9 +66,17 @@ TARGETS=(
      # "deepseek_3_1:0:deepseek_V3_1:188.109.35.100"
 #     "pt_5000_ckpt_think:10051:qwen3-32b:188.109.35.152"
 #     "pt_5000_ckpt_nothink:10052:qwen3-32b:188.109.35.152"
-     "pt_v02:6380:qwen3-32b-v2:188.109.35.147"
-     "pt_v02_grpo_global_step_100:6380:qwen3-32b-0421-global-step-100:188.109.35.148"
-     "pt_v02_grpo_global_step_207:6380:qwen3-32b-0421-global-step-207:188.109.35.149"
+#     "pt_v02:6380:qwen3-32b-v2:188.109.35.147"
+#     "pt_v02_grpo_global_step_100:6380:qwen3-32b-0421-global-step-100:188.109.35.148"
+#     "pt_v02_grpo_global_step_207:6380:qwen3-32b-0421-global-step-207:188.109.35.149"
+
+      "gemma-4-31b:10051:gemma:188.109.35.152"
+      "glm-4-7-flash:10052:glm:188.109.35.152"
+      "telechat-36b:10053:telechat:188.109.35.152"
+      "qwen3-235b-think:10053:qwen3-235b:188.109.35.153"
+      "qwen3-32b-think:10051:qwen3-32b:188.109.35.159"
+      "qwen3-5-27b-think:10052:qwen3-27b:188.109.35.159"
+
 #待测评
 #    "qwen3_5_27b_think:9091:qwen3-27b:188.109.35.147"
 #    "qwen3_32b_think:10051:qwen3-32b:188.109.35.147"

@@ -90,10 +90,7 @@ def parse_args():
         "--model-config",
         default="maas",
         choices=[
-            "maas",
-            "maas_private",
-            "bailian_qwen",
-            "bailian_qwen_no_stream",
+            "common_gateway",
             "local_qwen",
             "maas_gateway",
         ],
