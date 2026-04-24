@@ -13,6 +13,7 @@ from backend.app.routers import jobs as jobs_router
 from backend.app.routers import models as models_router
 from backend.app.routers import predictions as predictions_router
 from backend.app.routers import tasks as tasks_router
+from backend.app.services.session_cleanup import session_cleanup_loop
 from backend.app.services.worker import worker_loop
 
 
@@ -25,7 +26,7 @@ async def lifespan(app: FastAPI):
     global _worker_task, _session_cleanup_task
     init_db()
     _worker_task = asyncio.create_task(worker_loop())
-    # session 清理协程在 Task 14 中加入；此处先留占位
+    _session_cleanup_task = asyncio.create_task(session_cleanup_loop())
     yield
     if _worker_task:
         _worker_task.cancel()
