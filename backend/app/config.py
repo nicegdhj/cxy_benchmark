@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     default_job_concurrency: int = 4
     auth_token: str | None = None
 
+    # 权限系统新增
+    admin_username: str = "admin"
+    admin_password: str | None = None        # 仅首次启动时初始化使用
+    session_ttl_hours: int = 168             # 7 天
+    session_cleanup_interval_sec: int = 3600 # 每小时清理一次
+
     @property
     def db_path(self) -> Path:
         return self.backend_data_dir / "eval_backend.db"
