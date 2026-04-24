@@ -1,3 +1,5 @@
+import { useAuthStore } from '../store/authStore';
+
 const API_BASE = import.meta.env.VITE_API_BASE || '/api/v1';
 
 function getToken() {
@@ -21,6 +23,12 @@ async function request(endpoint, options = {}) {
 
   const res = await fetch(url, { ...options, headers });
 
+  if (res.status === 401) {
+    useAuthStore.getState().clearSession();
+    window.location.href = '/login';
+    return;
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || `HTTP ${res.status}`);
@@ -32,6 +40,22 @@ async function request(endpoint, options = {}) {
 
 export const api = {
   health: () => request('/health'),
+
+  auth: {
+    login: (data) => request('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+    logout: () => request('/auth/logout', { method: 'POST' }),
+    me: () => request('/auth/me'),
+    changePassword: (data) => request('/auth/change-password', { method: 'POST', body: JSON.stringify(data) }),
+  },
+
+  users: {
+    list: () => request('/users'),
+    get: (id) => request(`/users/${id}`),
+    create: (data) => request('/users', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id, data) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    del: (id) => request(`/users/${id}`, { method: 'DELETE' }),
+    resetPassword: (id, data) => request(`/users/${id}/reset-password`, { method: 'POST', body: JSON.stringify(data) }),
+  },
 
   models: {
     list: () => request('/models'),

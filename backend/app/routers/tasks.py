@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from backend.app.config import get_settings
-from backend.app.deps import db_session
-from backend.app.models import DatasetVersion, Task
+from backend.app.deps import db_session, require_role
+from backend.app.models import DatasetVersion, Task, User
 from backend.app.schemas import DatasetVersionOut, TaskOut
 
 
@@ -15,12 +15,15 @@ router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
 
 
 @router.get("", response_model=list[TaskOut])
-def list_(db: Session = Depends(db_session)):
+def list_(db: Session = Depends(db_session),
+          _: User = Depends(require_role("viewer", "operator", "admin"))):
     return db.query(Task).order_by(Task.key).all()
 
 
 @router.get("/{tid}", response_model=TaskOut)
-def get(tid: int, db: Session = Depends(db_session)):
+def get(tid: int,
+        db: Session = Depends(db_session),
+        _: User = Depends(require_role("viewer", "operator", "admin"))):
     t = db.get(Task, tid)
     if not t:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -35,6 +38,7 @@ def upload_dataset(
     note: str | None = Form(None),
     file: UploadFile = File(...),
     db: Session = Depends(db_session),
+    _: User = Depends(require_role("operator", "admin")),
 ):
     task = db.get(Task, tid)
     if not task:
@@ -88,7 +92,9 @@ def upload_dataset(
 
 
 @router.get("/{tid}/datasets", response_model=list[DatasetVersionOut])
-def list_datasets(tid: int, db: Session = Depends(db_session)):
+def list_datasets(tid: int,
+                  db: Session = Depends(db_session),
+                  _: User = Depends(require_role("viewer", "operator", "admin"))):
     task = db.get(Task, tid)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")

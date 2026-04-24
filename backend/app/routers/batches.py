@@ -3,9 +3,9 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from backend.app.deps import db_session
+from backend.app.deps import db_session, require_role
 from backend.app.models import (
-    Batch, BatchCell, BatchRevision, Evaluation, Model, Prediction, Task,
+    Batch, BatchCell, BatchRevision, Evaluation, Model, Prediction, Task, User,
 )
 from backend.app.schemas import (
     BatchCreate, BatchOut, BatchReport, BatchReportRow, BatchRerun, BatchRevisionOut,
@@ -17,9 +17,11 @@ router = APIRouter(prefix="/api/v1/batches", tags=["batches"])
 
 
 @router.post("", response_model=BatchOut, status_code=status.HTTP_201_CREATED)
-def create(payload: BatchCreate, db: Session = Depends(db_session)):
+def create(payload: BatchCreate,
+           db: Session = Depends(db_session),
+           actor: User = Depends(require_role("operator", "admin"))):
     try:
-        batch = create_batch(db, payload)
+        batch = create_batch(db, payload, actor_user_id=actor.id)
     except ValueError as e:
         raise HTTPException(400, str(e))
     db.commit()
@@ -28,12 +30,15 @@ def create(payload: BatchCreate, db: Session = Depends(db_session)):
 
 
 @router.get("", response_model=list[BatchOut])
-def list_(db: Session = Depends(db_session)):
+def list_(db: Session = Depends(db_session),
+          _: User = Depends(require_role("viewer", "operator", "admin"))):
     return db.query(Batch).order_by(Batch.id.desc()).all()
 
 
 @router.get("/{bid}", response_model=BatchOut)
-def get(bid: int, db: Session = Depends(db_session)):
+def get(bid: int,
+        db: Session = Depends(db_session),
+        _: User = Depends(require_role("viewer", "operator", "admin"))):
     b = db.get(Batch, bid)
     if not b:
         raise HTTPException(status_code=404, detail=f"Batch {bid} not found")
@@ -42,7 +47,8 @@ def get(bid: int, db: Session = Depends(db_session)):
 
 @router.get("/{bid}/report", response_model=BatchReport)
 def report(bid: int, db: Session = Depends(db_session),
-          rev: int | None = Query(None)):
+           rev: int | None = Query(None),
+           _: User = Depends(require_role("viewer", "operator", "admin"))):
     batch = db.get(Batch, bid)
     if not batch:
         raise HTTPException(status_code=404, detail=f"Batch {bid} not found")
@@ -113,7 +119,9 @@ def report(bid: int, db: Session = Depends(db_session),
 
 
 @router.get("/{bid}/revisions", response_model=list[BatchRevisionOut])
-def list_revisions(bid: int, db: Session = Depends(db_session)):
+def list_revisions(bid: int,
+                   db: Session = Depends(db_session),
+                   _: User = Depends(require_role("viewer", "operator", "admin"))):
     batch = db.get(Batch, bid)
     if not batch:
         raise HTTPException(status_code=404, detail=f"Batch {bid} not found")
@@ -126,12 +134,14 @@ def list_revisions(bid: int, db: Session = Depends(db_session)):
 
 
 @router.post("/{bid}/rerun", status_code=status.HTTP_201_CREATED)
-def rerun(bid: int, payload: BatchRerun, db: Session = Depends(db_session)):
+def rerun(bid: int, payload: BatchRerun,
+          db: Session = Depends(db_session),
+          actor: User = Depends(require_role("operator", "admin"))):
     batch = db.get(Batch, bid)
     if not batch:
         raise HTTPException(status_code=404, detail=f"Batch {bid} not found")
     try:
-        jobs = rerun_batch(db, bid, payload)
+        jobs = rerun_batch(db, bid, payload, actor_user_id=actor.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     db.commit()

@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from backend.app.deps import db_session
-from backend.app.models import Job
+from backend.app.deps import db_session, require_role
+from backend.app.models import Job, User
 from backend.app.schemas import JobOut
 
 
@@ -13,7 +13,8 @@ router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
 @router.get("", response_model=list[JobOut])
 def list_(db: Session = Depends(db_session),
           batch_id: int | None = Query(None),
-          status: str | None = Query(None)):
+          status: str | None = Query(None),
+          _: User = Depends(require_role("viewer", "operator", "admin"))):
     q = db.query(Job)
     if batch_id is not None:
         q = q.filter_by(batch_id=batch_id)
@@ -23,7 +24,9 @@ def list_(db: Session = Depends(db_session),
 
 
 @router.get("/{jid}", response_model=JobOut)
-def get(jid: int, db: Session = Depends(db_session)):
+def get(jid: int,
+        db: Session = Depends(db_session),
+        _: User = Depends(require_role("viewer", "operator", "admin"))):
     j = db.get(Job, jid)
     if not j:
         raise HTTPException(status_code=404, detail=f"Job {jid} not found")
@@ -31,7 +34,9 @@ def get(jid: int, db: Session = Depends(db_session)):
 
 
 @router.get("/{jid}/log")
-def get_log(jid: int, db: Session = Depends(db_session)):
+def get_log(jid: int,
+            db: Session = Depends(db_session),
+            _: User = Depends(require_role("viewer", "operator", "admin"))):
     j = db.get(Job, jid)
     if not j:
         raise HTTPException(status_code=404, detail=f"Job {jid} not found")
@@ -41,7 +46,9 @@ def get_log(jid: int, db: Session = Depends(db_session)):
 
 
 @router.post("/{jid}/cancel")
-def cancel(jid: int, db: Session = Depends(db_session)):
+def cancel(jid: int,
+           db: Session = Depends(db_session),
+           _: User = Depends(require_role("operator", "admin"))):
     j = db.get(Job, jid)
     if not j:
         raise HTTPException(status_code=404, detail=f"Job {jid} not found")
