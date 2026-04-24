@@ -1,6 +1,6 @@
 export function Card({ children, className = '' }) {
   return (
-    <div className={`bg-zinc-900 rounded-lg border border-zinc-800 ${className}`}>
+    <div className={`bg-white rounded-xl border border-gray-100 shadow-sm ${className}`}>
       {children}
     </div>
   );
@@ -8,7 +8,7 @@ export function Card({ children, className = '' }) {
 
 export function CardHeader({ children, className = '' }) {
   return (
-    <div className={`px-6 py-4 border-b border-zinc-800 ${className}`}>
+    <div className={`px-6 py-4 border-b border-gray-100 ${className}`}>
       {children}
     </div>
   );

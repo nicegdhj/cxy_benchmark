@@ -16,35 +16,17 @@ export function JobLogModal({ jobId, open, onClose }) {
     refetchOnWindowFocus: false,
   });
 
-  useEffect(() => {
-    if (data?.log != null) {
-      setLogContent(data.log);
-    }
-  }, [data]);
+  useEffect(() => { if (data?.log != null) setLogContent(data.log); }, [data]);
+  useEffect(() => { if (open) { setLogContent(''); setAutoRefresh(true); } }, [open, jobId]);
 
-  useEffect(() => {
-    if (open) {
-      setLogContent('');
-      setAutoRefresh(true);
-    }
-  }, [open, jobId]);
-
-  useInterval(() => {
-    if (open && autoRefresh) {
-      refetch();
-    }
-  }, 60000);
+  useInterval(() => { if (open && autoRefresh) refetch(); }, 60000);
 
   return (
     <Modal open={open} onClose={onClose} title={`Job #${jobId} 日志`} size="xl">
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 text-sm text-zinc-400 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={autoRefresh}
-              onChange={(e) => setAutoRefresh(e.target.checked)}
-            />
+          <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer">
+            <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
             自动刷新 (60s)
           </label>
           <div className="flex items-center gap-3">
@@ -54,32 +36,21 @@ export function JobLogModal({ jobId, open, onClose }) {
                 const blob = new Blob([logContent], { type: 'text/plain;charset=utf-8' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url;
-                a.download = `job-${jobId}.txt`;
-                a.click();
+                a.href = url; a.download = `job-${jobId}.txt`; a.click();
                 URL.revokeObjectURL(url);
               }}
               disabled={!logContent}
-              className="flex items-center gap-1 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <Download size={14} /> 下载 .txt
             </button>
-            <button
-              onClick={() => refetch()}
-              className="text-sm text-primary-400 hover:text-primary-300 font-medium transition-colors"
-              disabled={isLoading}
-            >
+            <button onClick={() => refetch()} className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors" disabled={isLoading}>
               {isLoading ? '加载中...' : '立即刷新'}
             </button>
           </div>
         </div>
-
-        <div className="bg-zinc-950 text-zinc-200 rounded-lg p-4 max-h-[60vh] min-h-[300px] overflow-auto font-mono text-xs leading-relaxed whitespace-pre-wrap border border-zinc-800">
-          {logContent || (
-            <span className="text-zinc-600">
-              {isLoading ? '加载中...' : '暂无日志'}
-            </span>
-          )}
+        <div className="bg-gray-950 text-gray-100 rounded-xl p-4 max-h-[60vh] min-h-[300px] overflow-auto font-mono text-xs leading-relaxed whitespace-pre-wrap border border-gray-800">
+          {logContent || <span className="text-gray-500">{isLoading ? '加载中...' : '暂无日志'}</span>}
         </div>
       </div>
     </Modal>

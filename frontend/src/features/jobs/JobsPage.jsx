@@ -29,30 +29,31 @@ export function JobsPage() {
 
   const cancelMut = useMutation({
     mutationFn: (id) => api.jobs.cancel(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['jobs'] });
-      setConfirmCancelId(null);
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['jobs'] }); setConfirmCancelId(null); },
   });
 
   function openLog(id) { setLogJobId(id); setLogOpen(true); }
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <Activity size={24} className="text-primary-400" />
-        <h2 className="text-2xl font-bold text-zinc-100">执行记录</h2>
+      <div className="flex items-start justify-between mb-7">
+        <div>
+          <h1 className="text-[22px] font-bold text-gray-900 leading-tight">执行记录</h1>
+          <p className="text-sm text-gray-500 mt-0.5">任务执行详情与状态追踪</p>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <span className="text-sm text-zinc-500">状态筛选:</span>
         {STATUS_FILTERS.map(f => (
           <button
             key={f.value}
             onClick={() => setStatusFilter(f.value)}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-              statusFilter === f.value ? 'bg-primary-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'
+            className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-all ${
+              statusFilter === f.value
+                ? 'text-white shadow-sm'
+                : 'border border-gray-200 text-gray-600 hover:border-gray-300 bg-white'
             }`}
+            style={statusFilter === f.value ? { background: '#0C5CAB' } : {}}
           >
             {f.label}
           </button>
@@ -61,60 +62,56 @@ export function JobsPage() {
 
       <Card>
         <CardBody className="p-0">
-          <table className="min-w-full divide-y divide-zinc-800">
-            <thead className="bg-zinc-800/50">
-              <tr>
-                {['ID', '类型', '状态', 'Batch', '模型', '任务', '创建时间', '日志', '操作'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">{h}</th>
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b border-gray-100">
+                {['测评任务ID', '类型', '状态', '模型', '任务', '创建时间', '日志', '操作'].map(h => (
+                  <th key={h} className="px-4 py-3 text-center text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800">
+            <tbody className="divide-y divide-gray-50">
               {isLoading ? (
-                <tr><td colSpan={9} className="px-4 py-4 text-zinc-400">加载中...</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-400">加载中...</td></tr>
               ) : jobs?.length === 0 ? (
-                <tr><td colSpan={9} className="px-4 py-4 text-zinc-400">暂无记录</td></tr>
+                <tr><td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">暂无记录</td></tr>
               ) : jobs?.map(job => (
-                <tr key={job.id} className="hover:bg-zinc-800/40 transition-colors">
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-500">{job.id}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-300">{job.type}</td>
-                  <td className="px-4 py-3 whitespace-nowrap"><StatusBadge status={job.status} /></td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-500">
-                    {job.batch_id ? <a href={`/batches/${job.batch_id}`} className="text-primary-400 hover:underline">{job.batch_id}</a> : '-'}
+                <tr key={job.id} className="trow transition-colors">
+                  <td className="px-4 py-3.5 text-center text-[13px] text-primary-600 font-medium">
+                    {job.batch_id ? `#${job.batch_id}` : '—'}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-500">{job.model_name || '-'}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-500 max-w-[160px] truncate">{job.task_key || '-'}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-500">{job.created_at ? new Date(job.created_at).toLocaleString() : '-'}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-4 py-3.5 text-center">
+                    <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${
+                      job.type === 'infer' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
+                    }`}>{job.type}</span>
+                  </td>
+                  <td className="px-4 py-3.5 text-center"><StatusBadge status={job.status} /></td>
+                  <td className="px-4 py-3.5 text-center text-[13px] text-gray-700 max-w-[160px] truncate">{job.model_name || '—'}</td>
+                  <td className="px-4 py-3.5 text-center text-[12px] text-gray-500 font-mono">{job.task_key || '—'}</td>
+                  <td className="px-4 py-3.5 text-center text-[12px] text-gray-500">{job.created_at ? new Date(job.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                  <td className="px-4 py-3.5 text-center">
                     <button
                       onClick={() => openLog(job.id)}
-                      className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 hover:bg-primary-900/20 px-2 py-1 rounded transition-colors"
+                      className="text-[12px] text-primary-600 hover:text-primary-700 hover:bg-blue-50 px-2.5 py-1 rounded-lg transition-colors font-medium"
                     >
-                      <FileText size={14} /> 查看
+                      查看
                     </button>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-4 py-3.5 text-center">
                     {(job.status === 'pending' || job.status === 'running') && (
                       confirmCancelId === job.id ? (
                         <div className="flex items-center gap-1">
-                          <AlertTriangle size={13} className="text-amber-400" />
-                          <span className="text-xs text-zinc-400">确认取消？</span>
-                          <button
-                            onClick={() => cancelMut.mutate(job.id)}
-                            disabled={cancelMut.isPending}
-                            className="text-xs text-red-400 font-medium hover:text-red-300 px-1"
-                          >确认</button>
-                          <button
-                            onClick={() => setConfirmCancelId(null)}
-                            className="text-xs text-zinc-500 hover:text-zinc-300 px-1"
-                          >取消</button>
+                          <AlertTriangle size={13} className="text-amber-500" />
+                          <span className="text-xs text-gray-500">确认？</span>
+                          <button onClick={() => cancelMut.mutate(job.id)} disabled={cancelMut.isPending} className="text-xs text-red-600 font-medium hover:text-red-700 px-1">确认</button>
+                          <button onClick={() => setConfirmCancelId(null)} className="text-xs text-gray-400 hover:text-gray-600 px-1">取消</button>
                         </div>
                       ) : (
                         <button
                           onClick={() => setConfirmCancelId(job.id)}
-                          className="flex items-center gap-1 text-xs text-red-500 hover:text-red-400 hover:bg-red-900/20 px-2 py-1 rounded transition-colors"
+                          className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
                         >
-                          <XCircle size={14} /> 取消
+                          <XCircle size={13} /> 取消
                         </button>
                       )
                     )}

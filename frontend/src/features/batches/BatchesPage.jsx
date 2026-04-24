@@ -7,18 +7,18 @@ import { Modal } from '../../components/ui/Modal';
 import { Plus, ArrowRight, Activity, Info } from 'lucide-react';
 
 const STATUS_CONFIG = {
-  pending:  { label: '待执行', cls: 'bg-zinc-800 text-zinc-400' },
-  running:  { label: '执行中', cls: 'bg-primary-900/40 text-primary-400' },
-  success:  { label: '已完成', cls: 'bg-emerald-900/40 text-emerald-400' },
-  failed:   { label: '有失败', cls: 'bg-red-900/40 text-red-400' },
+  pending:  { label: '待执行', cls: 'bg-gray-100 text-gray-500' },
+  running:  { label: '执行中', cls: 'bg-blue-100 text-blue-600' },
+  success:  { label: '已完成', cls: 'bg-emerald-100 text-emerald-700' },
+  failed:   { label: '有失败', cls: 'bg-red-100 text-red-600' },
 };
 
 function StatusBadge({ status }) {
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${cfg.cls}`}>
+    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.cls}`}>
       {status === 'running' && (
-        <span className="w-1.5 h-1.5 rounded-full bg-primary-400 animate-pulse inline-block" />
+        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse inline-block" />
       )}
       {cfg.label}
     </span>
@@ -65,17 +65,20 @@ export function BatchesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-zinc-100">测评管理</h2>
+      <div className="flex items-start justify-between mb-7">
+        <div>
+          <h1 className="text-[22px] font-bold text-gray-900 leading-tight">测评管理</h1>
+          <p className="text-sm text-gray-500 mt-0.5">共 {batches?.length ?? 0} 个评测批次</p>
+        </div>
         <button className="btn-primary flex items-center gap-2" onClick={() => setModalOpen(true)}>
-          <Plus size={18} /> 创建任务
+          <Plus size={16} /> 创建任务
         </button>
       </div>
 
-      <div className="flex items-center gap-2 mb-5 px-4 py-3 bg-primary-900/20 border border-primary-800/50 rounded-lg text-sm text-primary-300">
-        <Info size={16} className="flex-shrink-0" />
+      <div className="flex items-center gap-2 mb-5 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700">
+        <Info size={15} className="flex-shrink-0" />
         <span>任务创建后将自动调度执行，</span>
-        <Link to="/jobs" className="font-medium underline underline-offset-2 hover:text-primary-200 flex items-center gap-1">
+        <Link to="/jobs" className="font-medium underline underline-offset-2 hover:text-blue-900 flex items-center gap-1">
           前往执行记录 <Activity size={13} />
         </Link>
         <span>查看实时状态与日志。</span>
@@ -83,36 +86,39 @@ export function BatchesPage() {
 
       <Card>
         <CardBody className="p-0">
-          <table className="min-w-full divide-y divide-zinc-800">
-            <thead className="bg-zinc-800/50">
-              <tr>
-                {['ID', '名称', '模式', 'Eval Version', '创建时间', '状态', '操作'].map(h => (
-                  <th key={h} className="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">{h}</th>
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b border-gray-100">
+                {['评测任务ID', '名称', '模式', 'Eval Version', '创建时间', '状态', '评测结果'].map(h => (
+                  <th key={h} className="px-5 py-3 text-center text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800">
+            <tbody className="divide-y divide-gray-50">
               {isLoading ? (
-                <tr><td colSpan={7} className="px-6 py-4 text-zinc-400">加载中...</td></tr>
+                <tr><td colSpan={7} className="px-5 py-8 text-center text-sm text-gray-400">加载中...</td></tr>
               ) : batches?.length === 0 ? (
-                <tr><td colSpan={7} className="px-6 py-4 text-zinc-400">暂无评测任务</td></tr>
+                <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-gray-400">暂无评测任务</td></tr>
               ) : batches?.map(b => (
-                <tr key={b.id} className="hover:bg-zinc-800/40 cursor-pointer transition-colors" onClick={() => navigate(`/batches/${b.id}`)}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">{b.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-100">{b.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      b.mode === 'all' ? 'bg-purple-900/30 text-purple-400' :
-                      b.mode === 'infer' ? 'bg-primary-900/30 text-primary-400' : 'bg-amber-900/30 text-amber-400'
-                    }`}>{b.mode}</span>
+                <tr key={b.id} className="trow cursor-pointer transition-colors" onClick={() => navigate(`/batches/${b.id}`)}>
+                  <td className="px-5 py-4 text-center text-[12px] font-mono text-gray-400">#{b.id}</td>
+                  <td className="px-5 py-4 text-center text-[13px] font-semibold text-gray-900">{b.name}</td>
+                  <td className="px-5 py-4 text-center">
+                    <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${
+                      b.mode === 'all' ? 'bg-purple-50 text-purple-700' :
+                      b.mode === 'infer' ? 'bg-primary-50 text-primary-700' : 'bg-amber-50 text-amber-700'
+                    }`}>{b.mode === 'all' ? '推理+评测' : b.mode === 'infer' ? '仅推理' : '仅评测'}</span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-400">{b.default_eval_version}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-400">{new Date(b.created_at).toLocaleString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                  <td className="px-5 py-4 text-center text-[12px] text-gray-500 font-mono">{b.default_eval_version}</td>
+                  <td className="px-5 py-4 text-center text-[12px] text-gray-500">{new Date(b.created_at).toLocaleDateString('zh-CN')}</td>
+                  <td className="px-5 py-4 text-center" onClick={e => e.stopPropagation()}>
                     <StatusBadge status={b.status} />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <ArrowRight size={16} className="text-zinc-600" />
+                  <td className="px-5 py-4 text-center">
+                    <button
+                      onClick={e => { e.stopPropagation(); navigate(`/batches/${b.id}`); }}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-primary-600 hover:bg-primary-50 transition-colors font-bold text-base mx-auto"
+                    >→</button>
                   </td>
                 </tr>
               ))}
@@ -124,7 +130,7 @@ export function BatchesPage() {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="创建任务" size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="label">任务名称 <span className="text-red-400">*</span></label>
+            <label className="label">任务名称 <span className="text-red-500">*</span></label>
             <input className="input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
           </div>
           <div>
@@ -136,25 +142,25 @@ export function BatchesPage() {
             </select>
           </div>
           <div>
-            <label className="label">选择评测模型 <span className="text-red-400">*</span></label>
-            <div className="border border-zinc-700 rounded-md p-3 space-y-2 max-h-40 overflow-y-auto bg-zinc-800/30">
+            <label className="label">选择评测模型 <span className="text-red-500">*</span></label>
+            <div className="border border-gray-200 rounded-lg p-3 space-y-2 max-h-40 overflow-y-auto bg-gray-50">
               {models?.length === 0 ? (
-                <p className="text-sm text-zinc-500">暂无模型，请先在「评测模型」中新增</p>
+                <p className="text-sm text-gray-400">暂无模型，请先在「评测模型」中新增</p>
               ) : models?.map(m => (
-                <label key={m.id} className="flex items-center gap-2 text-sm cursor-pointer text-zinc-300">
+                <label key={m.id} className="flex items-center gap-2 text-sm cursor-pointer text-gray-700">
                   <input type="checkbox" checked={form.model_ids.includes(m.id)} onChange={() => setForm({ ...form, model_ids: toggleSelection(form.model_ids, m.id) })} />
-                  <span>{m.name} <span className="text-zinc-500">({m.model_name})</span></span>
+                  <span>{m.name} <span className="text-gray-400">({m.model_name})</span></span>
                 </label>
               ))}
             </div>
           </div>
           <div>
-            <label className="label">选择评测任务 <span className="text-red-400">*</span></label>
-            <div className="border border-zinc-700 rounded-md p-3 space-y-2 max-h-40 overflow-y-auto bg-zinc-800/30">
+            <label className="label">选择评测任务 <span className="text-red-500">*</span></label>
+            <div className="border border-gray-200 rounded-lg p-3 space-y-2 max-h-40 overflow-y-auto bg-gray-50">
               {tasks?.map(t => (
-                <label key={t.id} className="flex items-center gap-2 text-sm cursor-pointer text-zinc-300">
+                <label key={t.id} className="flex items-center gap-2 text-sm cursor-pointer text-gray-700">
                   <input type="checkbox" checked={form.task_ids.includes(t.id)} onChange={() => setForm({ ...form, task_ids: toggleSelection(form.task_ids, t.id) })} />
-                  <span>{t.alias || t.key} <span className="text-zinc-500 font-mono text-xs">{t.alias ? `(${t.key})` : ''}</span></span>
+                  <span>{t.alias || t.key} <span className="text-gray-400 font-mono text-xs">{t.alias ? `(${t.key})` : ''}</span></span>
                 </label>
               ))}
             </div>
@@ -168,9 +174,7 @@ export function BatchesPage() {
               <label className="label">打分模型</label>
               <select className="input" value={form.default_judge_id} onChange={e => setForm({ ...form, default_judge_id: e.target.value })}>
                 <option value="">不使用</option>
-                {judges?.map(j => (
-                  <option key={j.id} value={j.id}>{j.name}</option>
-                ))}
+                {judges?.map(j => <option key={j.id} value={j.id}>{j.name}</option>)}
               </select>
             </div>
           </div>
@@ -178,7 +182,7 @@ export function BatchesPage() {
             <label className="label">备注</label>
             <input className="input" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
           </div>
-          {createMut.isError && <p className="text-sm text-red-400">{createMut.error.message}</p>}
+          {createMut.isError && <p className="text-sm text-red-600">{createMut.error.message}</p>}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" className="btn-secondary" onClick={() => setModalOpen(false)}>取消</button>
             <button type="submit" className="btn-primary" disabled={createMut.isPending}>

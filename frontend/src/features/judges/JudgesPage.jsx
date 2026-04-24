@@ -37,8 +37,8 @@ const CONFIG_FIELDS = {
 };
 
 const CONFIG_BADGE = {
-  local_judge: 'bg-teal-900/30 text-teal-400',
-  api_judge:   'bg-indigo-900/30 text-indigo-400',
+  local_judge: 'bg-teal-50 text-teal-700 ring-1 ring-teal-200',
+  api_judge:   'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200',
 };
 
 export function JudgesPage() {
@@ -65,22 +65,13 @@ export function JudgesPage() {
   function openCreate() { setEditing(null); setForm(DEFAULT_FORM); setModalOpen(true); }
   function openEdit(j) {
     setEditing(j);
-    setForm({
-      ...DEFAULT_FORM, ...j,
-      port: String(j.port ?? ''),
-      concurrency: String(j.concurrency ?? '5'),
-      extra_env_json: j.extra_env_json || {},
-    });
+    setForm({ ...DEFAULT_FORM, ...j, port: String(j.port ?? ''), concurrency: String(j.concurrency ?? '5'), extra_env_json: j.extra_env_json || {} });
     setModalOpen(true);
   }
 
   function handleSubmit(e) {
     e.preventDefault();
-    const payload = {
-      ...form,
-      port: form.port ? Number(form.port) : null,
-      concurrency: Number(form.concurrency) || 5,
-    };
+    const payload = { ...form, port: form.port ? Number(form.port) : null, concurrency: Number(form.concurrency) || 5 };
     if (editing) updateMut.mutate({ id: editing.id, data: payload });
     else createMut.mutate(payload);
   }
@@ -89,24 +80,27 @@ export function JudgesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-zinc-100">打分模型</h2>
-        <button className="btn-primary flex items-center gap-2" onClick={openCreate}>
-          <Plus size={18} /> 新增 Judge
+      <div className="flex items-start justify-between mb-7">
+        <div>
+          <h1 className="text-[22px] font-bold text-gray-900 leading-tight">打分模型</h1>
+          <p className="text-sm text-gray-500 mt-0.5">共 {judges?.length ?? 0} 个 Judge 配置</p>
+        </div>
+        <button className="btn-primary flex items-center gap-2 mt-0.5" onClick={openCreate}>
+          <Plus size={16} /> 新增 Judge
         </button>
       </div>
 
       {isLoading ? (
-        <div className="text-zinc-400">加载中...</div>
+        <div className="text-gray-400">加载中...</div>
       ) : judges?.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-48 text-zinc-600">
+        <div className="flex flex-col items-center justify-center h-48 text-gray-300">
           <Scale size={40} className="mb-3" />
-          <p>暂无打分模型，点击右上角新增</p>
+          <p className="text-gray-500">暂无打分模型，点击右上角新增</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {judges?.map(j => {
-            const badgeCls = CONFIG_BADGE[j.judge_config_key] ?? 'bg-zinc-800 text-zinc-400';
+            const badgeCls = CONFIG_BADGE[j.judge_config_key] ?? 'bg-gray-100 text-gray-600';
             const rows = j.judge_config_key === 'local_judge'
               ? [
                   { label: '模型名',    val: j.model_name },
@@ -120,25 +114,25 @@ export function JudgesPage() {
                   { label: '并发数',           val: j.concurrency },
                 ];
             return (
-              <Card key={j.id}>
+              <Card key={j.id} className="hover:shadow-md transition-shadow">
                 <CardBody>
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium mb-1 ${badgeCls}`}>
+                      <span className={`inline-block px-2 py-0.5 rounded-md text-xs font-medium mb-2 ${badgeCls}`}>
                         {j.judge_config_key}
                       </span>
-                      <h3 className="text-base font-semibold text-zinc-100">{j.name}</h3>
+                      <h3 className="text-sm font-semibold text-gray-900">{j.name}</h3>
                     </div>
-                    <div className="flex gap-2 ml-2 flex-shrink-0">
-                      <button onClick={() => openEdit(j)} className="text-zinc-400 hover:text-primary-400 transition-colors"><Pencil size={15} /></button>
-                      <button onClick={() => deleteMut.mutate(j.id)} className="text-zinc-500 hover:text-red-400 transition-colors"><Trash2 size={15} /></button>
+                    <div className="flex gap-1 ml-2 flex-shrink-0">
+                      <button onClick={() => openEdit(j)} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"><Pencil size={14} /></button>
+                      <button onClick={() => deleteMut.mutate(j.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={14} /></button>
                     </div>
                   </div>
-                  <dl className="space-y-1">
+                  <dl className="space-y-1.5">
                     {rows.filter(r => r.val != null && r.val !== '').map(r => (
-                      <div key={r.label} className="flex gap-2 text-sm">
-                        <dt className="text-zinc-500 w-32 flex-shrink-0">{r.label}</dt>
-                        <dd className="text-zinc-300 truncate font-mono text-xs leading-5">{String(r.val)}</dd>
+                      <div key={r.label} className="flex gap-2 text-xs">
+                        <dt className="text-gray-400 w-32 flex-shrink-0">{r.label}</dt>
+                        <dd className="text-gray-600 truncate font-mono">{String(r.val)}</dd>
                       </div>
                     ))}
                   </dl>
@@ -152,44 +146,32 @@ export function JudgesPage() {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? '编辑 Judge' : '新增 Judge'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="label">Config_Key <span className="text-red-400">*</span></label>
+            <label className="label">Config_Key <span className="text-red-500">*</span></label>
             <select className="input" value={form.judge_config_key} onChange={e => setForm({ ...form, judge_config_key: e.target.value })}>
-              {CONFIG_KEY_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
+              {CONFIG_KEY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            <p className="mt-1 text-xs text-zinc-500">
-              {CONFIG_KEY_OPTIONS.find(o => o.value === form.judge_config_key)?.desc}
-            </p>
+            <p className="mt-1 text-xs text-gray-400">{CONFIG_KEY_OPTIONS.find(o => o.value === form.judge_config_key)?.desc}</p>
           </div>
           <div>
-            <label className="label">名称 <span className="text-red-400">*</span></label>
+            <label className="label">名称 <span className="text-red-500">*</span></label>
             <input className="input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required placeholder="自定义展示名称" />
           </div>
           {activeFields.map(f => (
             <div key={f.key}>
-              <label className="label">{f.label}{f.required && <span className="text-red-400">*</span>}</label>
-              <input
-                className="input"
-                value={form[f.key]}
-                placeholder={f.placeholder || ''}
-                onChange={e => setForm({ ...form, [f.key]: e.target.value })}
-                required={f.required}
-              />
+              <label className="label">{f.label}{f.required && <span className="text-red-500">*</span>}</label>
+              <input className="input" value={form[f.key]} placeholder={f.placeholder || ''} onChange={e => setForm({ ...form, [f.key]: e.target.value })} required={f.required} />
             </div>
           ))}
           {form.judge_config_key === 'api_judge' && (
             <div>
               <label className="label">SCORE_MODEL_TYPE</label>
               <select className="input" value={form.score_model_type} onChange={e => setForm({ ...form, score_model_type: e.target.value })}>
-                {SCORE_MODEL_TYPE_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label} — {o.desc}</option>
-                ))}
+                {SCORE_MODEL_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label} — {o.desc}</option>)}
               </select>
             </div>
           )}
           {(createMut.isError || updateMut.isError) && (
-            <p className="text-sm text-red-400">{createMut.error?.message || updateMut.error?.message}</p>
+            <p className="text-sm text-red-600">{createMut.error?.message || updateMut.error?.message}</p>
           )}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" className="btn-secondary" onClick={() => setModalOpen(false)}>取消</button>
