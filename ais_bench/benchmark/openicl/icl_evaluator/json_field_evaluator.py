@@ -10,6 +10,7 @@ JSON 字段级评估器
 5. 嵌套结构支持
 """
 
+import ast
 import json
 import re
 import warnings
@@ -54,6 +55,14 @@ def safe_parse_json(text: str) -> Optional[Dict]:
     try:
         return json.loads(text)
     except json.JSONDecodeError:
+        pass
+
+    # 尝试 ast.literal_eval，兼容 Python dict 字符串（单引号格式）
+    try:
+        result = ast.literal_eval(text)
+        if isinstance(result, dict):
+            return result
+    except (ValueError, SyntaxError):
         pass
 
     # 尝试提取 JSON 块（可能被其他文本包裹）

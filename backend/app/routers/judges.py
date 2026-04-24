@@ -16,9 +16,12 @@ def create(payload: JudgeCreate, db: Session = Depends(db_session)):
     db.add(j)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as e:
         db.rollback()
-        raise HTTPException(status_code=409, detail="A judge with this name already exists")
+        msg = str(e.orig) if e.orig else str(e)
+        if "UNIQUE" in msg.upper():
+            raise HTTPException(status_code=409, detail="A judge with this name already exists")
+        raise HTTPException(status_code=422, detail=f"DB constraint error: {msg}")
     db.refresh(j)
     return j
 

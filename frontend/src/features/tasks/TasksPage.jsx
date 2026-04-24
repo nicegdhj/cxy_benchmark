@@ -1,9 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
-import { Upload, Database, FileJson, Check } from 'lucide-react';
+import { Upload, Database, Check } from 'lucide-react';
+
+const CATEGORY_COLORS = {
+  '知识类':       'bg-sky-900/30 text-sky-400',
+  '推理类':       'bg-orange-900/30 text-orange-400',
+  '生成类':       'bg-emerald-900/30 text-emerald-400',
+  '数学与代码类': 'bg-violet-900/30 text-violet-400',
+  '知识问答':     'bg-teal-900/30 text-teal-400',
+};
+
+function CategoryBadge({ category }) {
+  const key = Object.keys(CATEGORY_COLORS).find(k => category.startsWith(k));
+  const cls = CATEGORY_COLORS[key] ?? 'bg-zinc-800 text-zinc-400';
+  return <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${cls}`}>{category}</span>;
+}
 
 export function TasksPage() {
   const qc = useQueryClient();
@@ -12,6 +26,13 @@ export function TasksPage() {
   const [uploadForm, setUploadForm] = useState({ tag: '', is_default: false, note: '', file: null });
 
   const { data: tasks, isLoading } = useQuery({ queryKey: ['tasks'], queryFn: api.tasks.list });
+
+  useEffect(() => {
+    if (selectedTask) {
+      document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [selectedTask?.id]);
+
   const { data: datasets } = useQuery({
     queryKey: ['tasks', selectedTask?.id, 'datasets'],
     queryFn: () => api.tasks.datasets(selectedTask.id),
@@ -21,6 +42,7 @@ export function TasksPage() {
   const uploadMut = useMutation({
     mutationFn: ({ taskId, formData }) => api.tasks.uploadDataset(taskId, formData),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks'] });
       qc.invalidateQueries({ queryKey: ['tasks', selectedTask?.id, 'datasets'] });
       setUploadOpen(false);
       setUploadForm({ tag: '', is_default: false, note: '', file: null });
@@ -39,27 +61,39 @@ export function TasksPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">任务与数据</h2>
+      <h2 className="text-2xl font-bold text-zinc-100 mb-6">任务与数据</h2>
       <div className="flex gap-6">
         {/* 左侧任务列表 */}
-        <div className="w-80 flex-shrink-0">
+        <div className="w-96 flex-shrink-0">
           <Card>
             <CardBody className="p-0">
-              <div className="px-4 py-3 border-b border-gray-200 font-medium text-sm">任务列表</div>
+              <div className="px-4 py-3 border-b border-zinc-800 font-medium text-sm text-zinc-300">任务列表</div>
               {isLoading ? (
-                <div className="px-4 py-4 text-sm text-gray-500">加载中...</div>
+                <div className="px-4 py-4 text-sm text-zinc-500">加载中...</div>
               ) : tasks?.map(t => (
                 <button
                   key={t.id}
                   onClick={() => setSelectedTask(t)}
-                  className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                    selectedTask?.id === t.id ? 'bg-primary-50 border-l-4 border-l-primary-500' : 'border-l-4 border-l-transparent'
+                  className={`w-full text-left px-4 py-3 border-b border-zinc-800 hover:bg-zinc-800/60 transition-colors relative ${
+                    selectedTask?.id === t.id ? 'bg-primary-900/20 border-l-4 border-l-primary-500' : 'border-l-4 border-l-transparent'
                   }`}
                 >
-                  <div className="text-sm font-medium text-gray-900">{t.key}</div>
-                  <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
-                    <span className={`px-1.5 py-0.5 rounded text-xs ${t.type === 'custom' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>{t.type}</span>
-                    {t.is_llm_judge && <span className="px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-700">LLM Judge</span>}
+                  {t.dataset_count > 0 && (
+                    <span className="absolute top-2 right-3 flex items-center gap-1 text-xs text-emerald-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                      {t.dataset_count} 个版本
+                    </span>
+                  )}
+                  <div className="text-sm font-semibold text-zinc-100 leading-snug pr-16">
+                    {t.alias || t.key}
+                  </div>
+                  {t.alias && (
+                    <div className="text-xs text-zinc-500 font-mono mt-0.5">{t.key}</div>
+                  )}
+                  <div className="mt-1 flex items-center flex-wrap gap-1">
+                    {t.category && <CategoryBadge category={t.category} />}
+                    <span className={`px-1.5 py-0.5 rounded text-xs ${t.type === 'custom' ? 'bg-primary-900/30 text-primary-400' : 'bg-purple-900/30 text-purple-400'}`}>{t.type}</span>
+                    {t.is_llm_judge && <span className="px-1.5 py-0.5 rounded text-xs bg-amber-900/30 text-amber-400">LLM Judge</span>}
                   </div>
                 </button>
               ))}
@@ -73,8 +107,13 @@ export function TasksPage() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{selectedTask.key}</h3>
-                  <p className="text-sm text-gray-500">{selectedTask.suite_name}</p>
+                  <h3 className="text-lg font-semibold text-zinc-100">{selectedTask.alias || selectedTask.key}</h3>
+                  {selectedTask.alias && (
+                    <p className="text-xs text-zinc-500 font-mono mt-0.5">{selectedTask.key}</p>
+                  )}
+                  {selectedTask.category && (
+                    <div className="mt-1"><CategoryBadge category={selectedTask.category} /></div>
+                  )}
                 </div>
                 <button className="btn-primary flex items-center gap-2" onClick={() => setUploadOpen(true)}>
                   <Upload size={16} /> 上传数据集
@@ -82,24 +121,24 @@ export function TasksPage() {
               </div>
               <Card>
                 <CardBody className="p-0">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                  <table className="min-w-full divide-y divide-zinc-800">
+                    <thead className="bg-zinc-800/50">
                       <tr>
                         {['Tag', '默认', 'Hash', '上传时间', '备注'].map(h => (
-                          <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                          <th key={h} className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase">{h}</th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="divide-y divide-zinc-800">
                       {datasets?.length === 0 ? (
-                        <tr><td colSpan={5} className="px-4 py-4 text-sm text-gray-500">暂无数据集版本</td></tr>
+                        <tr><td colSpan={5} className="px-4 py-4 text-sm text-zinc-500">暂无数据集版本</td></tr>
                       ) : datasets?.map(d => (
-                        <tr key={d.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{d.tag}</td>
-                          <td className="px-4 py-3 text-sm">{d.is_default ? <Check size={16} className="text-green-600" /> : '-'}</td>
-                          <td className="px-4 py-3 text-xs text-gray-500 font-mono truncate max-w-[120px]">{d.content_hash?.slice(0, 12)}...</td>
-                          <td className="px-4 py-3 text-sm text-gray-500">{new Date(d.uploaded_at).toLocaleString()}</td>
-                          <td className="px-4 py-3 text-sm text-gray-500">{d.note || '-'}</td>
+                        <tr key={d.id} className="hover:bg-zinc-800/40 transition-colors">
+                          <td className="px-4 py-3 text-sm font-medium text-zinc-100">{d.tag}</td>
+                          <td className="px-4 py-3 text-sm">{d.is_default ? <Check size={16} className="text-emerald-400" /> : '-'}</td>
+                          <td className="px-4 py-3 text-xs text-zinc-500 font-mono truncate max-w-[120px]">{d.content_hash?.slice(0, 12)}...</td>
+                          <td className="px-4 py-3 text-sm text-zinc-400">{new Date(d.uploaded_at).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-sm text-zinc-400">{d.note || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -108,7 +147,7 @@ export function TasksPage() {
               </Card>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+            <div className="flex flex-col items-center justify-center h-64 text-zinc-600">
               <Database size={48} className="mb-4" />
               <p>选择一个任务查看数据集</p>
             </div>
@@ -119,26 +158,22 @@ export function TasksPage() {
       <Modal open={uploadOpen} onClose={() => setUploadOpen(false)} title="上传数据集">
         <form onSubmit={handleUpload} className="space-y-4">
           <div>
-            <label className="label">版本标签 <span className="text-red-500">*</span></label>
+            <label className="label">版本标签 <span className="text-red-400">*</span></label>
             <input className="input" value={uploadForm.tag} onChange={e => setUploadForm({ ...uploadForm, tag: e.target.value })} required />
           </div>
           <div>
-            <label className="label">JSONL 文件 <span className="text-red-500">*</span></label>
-            <input
-              type="file" accept=".jsonl" className="input py-1.5"
-              onChange={e => setUploadForm({ ...uploadForm, file: e.target.files[0] })}
-              required
-            />
+            <label className="label">JSONL 文件 <span className="text-red-400">*</span></label>
+            <input type="file" accept=".jsonl" className="input py-1.5" onChange={e => setUploadForm({ ...uploadForm, file: e.target.files[0] })} required />
           </div>
           <div className="flex items-center gap-2">
             <input type="checkbox" id="is_default" checked={uploadForm.is_default} onChange={e => setUploadForm({ ...uploadForm, is_default: e.target.checked })} />
-            <label htmlFor="is_default" className="text-sm text-gray-700">设为默认版本</label>
+            <label htmlFor="is_default" className="text-sm text-zinc-300">设为默认版本</label>
           </div>
           <div>
             <label className="label">备注</label>
             <input className="input" value={uploadForm.note} onChange={e => setUploadForm({ ...uploadForm, note: e.target.value })} />
           </div>
-          {uploadMut.isError && <p className="text-sm text-red-600">{uploadMut.error.message}</p>}
+          {uploadMut.isError && <p className="text-sm text-red-400">{uploadMut.error.message}</p>}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" className="btn-secondary" onClick={() => setUploadOpen(false)}>取消</button>
             <button type="submit" className="btn-primary" disabled={uploadMut.isPending}>

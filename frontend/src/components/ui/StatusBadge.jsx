@@ -1,11 +1,11 @@
 const STATUS_STYLES = {
-  pending: 'bg-gray-100 text-gray-800',
-  running: 'bg-blue-100 text-blue-800',
-  success: 'bg-green-100 text-green-800',
-  failed: 'bg-red-100 text-red-800',
-  cancelled: 'bg-orange-100 text-orange-800',
-  eval_done: 'bg-emerald-100 text-emerald-800',
-  infer_done: 'bg-cyan-100 text-cyan-800',
+  pending:   'bg-zinc-800 text-zinc-300',
+  running:   'bg-blue-900/40 text-blue-400 ring-1 ring-blue-500/30',
+  success:   'bg-emerald-900/40 text-emerald-400',
+  failed:    'bg-red-900/40 text-red-400',
+  cancelled: 'bg-orange-900/40 text-orange-400',
+  eval_done: 'bg-teal-900/40 text-teal-400',
+  infer_done:'bg-cyan-900/40 text-cyan-400',
 };
 
 export function StatusBadge({ status }) {

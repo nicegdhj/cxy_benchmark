@@ -42,7 +42,7 @@ DEFAULT_LOCAL_MODEL_NAME=""
 #    infer       : 推理 + 评测（默认）
 #    infer-only  : 只跑推理，不评测
 #    judge-only  : 只跑评测（需先有推理结果）
-RUN_MODE="infer-only"
+RUN_MODE="infer"
 
 # 6. 推理任务ID（judge-only 模式时使用）：
 #    - 完整 task_id：如 "mixed_eval_20260415_103052"
@@ -62,9 +62,14 @@ EVAL_VERSION="eval_init"
 TARGETS=(
 #     "pt_v_0_2:9092:qwen3-32b:188.109.35.147"
 #     "telechat_36b:10052:telechat-36b:188.109.35.152"
-     "pt3_7_set86_think:10051:qwen3-32b:188.109.35.195"
-     "pt1_9_set81_think:10052:qwen3-32b:188.109.35.195"
-
+     #"pt1_9_set81_think:10052:qwen3-32b:188.109.35.195"
+     # "deepseek_3_1:0:deepseek_V3_1:188.109.35.100"
+#     "pt_5000_ckpt_think:10051:qwen3-32b:188.109.35.152"
+#     "pt_5000_ckpt_nothink:10052:qwen3-32b:188.109.35.152"
+     "pt_v02:6380:qwen3-32b-v2:188.109.35.147"
+     "pt_v02_grpo_global_step_100:6380:qwen3-32b-0421-global-step-100:188.109.35.148"
+     "pt_v02_grpo_global_step_207:6380:qwen3-32b-0421-global-step-207:188.109.35.149"
+#待测评
 #    "qwen3_5_27b_think:9091:qwen3-27b:188.109.35.147"
 #    "qwen3_32b_think:10051:qwen3-32b:188.109.35.147"
 #    "pt1_9_set81_think:10051:qwen3-32b:188.109.35.150"

@@ -21,6 +21,22 @@ def init_db():
     )
     _SessionLocal = sessionmaker(bind=_engine, autocommit=False, autoflush=False)
     Base.metadata.create_all(_engine)
+    # 增量迁移：为旧版本 DB 补齐新列（已存在时 SQLite 会报错，直接忽略）
+    with _engine.connect() as conn:
+        for stmt in [
+            "ALTER TABLE models ADD COLUMN url TEXT",
+            "ALTER TABLE models ADD COLUMN api_key TEXT",
+            "ALTER TABLE judges ADD COLUMN judge_config_key TEXT DEFAULT 'local_judge'",
+            "ALTER TABLE judges ADD COLUMN url TEXT",
+            "ALTER TABLE judges ADD COLUMN api_key TEXT",
+            "ALTER TABLE judges ADD COLUMN score_model_type TEXT DEFAULT 'maas'",
+            "ALTER TABLE judges ADD COLUMN concurrency INTEGER DEFAULT 5",
+        ]:
+            try:
+                conn.execute(__import__("sqlalchemy").text(stmt))
+                conn.commit()
+            except Exception:
+                pass
 
 
 @contextmanager

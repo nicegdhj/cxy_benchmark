@@ -6,22 +6,26 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['IBM Plex Sans', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'monospace'],
+      },
       colors: {
         primary: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
+          50:  '#e8f2fb',
+          100: '#c5daf5',
+          200: '#9ec0ee',
+          300: '#73a4e6',
+          400: '#4e8fdf',
+          500: '#2b7acb',
+          600: '#0C5CAB',
+          700: '#0a4a8a',
+          800: '#083b6e',
+          900: '#062c52',
+          950: '#03162a',
         },
       },
     },
   },
   plugins: [],
 }
-

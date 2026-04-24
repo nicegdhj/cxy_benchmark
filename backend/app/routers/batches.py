@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.deps import db_session
 from backend.app.models import (
-    Batch, BatchCell, BatchRevision, Evaluation, Model, Prediction, Task,
+    Batch, BatchCell, BatchRevision, Evaluation, Job, Model, Prediction, Task,
 )
 from backend.app.schemas import (
     BatchCreate, BatchOut, BatchReport, BatchReportRow, BatchRerun, BatchRevisionOut,
@@ -16,6 +16,29 @@ from backend.app.services.batch_service import create_batch, rerun_batch
 router = APIRouter(prefix="/api/v1/batches", tags=["batches"])
 
 
+def _batch_status(db: Session, batch_id: int) -> str:
+    """根据 batch 下所有 job 的状态推导 batch 状态。"""
+    jobs = db.query(Job.status).filter(Job.batch_id == batch_id).all()
+    if not jobs:
+        return "pending"
+    statuses = {j.status for j in jobs}
+    if "running" in statuses:
+        return "running"
+    if "pending" in statuses:
+        return "running"  # 有 pending 说明还没全部完成
+    if "failed" in statuses:
+        return "failed"
+    if statuses == {"success"}:
+        return "success"
+    return "pending"
+
+
+def _enrich_batch(db: Session, b: Batch) -> BatchOut:
+    out = BatchOut.model_validate(b)
+    out.status = _batch_status(db, b.id)
+    return out
+
+
 @router.post("", response_model=BatchOut, status_code=status.HTTP_201_CREATED)
 def create(payload: BatchCreate, db: Session = Depends(db_session)):
     try:
@@ -24,12 +47,12 @@ def create(payload: BatchCreate, db: Session = Depends(db_session)):
         raise HTTPException(400, str(e))
     db.commit()
     db.refresh(batch)
-    return batch
+    return _enrich_batch(db, batch)
 
 
 @router.get("", response_model=list[BatchOut])
 def list_(db: Session = Depends(db_session)):
-    return db.query(Batch).order_by(Batch.id.desc()).all()
+    return [_enrich_batch(db, b) for b in db.query(Batch).order_by(Batch.id.desc()).all()]
 
 
 @router.get("/{bid}", response_model=BatchOut)
@@ -37,7 +60,7 @@ def get(bid: int, db: Session = Depends(db_session)):
     b = db.get(Batch, bid)
     if not b:
         raise HTTPException(status_code=404, detail=f"Batch {bid} not found")
-    return b
+    return _enrich_batch(db, b)
 
 
 @router.get("/{bid}/report", response_model=BatchReport)

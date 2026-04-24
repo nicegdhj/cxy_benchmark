@@ -6,15 +6,15 @@
 #                     由 score-backend 通过 docker run 动态启动
 #
 # 使用方式：
-#   ./start-local.sh        # 首次启动（自动构建镜像 + 初始化目录）
-#   docker compose up       # 后续启动
+#   bash scripts/deploy_scripts/start-local.sh        # 首次启动
+#   docker compose -f deploy_docker/docker-compose.yml up   # 后续启动
 # ──────────────────────────────────────────────────────────────────
 
 services:
   score-front:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: ../frontend
+      dockerfile: ../deploy_docker/frontend/Dockerfile
     container_name: score-front
     ports:
       - "80:80"
@@ -25,8 +25,8 @@ services:
 
   score-backend:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ..
+      dockerfile: deploy_docker/backend/Dockerfile
     container_name: score-backend
     ports:
       - "8080:8080"

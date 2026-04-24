@@ -5,51 +5,65 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ModelCreate(BaseModel):
     name: str
-    host: str
-    port: int
+    model_config_key: str = "local_qwen"
     model_name: str
+    host: str | None = None
+    port: int | None = None
+    url: str | None = None
+    api_key: str | None = None
     concurrency: int = 20
     gen_kwargs_json: dict[str, Any] = {}
-    model_config_key: str = "local_qwen"
 
 
 class ModelUpdate(BaseModel):
+    model_config_key: str | None = None
+    model_name: str | None = None
     host: str | None = None
     port: int | None = None
-    model_name: str | None = None
+    url: str | None = None
+    api_key: str | None = None
     concurrency: int | None = None
     gen_kwargs_json: dict[str, Any] | None = None
-    model_config_key: str | None = None
 
 
 class ModelOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     name: str
-    host: str
-    port: int
+    model_config_key: str
     model_name: str
+    host: str | None
+    port: int | None
+    url: str | None
+    api_key: str | None
     concurrency: int
     gen_kwargs_json: dict[str, Any]
-    model_config_key: str
     created_at: datetime
     updated_at: datetime
 
 
 class JudgeCreate(BaseModel):
     name: str
-    host: str
-    port: int
+    judge_config_key: str = "local_judge"  # local_judge | api_judge
     model_name: str
-    auth_ref: str | None = None
+    host: str | None = None
+    port: int | None = None
+    url: str | None = None
+    api_key: str | None = None
+    score_model_type: str = "maas"         # maas | bailian（api_judge 时生效）
+    concurrency: int = 5
     extra_env_json: dict[str, str] = {}
 
 
 class JudgeUpdate(BaseModel):
+    judge_config_key: str | None = None
+    model_name: str | None = None
     host: str | None = None
     port: int | None = None
-    model_name: str | None = None
-    auth_ref: str | None = None
+    url: str | None = None
+    api_key: str | None = None
+    score_model_type: str | None = None
+    concurrency: int | None = None
     extra_env_json: dict[str, str] | None = None
 
 
@@ -57,10 +71,14 @@ class JudgeOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     name: str
-    host: str
-    port: int
+    judge_config_key: str
     model_name: str
-    auth_ref: str | None
+    host: str | None
+    port: int | None
+    url: str | None
+    api_key: str | None
+    score_model_type: str
+    concurrency: int
     extra_env_json: dict[str, str]
     created_at: datetime
     updated_at: datetime
@@ -77,6 +95,9 @@ class TaskOut(BaseModel):
     default_data_rel_path: str | None
     is_llm_judge: bool
     created_at: datetime
+    alias: str | None = None
+    category: str | None = None
+    dataset_count: int = 0
 
 
 class DatasetVersionCreate(BaseModel):
@@ -117,6 +138,7 @@ class BatchOut(BaseModel):
     notes: str | None
     created_at: datetime
     updated_at: datetime
+    status: str = "pending"  # pending | running | success | failed
 
 
 class BatchReportRow(BaseModel):

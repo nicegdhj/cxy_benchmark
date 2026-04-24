@@ -1,8 +1,15 @@
 import { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+const CHART_COLORS = {
+  grid: '#27272a',
+  tick: '#71717a',
+  bar: '#2b7acb',
+  tooltip: { bg: '#18181b', border: '#3f3f46', text: '#f4f4f5' },
+};
+
 export function DurationBarChart({ rows }) {
-  const [mode, setMode] = useState('byModel'); // byModel = 多模型 × 多任务(堆叠), byTask = 按任务, singleModel = 单模型
+  const [mode, setMode] = useState('byModel');
   const [selectedModel, setSelectedModel] = useState(null);
 
   const models = useMemo(() =>
@@ -16,7 +23,6 @@ export function DurationBarChart({ rows }) {
 
   const chartData = useMemo(() => {
     if (mode === 'byModel') {
-      // 每个模型在多个任务上的总耗时
       return models.map(m => {
         const modelRows = rows.filter(r => r.model_id === m.id);
         const totalDuration = modelRows.reduce((sum, r) => sum + (r.duration_sec || 0), 0);
@@ -24,7 +30,6 @@ export function DurationBarChart({ rows }) {
       }).filter(d => d.duration > 0).sort((a, b) => b.duration - a.duration);
     }
     if (mode === 'byTask') {
-      // 每个任务的总耗时
       return tasks.map(t => {
         const taskRows = rows.filter(r => r.task_id === t.id);
         const totalDuration = taskRows.reduce((sum, r) => sum + (r.duration_sec || 0), 0);
@@ -32,7 +37,6 @@ export function DurationBarChart({ rows }) {
       }).filter(d => d.duration > 0).sort((a, b) => b.duration - a.duration);
     }
     if (mode === 'singleModel' && selectedModel) {
-      // 单模型在各任务上的耗时
       return tasks.map(t => {
         const row = rows.find(r => r.model_id === selectedModel && r.task_id === t.id);
         return { name: t.key, duration: Math.round(row?.duration_sec || 0) };
@@ -53,7 +57,7 @@ export function DurationBarChart({ rows }) {
     <div className="space-y-4">
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">分析维度:</span>
+          <span className="text-sm text-zinc-400">分析维度:</span>
           <select className="input py-1 text-sm" value={mode} onChange={e => setMode(e.target.value)}>
             <option value="byModel">多模型总耗时</option>
             <option value="byTask">多任务总耗时</option>
@@ -62,7 +66,7 @@ export function DurationBarChart({ rows }) {
         </div>
         {mode === 'singleModel' && (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">选择模型:</span>
+            <span className="text-sm text-zinc-400">选择模型:</span>
             <select className="input py-1 text-sm" value={selectedModel || ''} onChange={e => setSelectedModel(Number(e.target.value))}>
               <option value="">请选择</option>
               {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -75,19 +79,19 @@ export function DurationBarChart({ rows }) {
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} label={{ value: '秒', angle: -90, position: 'insideLeft', style: { fontSize: 12 } }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
+              <XAxis dataKey="name" tick={{ fontSize: 12, fill: CHART_COLORS.tick }} />
+              <YAxis tick={{ fontSize: 12, fill: CHART_COLORS.tick }} label={{ value: '秒', angle: -90, position: 'insideLeft', style: { fontSize: 12, fill: CHART_COLORS.tick } }} />
               <Tooltip
                 formatter={(value) => [formatDuration(value), '耗时']}
-                contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb' }}
+                contentStyle={{ borderRadius: 8, border: `1px solid ${CHART_COLORS.tooltip.border}`, backgroundColor: CHART_COLORS.tooltip.bg, color: CHART_COLORS.tooltip.text }}
               />
-              <Bar dataKey="duration" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="duration" fill={CHART_COLORS.bar} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       ) : (
-        <div className="h-80 flex items-center justify-center text-gray-400 bg-gray-50 rounded-lg">
+        <div className="h-80 flex items-center justify-center text-zinc-600 bg-zinc-800/30 rounded-lg">
           <p>请选择维度以查看耗时图表</p>
         </div>
       )}

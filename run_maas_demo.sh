@@ -3,20 +3,18 @@
 set -a; source "$(dirname "$0")/.env"; set +a
 
 
-# 使用用例
-# ais_bench \
-#     --models maas \
-#     --custom-dataset-path /path/to/your_data.jsonl \
-#     --custom-dataset-data-type qa \
-#     --mode all
-
 
 
 # ais_bench --models maas --datasets task_60_suite --debug --num-prompts 1
 
 #ais_bench --models local_qwen --datasets exam_gen_0_shot --debug  --num-prompts 1
 
-ais_bench --models bailian_qwen --datasets exam_gen_0_shot --debug
+#ais_bench --models bailian_qwen --datasets task_1_suite --debug --num-prompts 1
+
+
+ais_bench --models bailian_qwen --datasets task_101_suite --debug --num-prompts 1
+
+
 
 
 
@@ -27,6 +25,7 @@ ais_bench --models bailian_qwen --datasets exam_gen_0_shot --debug
 # task_43_suite
 # task_44_suite
 # task_60_suite
+# task_101_suite
 # 'mmlu_redux_gen_5_shot_str.py',
 # 'ceval_gen_0_shot_str.py',
 # 'gpqa_gen_0_shot_str.py',

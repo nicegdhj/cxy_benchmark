@@ -28,8 +28,11 @@ def _get_ais_bench_configs() -> Path:
 
 
 def _detect_is_llm_judge(suite_name: str) -> bool:
-    """扫描 suite 配置文件，判断是否使用 LLMJudgeEvaluator。"""
-    configs = _get_ais_bench_configs()
+    """扫描 suite 配置文件，判断是否使用 LLMJudgeEvaluator。configs 不存在时返回 False。"""
+    try:
+        configs = _get_ais_bench_configs()
+    except RuntimeError:
+        return False
     for py in configs.rglob(f"{suite_name}.py"):
         try:
             if "LLMJudgeEvaluator" in py.read_text(encoding="utf-8"):

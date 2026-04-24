@@ -18,12 +18,17 @@ class Model(Base):
     __tablename__ = "models"
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True, nullable=False)
-    host = Column(String, nullable=False)
-    port = Column(Integer, nullable=False)
+    model_config_key = Column(String, default="local_qwen")
+    # local_qwen / maas_gateway 使用
+    host = Column(String)
+    port = Column(Integer)
+    # maas_gateway / bailian 使用
+    url = Column(String)
+    api_key = Column(String)
+    # 所有配置通用
     model_name = Column(String, nullable=False)
     concurrency = Column(Integer, default=20)
     gen_kwargs_json = Column(JSON, default=dict)
-    model_config_key = Column(String, default="local_qwen")
     created_at = Column(DateTime, default=_now)
     updated_at = Column(DateTime, default=_now, onupdate=_now)
 
@@ -32,10 +37,17 @@ class JudgeLLM(Base):
     __tablename__ = "judges"
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True, nullable=False)
-    host = Column(String, nullable=False)
-    port = Column(Integer, nullable=False)
+    judge_config_key = Column(String, default="local_judge")  # local_judge | api_judge
     model_name = Column(String, nullable=False)
-    auth_ref = Column(String)
+    # local_judge 使用
+    host = Column(String)
+    port = Column(Integer)
+    # api_judge 使用
+    url = Column(String)
+    api_key = Column(String)
+    score_model_type = Column(String, default="maas")  # maas | bailian
+    # 通用
+    concurrency = Column(Integer, default=5)
     extra_env_json = Column(JSON, default=dict)
     created_at = Column(DateTime, default=_now)
     updated_at = Column(DateTime, default=_now, onupdate=_now)

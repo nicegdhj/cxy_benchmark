@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from backend.app.config import get_settings
 from backend.app.db import get_session
 from backend.app.models import (
-    BatchCell, Evaluation, Job, Model, Prediction, Task,
+    Batch, BatchCell, Evaluation, Job, JudgeLLM, Model, Prediction, Task,
 )
 from backend.app.services.batch_service import record_revision
 from backend.app.services.docker_runner import (
@@ -43,13 +43,33 @@ def _pick_next_job(db: Session) -> Job | None:
 
 
 def _env_vars_for_model(model: Model) -> dict[str, str]:
-    return {
-        "LOCAL_MODEL_NAME": model.model_name,
-        "LOCAL_HOST_IP": model.host,
-        "LOCAL_HOST_PORT": str(model.port),
-        "LOCAL_CONCURRENCY": str(model.concurrency),
-        "PYTHONUNBUFFERED": "1",
-    }
+    key = model.model_config_key or "local_qwen"
+    base = {"PYTHONUNBUFFERED": "1"}
+    if key == "local_qwen":
+        return {**base,
+                "LOCAL_MODEL_NAME": model.model_name or "",
+                "LOCAL_HOST_IP":    model.host or "",
+                "LOCAL_HOST_PORT":  str(model.port or ""),
+                "LOCAL_CONCURRENCY": str(model.concurrency)}
+    elif key == "maas_gateway":
+        return {**base,
+                "MAAS_MODEL":       model.model_name or "",
+                "MAAS_API_KEY":     model.api_key or "",
+                "MAAS_HOST_IP":     model.host or "",
+                "MAAS_HOST_PORT":   str(model.port or ""),
+                "MAAS_URL":         model.url or "",
+                "MAAS_CONCURRENCY": str(model.concurrency)}
+    elif key == "bailian":
+        return {**base,
+                "QWEN_PLUS_URL":    model.url or "",
+                "LOCAL_CONCURRENCY": str(model.concurrency)}
+    else:
+        # 未知 config_key：原样透传通用字段，让容器自行处理
+        return {**base,
+                "LOCAL_MODEL_NAME": model.model_name or "",
+                "LOCAL_HOST_IP":    model.host or "",
+                "LOCAL_HOST_PORT":  str(model.port or ""),
+                "LOCAL_CONCURRENCY": str(model.concurrency)}
 
 
 def _make_output_task_id(job: Job) -> str:
@@ -137,6 +157,27 @@ async def _run_infer(db: Session, job: Job, settings):
             env_file.unlink(missing_ok=True)
 
 
+def _env_vars_for_judge(judge: JudgeLLM) -> dict[str, str]:
+    key = judge.judge_config_key or "local_judge"
+    concurrency = str(judge.concurrency or 5)
+    if key == "local_judge":
+        return {
+            "SCORE_MODEL_NAME":      judge.model_name or "",
+            "SCORE_HOST_IP":         judge.host or "",
+            "SCORE_HOST_PORT":       str(judge.port or ""),
+            "SCORE_LLM_CONCURRENCY": concurrency,
+            "SCORE_MODEL_TYPE":      "maas",
+        }
+    else:  # api_judge
+        return {
+            "SCORE_MODEL_NAME":      judge.model_name or "",
+            "SCORE_API_KEY":         judge.api_key or "",
+            "SCORE_URL":             judge.url or "",
+            "SCORE_LLM_CONCURRENCY": concurrency,
+            "SCORE_MODEL_TYPE":      judge.score_model_type or "maas",
+        }
+
+
 async def _run_eval(db: Session, job: Job, settings):
     """异步执行评测 job，scan 异常时自动将 job 置为 failed。"""
     env_file = None
@@ -156,7 +197,16 @@ async def _run_eval(db: Session, job: Job, settings):
         model = db.get(Model, job.model_id)
         task = db.get(Task, job.task_id)
         eval_version = job.params_json.get("eval_version", "eval_init")
-        env_file = write_env_file(settings, job.id, _env_vars_for_model(model))
+
+        # 合并 judge 的 SCORE_* 环境变量
+        judge_env: dict[str, str] = {}
+        batch = db.get(Batch, job.batch_id) if job.batch_id else None
+        if batch and batch.default_judge_id:
+            judge = db.get(JudgeLLM, batch.default_judge_id)
+            if judge:
+                judge_env = _env_vars_for_judge(judge)
+
+        env_file = write_env_file(settings, job.id, {**_env_vars_for_model(model), **judge_env})
         cmd = build_eval_cmd(
             settings=settings, job_id=job.id, env_file=env_file,
             output_task_id=prediction.output_task_id,

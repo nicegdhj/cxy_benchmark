@@ -9,14 +9,24 @@ from backend.app.config import get_settings
 from backend.app.deps import db_session
 from backend.app.models import DatasetVersion, Task
 from backend.app.schemas import DatasetVersionOut, TaskOut
+from backend.app.task_meta import TASK_META
 
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
 
 
+def _enrich(t: Task, db: Session) -> TaskOut:
+    out = TaskOut.model_validate(t)
+    meta = TASK_META.get(t.key, {})
+    out.alias = meta.get("alias")
+    out.category = meta.get("category")
+    out.dataset_count = db.query(DatasetVersion).filter_by(task_id=t.id).count()
+    return out
+
+
 @router.get("", response_model=list[TaskOut])
 def list_(db: Session = Depends(db_session)):
-    return db.query(Task).order_by(Task.key).all()
+    return [_enrich(t, db) for t in db.query(Task).order_by(Task.key).all()]
 
 
 @router.get("/{tid}", response_model=TaskOut)
@@ -24,7 +34,7 @@ def get(tid: int, db: Session = Depends(db_session)):
     t = db.get(Task, tid)
     if not t:
         raise HTTPException(status_code=404, detail="Task not found")
-    return t
+    return _enrich(t, db)
 
 
 @router.post("/{tid}/datasets", response_model=DatasetVersionOut)

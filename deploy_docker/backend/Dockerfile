@@ -1,6 +1,6 @@
 # ── 后端服务镜像（FastAPI + Worker）─────────────────────────────────
 # 注意：此容器通过 docker socket 启动 ais_bench 计算容器
-#       ais_bench 本身有独立的 Dockerfile（项目根目录）
+#       ais_bench 本身有独立的 Dockerfile（deploy_docker/ais_bench/Dockerfile）
 FROM python:3.10-slim
 
 WORKDIR /app

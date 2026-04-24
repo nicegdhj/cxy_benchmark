@@ -2,20 +2,21 @@
 set -e
 
 # ── Score Platform 本地一键启动脚本 ─────────────────────────────────
-# 用法: ./start-local.sh [docker-compose up 的额外参数，如 -d]
+# 用法: bash scripts/deploy_scripts/start-local.sh [-d] [其他 docker-compose 参数]
 # ──────────────────────────────────────────────────────────────────
 
-PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
 export WORKSPACE_DIR="$PROJECT_DIR/workspace"
 export BACKEND_DATA_DIR="$PROJECT_DIR/backend/backend_data"
-export CODE_DIR="$PROJECT_DIR"
 
 echo "========================================"
 echo "  Score Platform 本地启动"
 echo "========================================"
 echo ""
-echo "项目目录: $PROJECT_DIR"
-echo "Workspace:  $WORKSPACE_DIR"
+echo "项目目录:    $PROJECT_DIR"
+echo "Workspace:   $WORKSPACE_DIR"
 echo "Backend数据: $BACKEND_DATA_DIR"
 echo ""
 
@@ -25,16 +26,18 @@ mkdir -p "$BACKEND_DATA_DIR"/{envs,logs}
 
 # ── 将 ais_bench 需要的代码文件复制到 workspace/code ──────────────
 #（后端通过 docker run -v 将这些文件挂载到 ais_bench 容器）
-cp -n "$CODE_DIR/eval_entry.py" "$WORKSPACE_DIR/code/" 2>/dev/null || true
-cp -n "$CODE_DIR/eval_judge.py" "$WORKSPACE_DIR/code/" 2>/dev/null || true
-cp -rn "$CODE_DIR/scripts" "$WORKSPACE_DIR/code/" 2>/dev/null || true
-cp -n "$CODE_DIR/setup.py" "$WORKSPACE_DIR/code/" 2>/dev/null || true
-cp -n "$CODE_DIR/README.md" "$WORKSPACE_DIR/code/" 2>/dev/null || true
+cp -n "$PROJECT_DIR/eval_entry.py"  "$WORKSPACE_DIR/code/" 2>/dev/null || true
+cp -n "$PROJECT_DIR/eval_judge.py"  "$WORKSPACE_DIR/code/" 2>/dev/null || true
+cp -rn "$PROJECT_DIR/scripts"       "$WORKSPACE_DIR/code/" 2>/dev/null || true
+cp -n "$PROJECT_DIR/setup.py"       "$WORKSPACE_DIR/code/" 2>/dev/null || true
+cp -n "$PROJECT_DIR/README.md"      "$WORKSPACE_DIR/code/" 2>/dev/null || true
 
 # ── 构建 ais_bench 镜像（如果尚未构建）─────────────────────────────
 if ! docker image inspect benchmark-eval:latest >/dev/null 2>&1; then
     echo "[1/2] 构建 ais_bench 计算镜像 (benchmark-eval:latest)..."
-    docker build -t benchmark-eval:latest "$PROJECT_DIR"
+    BUILDX_BUILDER=default docker build -t benchmark-eval:latest \
+        -f "$PROJECT_DIR/deploy_docker/ais_bench/Dockerfile" \
+        "$PROJECT_DIR"
     echo "✅ ais_bench 镜像构建完成"
 else
     echo "[1/2] ais_bench 镜像已存在，跳过构建"
@@ -43,4 +46,15 @@ fi
 # ── 启动 score-front + score-backend ─────────────────────────────
 echo ""
 echo "[2/2] 启动 score-front (http://localhost:80) + score-backend (http://localhost:8080)..."
-docker compose -f "$PROJECT_DIR/docker-compose.yml" up --build "$@"
+
+# 用 docker compose images 判断是否已有构建产物
+BUILT=$(docker compose -f "$PROJECT_DIR/deploy_docker/docker-compose.yml" images -q 2>/dev/null | wc -l | tr -d ' ')
+
+if [ "$BUILT" -ge 2 ]; then
+    echo "      镜像已存在，跳过构建直接启动..."
+    docker compose -f "$PROJECT_DIR/deploy_docker/docker-compose.yml" up "$@"
+else
+    echo "      镜像不存在，使用本地 builder 构建..."
+    BUILDX_BUILDER=default \
+        docker compose -f "$PROJECT_DIR/deploy_docker/docker-compose.yml" up --build "$@"
+fi

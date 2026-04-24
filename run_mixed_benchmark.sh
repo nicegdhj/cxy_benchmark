@@ -260,7 +260,7 @@ if [[ "$RUN_MODE" == "infer" ]] || [[ "$RUN_MODE" == "all" ]]; then
         python eval_entry.py \
             --task-id "${TASK_ID}" \
             --model-config local_qwen \
-            --tasks 1 34 36 43 44 60 \
+            --tasks 1 34 36 43 44 60 101 \
             --generic-datasets \
                 ceval_gen_0_shot_str \
                 mmlu_redux_gen_5_shot_str \

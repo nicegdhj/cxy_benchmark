@@ -25,6 +25,9 @@ htmlcov/
 *.swp
 *.swo
 
+# macOS
+.DS_Store
+
 # Project Specific - Data & Outputs
 # Ignore datasets directory but keep the .gitkeep or README if they exist to maintain structure
 ais_bench/datasets/*
