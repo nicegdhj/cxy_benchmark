@@ -207,3 +207,56 @@ class JobOut(BaseModel):
     started_at: datetime | None
     finished_at: datetime | None
     error_msg: str | None
+
+class UserBrief(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int | None
+    username: str
+    display_name: str | None
+    role: str
+    is_active: bool
+
+
+class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    username: str
+    display_name: str | None
+    role: str
+    is_active: bool
+    last_login_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class LoginIn(BaseModel):
+    username: str
+    password: str
+
+
+class LoginOut(BaseModel):
+    session_token: str
+    expires_at: datetime
+    user: UserBrief
+
+
+class ChangePasswordIn(BaseModel):
+    old_password: str
+    new_password: str = Field(..., min_length=1)
+
+
+class UserCreate(BaseModel):
+    username: str
+    password: str = Field(..., min_length=1)
+    role: str
+    display_name: str | None = None
+
+
+class UserUpdate(BaseModel):
+    role: str | None = None
+    display_name: str | None = None
+    is_active: bool | None = None
+
+
+class ResetPasswordIn(BaseModel):
+    new_password: str = Field(..., min_length=1)
