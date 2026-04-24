@@ -4,6 +4,7 @@ import { api } from '../../lib/api';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { Upload, Database, FileJson, Check } from 'lucide-react';
+import { RoleButton } from '../../components/ui/RoleButton';
 
 export function TasksPage() {
   const qc = useQueryClient();
@@ -76,9 +77,9 @@ export function TasksPage() {
                   <h3 className="text-lg font-semibold text-gray-900">{selectedTask.key}</h3>
                   <p className="text-sm text-gray-500">{selectedTask.suite_name}</p>
                 </div>
-                <button className="btn-primary flex items-center gap-2" onClick={() => setUploadOpen(true)}>
+                <RoleButton variant="primary" onClick={() => setUploadOpen(true)}>
                   <Upload size={16} /> 上传数据集
-                </button>
+                </RoleButton>
               </div>
               <Card>
                 <CardBody className="p-0">

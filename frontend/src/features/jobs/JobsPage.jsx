@@ -4,7 +4,8 @@ import { api } from '../../lib/api';
 import { Card, CardBody } from '../../components/ui/Card';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { JobLogModal } from './JobLogModal';
-import { Activity, FileText, XCircle } from 'lucide-react';
+import { Activity, FileText, XCircle, User } from 'lucide-react';
+import { userDisplay } from '../../lib/userDisplay';
 
 const STATUS_FILTERS = [
   { value: '', label: '全部' },
@@ -69,16 +70,16 @@ export function JobsPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                {['ID', '类型', '状态', 'Batch', '模型', '任务', '创建时间', '操作'].map(h => (
+                {['ID', '类型', '状态', 'Batch', '模型', '任务', '提交人', '创建时间', '操作'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {isLoading ? (
-                <tr><td colSpan={8} className="px-4 py-4 text-gray-500">加载中...</td></tr>
+                <tr><td colSpan={9} className="px-4 py-4 text-gray-500">加载中...</td></tr>
               ) : jobs?.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-4 text-gray-500">暂无记录</td></tr>
+                <tr><td colSpan={9} className="px-4 py-4 text-gray-500">暂无记录</td></tr>
               ) : jobs?.map(job => (
                 <tr key={job.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{job.id}</td>
@@ -93,6 +94,14 @@ export function JobsPage() {
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{job.model_name || '-'}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{job.task_key || '-'}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {job.submitted_by ? (
+                      <span className="flex items-center gap-1">
+                        <User size={14} />
+                        {userDisplay(job.submitted_by)}
+                      </span>
+                    ) : '-'}
+                  </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                     {job.created_at ? new Date(job.created_at).toLocaleString() : '-'}
                   </td>

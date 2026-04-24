@@ -5,6 +5,7 @@ import { Card, CardHeader, CardBody } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Plus, Pencil, Trash2, Server } from 'lucide-react';
+import { RoleButton } from '../../components/ui/RoleButton';
 
 const DEFAULT_FORM = {
   name: '', host: '', port: 9092, model_name: '', concurrency: 20, model_config_key: 'local_qwen', gen_kwargs_json: {},
@@ -56,9 +57,9 @@ export function ModelsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-900">模型管理</h2>
-        <button className="btn-primary flex items-center gap-2" onClick={openCreate}>
+        <RoleButton variant="primary" onClick={openCreate}>
           <Plus size={18} /> 新增模型
-        </button>
+        </RoleButton>
       </div>
 
       <Card>
@@ -85,8 +86,12 @@ export function ModelsPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{m.concurrency}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{m.model_config_key}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm flex gap-2">
-                    <button onClick={() => openEdit(m)} className="text-blue-600 hover:text-blue-800"><Pencil size={16} /></button>
-                    <button onClick={() => deleteMut.mutate(m.id)} className="text-red-600 hover:text-red-800"><Trash2 size={16} /></button>
+                    <RoleButton variant="ghost" onClick={() => openEdit(m)} requireWrite>
+                      <Pencil size={16} />
+                    </RoleButton>
+                    <RoleButton variant="ghost" onClick={() => deleteMut.mutate(m.id)} requireWrite>
+                      <Trash2 size={16} />
+                    </RoleButton>
                   </td>
                 </tr>
               ))}

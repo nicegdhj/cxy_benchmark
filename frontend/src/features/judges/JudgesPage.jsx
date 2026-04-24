@@ -4,6 +4,7 @@ import { api } from '../../lib/api';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { RoleButton } from '../../components/ui/RoleButton';
 
 const DEFAULT_FORM = { name: '', host: '', port: 443, model_name: '', auth_ref: '', extra_env_json: {} };
 
@@ -52,9 +53,9 @@ export function JudgesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-900">打分模型</h2>
-        <button className="btn-primary flex items-center gap-2" onClick={openCreate}>
+        <RoleButton variant="primary" onClick={openCreate}>
           <Plus size={18} /> 新增 Judge
-        </button>
+        </RoleButton>
       </div>
 
       <Card>
@@ -80,8 +81,12 @@ export function JudgesPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{j.model_name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{j.auth_ref || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm flex gap-2">
-                    <button onClick={() => openEdit(j)} className="text-blue-600 hover:text-blue-800"><Pencil size={16} /></button>
-                    <button onClick={() => deleteMut.mutate(j.id)} className="text-red-600 hover:text-red-800"><Trash2 size={16} /></button>
+                    <RoleButton variant="ghost" onClick={() => openEdit(j)} requireWrite>
+                      <Pencil size={16} />
+                    </RoleButton>
+                    <RoleButton variant="ghost" onClick={() => deleteMut.mutate(j.id)} requireWrite>
+                      <Trash2 size={16} />
+                    </RoleButton>
                   </td>
                 </tr>
               ))}

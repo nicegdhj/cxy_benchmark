@@ -76,6 +76,7 @@ def rerun_batch(db: Session, batch_id: int, payload,
                     type="infer", batch_id=batch_id,
                     model_id=mid, task_id=tid,
                     params_json={},
+                    created_by_user_id=actor_user_id,
                 )
                 db.add(infer_job)
                 db.flush()
@@ -95,11 +96,13 @@ def rerun_batch(db: Session, batch_id: int, payload,
                     model_id=mid, task_id=tid,
                     params_json={"eval_version": batch.default_eval_version},
                     dependency_job_id=dep_id,
+                    created_by_user_id=actor_user_id,
                 )
                 db.add(eval_job)
                 db.flush()
                 jobs_created.append(eval_job)
 
+    batch.last_modified_by_user_id = actor_user_id
     record_revision(
         db, batch_id, "rerun",
         f"rerun {payload.what} for models={payload.model_ids} tasks={payload.task_ids}",

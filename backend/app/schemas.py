@@ -200,15 +200,6 @@ class EvaluationOut(BaseModel):
     error_msg: str | None
 
 
-class UserBrief(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: int | None
-    username: str
-    display_name: str | None
-    role: str
-    is_active: bool
-
-
 class JobOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -228,15 +219,6 @@ class JobOut(BaseModel):
     started_at: datetime | None
     finished_at: datetime | None
     error_msg: str | None
-
-class UserBrief(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: int | None
-    username: str
-    display_name: str | None
-    role: str
-    is_active: bool
-
 
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

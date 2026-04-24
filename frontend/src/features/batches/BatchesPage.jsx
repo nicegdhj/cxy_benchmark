@@ -6,6 +6,7 @@ import { Card, CardBody } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Plus, ArrowRight } from 'lucide-react';
+import { RoleButton } from '../../components/ui/RoleButton';
 
 export function BatchesPage() {
   const qc = useQueryClient();
@@ -49,9 +50,9 @@ export function BatchesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-900">批次评测</h2>
-        <button className="btn-primary flex items-center gap-2" onClick={() => setModalOpen(true)}>
+        <RoleButton variant="primary" onClick={() => setModalOpen(true)}>
           <Plus size={18} /> 创建批次
-        </button>
+        </RoleButton>
       </div>
 
       <Card>
