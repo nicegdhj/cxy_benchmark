@@ -109,8 +109,12 @@ class Batch(Base):
     default_eval_version = Column(String, default="eval_init")
     default_judge_id = Column(Integer, ForeignKey("judges.id"))
     notes = Column(Text)
+    created_by_user_id = Column(Integer, ForeignKey("users.id"))
+    last_modified_by_user_id = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=_now)
     updated_at = Column(DateTime, default=_now, onupdate=_now)
+    created_by = relationship("User", foreign_keys=[created_by_user_id])
+    last_modified_by = relationship("User", foreign_keys=[last_modified_by_user_id])
 
 
 class BatchCell(Base):
@@ -132,6 +136,7 @@ class BatchRevision(Base):
     change_type = Column(String, nullable=False)
     change_summary = Column(Text)
     snapshot_json = Column(JSON)
+    actor_user_id = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=_now)
     __table_args__ = (UniqueConstraint("batch_id", "rev_num"),)
 
@@ -151,7 +156,37 @@ class Job(Base):
     produces_prediction_id = Column(Integer, ForeignKey("predictions.id"))
     produces_evaluation_id = Column(Integer, ForeignKey("evaluations.id"))
     dependency_job_id = Column(Integer, ForeignKey("jobs.id"))
+    created_by_user_id = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=_now)
+    created_by = relationship("User", foreign_keys=[created_by_user_id])
     started_at = Column(DateTime)
     finished_at = Column(DateTime)
     error_msg = Column(Text)
+
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True)
+    username = Column(String, unique=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    role = Column(String, nullable=False)  # admin | operator | viewer
+    display_name = Column(String)
+    is_active = Column(Boolean, default=True, nullable=False)
+    last_login_at = Column(DateTime)
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+    id = Column(Integer, primary_key=True)
+    token = Column(String, unique=True, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=_now)
+    last_used_at = Column(DateTime, default=_now)
+    expires_at = Column(DateTime, nullable=False)
+
+
+class SchemaVersion(Base):
+    __tablename__ = "schema_version"
+    version = Column(Integer, primary_key=True)
