@@ -1,19 +1,49 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.app.deps import db_session, require_role
 from backend.app.models import (
-    Batch, BatchCell, BatchRevision, Evaluation, Model, Prediction, Task, User,
+    Batch, BatchCell, BatchRevision, Evaluation, Job, Model, Prediction, Task, User,
 )
 from backend.app.schemas import (
-    BatchCreate, BatchOut, BatchReport, BatchReportRow, BatchRerun, BatchRevisionOut,
+    BatchCreate, BatchOut, BatchReport, BatchReportRow, BatchRerun, BatchRevisionOut, CloneBatchIn,
 )
 from backend.app.services.batch_service import create_batch, rerun_batch
 
 
 router = APIRouter(prefix="/api/v1/batches", tags=["batches"])
+
+
+def _batch_status(db: Session, batch_id: int) -> str:
+    """根据该批次下所有 Job 的状态汇总计算批次状态。"""
+    rows = (
+        db.query(Job.status, func.count())
+        .filter(Job.batch_id == batch_id)
+        .group_by(Job.status)
+        .all()
+    )
+    if not rows:
+        return "pending"
+    counts = {s: c for s, c in rows}
+    if counts.get("running", 0) > 0:
+        return "running"
+    total = sum(counts.values())
+    if counts.get("success", 0) == total:
+        return "success"
+    if counts.get("pending", 0) == total:
+        return "pending"
+    if counts.get("failed", 0) + counts.get("cancelled", 0) > 0:
+        return "failed"
+    return "pending"
+
+
+def _enrich_batch(db: Session, b: Batch) -> BatchOut:
+    out = BatchOut.model_validate(b)
+    out.status = _batch_status(db, b.id)
+    return out
 
 
 @router.post("", response_model=BatchOut, status_code=status.HTTP_201_CREATED)
@@ -26,13 +56,14 @@ def create(payload: BatchCreate,
         raise HTTPException(400, str(e))
     db.commit()
     db.refresh(batch)
-    return batch
+    return _enrich_batch(db, batch)
 
 
 @router.get("", response_model=list[BatchOut])
 def list_(db: Session = Depends(db_session),
           _: User = Depends(require_role("viewer", "operator", "admin"))):
-    return db.query(Batch).order_by(Batch.id.desc()).all()
+    batches = db.query(Batch).order_by(Batch.id.desc()).all()
+    return [_enrich_batch(db, b) for b in batches]
 
 
 @router.get("/{bid}", response_model=BatchOut)
@@ -42,7 +73,7 @@ def get(bid: int,
     b = db.get(Batch, bid)
     if not b:
         raise HTTPException(status_code=404, detail=f"Batch {bid} not found")
-    return b
+    return _enrich_batch(db, b)
 
 
 @router.get("/{bid}/report", response_model=BatchReport)
@@ -150,3 +181,30 @@ def rerun(bid: int, payload: BatchRerun,
         "jobs_created": len(jobs),
         "job_ids": [j.id for j in jobs],
     }
+
+
+@router.post("/{bid}/clone", response_model=BatchOut, status_code=status.HTTP_201_CREATED)
+def clone(bid: int, payload: CloneBatchIn,
+          db: Session = Depends(db_session),
+          actor: User = Depends(require_role("operator", "admin"))):
+    src = db.get(Batch, bid)
+    if not src:
+        raise HTTPException(status_code=404, detail=f"Batch {bid} not found")
+    cells = db.query(BatchCell).filter_by(batch_id=bid).all()
+    if not cells:
+        raise HTTPException(status_code=400, detail="源批次没有任何任务单元，无法重试")
+    model_ids = list({c.model_id for c in cells})
+    task_ids  = list({c.task_id  for c in cells})
+    new_payload = BatchCreate(
+        name=payload.name or f"评测id_{bid}(重试)",
+        mode=src.mode,
+        model_ids=model_ids,
+        task_ids=task_ids,
+        default_eval_version=src.default_eval_version,
+        default_judge_id=src.default_judge_id,
+        notes=src.notes,
+    )
+    new_batch = create_batch(db, new_payload, actor_user_id=actor.id)
+    db.commit()
+    db.refresh(new_batch)
+    return _enrich_batch(db, new_batch)

@@ -39,17 +39,24 @@ export function Sidebar() {
   return (
     <aside className="w-[220px] flex-shrink-0 h-screen sticky top-0 flex flex-col bg-white" style={{ borderRight: '1px solid #e8edf3' }}>
       {/* Brand */}
-      <div className="px-5 pt-5 pb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg,#1a6fd4 0%,#0C5CAB 100%)', boxShadow: '0 2px 8px rgba(12,92,171,.3)' }}>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <circle cx="7" cy="7" r="2.5" fill="white"/>
-              <path d="M7 1v2M7 11v2M1 7h2M11 7h2M2.93 2.93l1.41 1.41M9.66 9.66l1.41 1.41M2.93 11.07l1.41-1.41M9.66 4.34l1.41-1.41" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
+      <div className="px-4 pt-5 pb-4">
+        <div className="flex items-center gap-3">
+          {/* 中国移动 logo */}
+          <div className="flex-shrink-0 w-7 h-7">
+            <svg width="28" height="28" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="40" height="40" rx="10" fill="white" stroke="#e4eaf2" strokeWidth="0.8"/>
+              <clipPath id="cm-clip"><rect width="40" height="40" rx="10"/></clipPath>
+              <g clipPath="url(#cm-clip)">
+                <path d="M3 14 Q16 2 37 2"   stroke="#0671C2" strokeWidth="5" strokeLinecap="round"/>
+                <path d="M3 22 Q16 10 37 10"  stroke="#0671C2" strokeWidth="5" strokeLinecap="round"/>
+                <path d="M3 30 Q16 18 37 18"  stroke="#6CC04A" strokeWidth="5" strokeLinecap="round"/>
+                <path d="M3 38 Q16 26 37 26"  stroke="#0671C2" strokeWidth="5" strokeLinecap="round"/>
+              </g>
             </svg>
           </div>
           <div>
-            <div className="text-[13px] font-bold leading-none" style={{ color: '#0f1a2e' }}>Eval Backend</div>
-            <div className="text-[10px] mt-0.5" style={{ color: '#8fa3bc' }}>垂类大模型评测系统</div>
+            <div className="text-[14px] font-extrabold leading-tight tracking-tight" style={{ color: '#0C5CAB' }}>垂类大模型评测平台</div>
+            <div className="text-[10px] mt-0.5 font-medium" style={{ color: '#8fa3bc' }}>Eval Backend</div>
           </div>
         </div>
       </div>

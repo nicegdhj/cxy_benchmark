@@ -24,13 +24,13 @@ echo ""
 mkdir -p "$WORKSPACE_DIR"/{data,outputs,code}
 mkdir -p "$BACKEND_DATA_DIR"/{envs,logs}
 
-# ── 将 ais_bench 需要的代码文件复制到 workspace/code ──────────────
-#（后端通过 docker run -v 将这些文件挂载到 ais_bench 容器）
-cp -n "$PROJECT_DIR/eval_entry.py"  "$WORKSPACE_DIR/code/" 2>/dev/null || true
-cp -n "$PROJECT_DIR/eval_judge.py"  "$WORKSPACE_DIR/code/" 2>/dev/null || true
-cp -rn "$PROJECT_DIR/scripts"       "$WORKSPACE_DIR/code/" 2>/dev/null || true
-cp -n "$PROJECT_DIR/setup.py"       "$WORKSPACE_DIR/code/" 2>/dev/null || true
-cp -n "$PROJECT_DIR/README.md"      "$WORKSPACE_DIR/code/" 2>/dev/null || true
+# ── 将 ais_bench 需要的代码文件软链到项目根目录 ──────────────────────
+#（符号链接使容器始终挂载最新源文件，无需手动同步）
+ln -sf "$PROJECT_DIR/eval_entry.py"  "$WORKSPACE_DIR/code/eval_entry.py"
+ln -sf "$PROJECT_DIR/eval_judge.py"  "$WORKSPACE_DIR/code/eval_judge.py"
+rm -rf "$WORKSPACE_DIR/code/scripts" && ln -sf "$PROJECT_DIR/scripts" "$WORKSPACE_DIR/code/scripts"
+ln -sf "$PROJECT_DIR/setup.py"       "$WORKSPACE_DIR/code/setup.py"
+ln -sf "$PROJECT_DIR/README.md"      "$WORKSPACE_DIR/code/README.md"
 
 # ── 构建 ais_bench 镜像（如果尚未构建）─────────────────────────────
 # 避免 desktop-linux 等 context 导致 buildx 报错

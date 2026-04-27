@@ -6,7 +6,6 @@ import { useInterval } from '../../hooks/useInterval';
 import { Download } from 'lucide-react';
 
 export function JobLogModal({ jobId, open, onClose }) {
-  const [logContent, setLogContent] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   const { data, refetch, isLoading } = useQuery({
@@ -16,13 +15,19 @@ export function JobLogModal({ jobId, open, onClose }) {
     refetchOnWindowFocus: false,
   });
 
-  useEffect(() => { if (data?.log != null) setLogContent(data.log); }, [data]);
-  useEffect(() => { if (open) { setLogContent(''); setAutoRefresh(true); } }, [open, jobId]);
+  useEffect(() => {
+    if (open && jobId) {
+      setAutoRefresh(true);
+      refetch();
+    }
+  }, [open, jobId]);
 
   useInterval(() => { if (open && autoRefresh) refetch(); }, 60000);
 
+  const logContent = data?.log ?? '';
+
   return (
-    <Modal open={open} onClose={onClose} title={`Job #${jobId} 日志`} size="xl">
+    <Modal open={open} onClose={onClose} title={`Job ${jobId} 日志`} size="xl">
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer">

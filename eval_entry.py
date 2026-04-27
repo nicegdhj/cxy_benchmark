@@ -77,14 +77,20 @@ def parse_args():
     )
     parser.add_argument(
         "--model",
-        default=os.environ.get("LOCAL_MODEL_NAME", "qwen3-14b"),
-        help="推理模型名称，用于报告标识（默认读取 LOCAL_MODEL_NAME）",
+        default=(os.environ.get("COMMON_MODEL_NAME")
+                 or os.environ.get("MAAS_MODEL")
+                 or os.environ.get("LOCAL_MODEL_NAME")
+                 or "qwen3-14b"),
+        help="推理模型名称，用于报告标识（按 COMMON_MODEL_NAME/MAAS_MODEL/LOCAL_MODEL_NAME 顺序读取）",
     )
     parser.add_argument(
         "--concurrency",
         type=int,
-        default=int(os.environ.get("LOCAL_CONCURRENCY", "20")),
-        help="推理并发请求数，透传给 LOCAL_CONCURRENCY（默认 20）",
+        default=int(os.environ.get("COMMON_CONCURRENCY")
+                    or os.environ.get("MAAS_CONCURRENCY")
+                    or os.environ.get("LOCAL_CONCURRENCY")
+                    or "20"),
+        help="推理并发请求数（按 COMMON_CONCURRENCY/MAAS_CONCURRENCY/LOCAL_CONCURRENCY 顺序读取）",
     )
     parser.add_argument(
         "--model-config",
@@ -146,7 +152,9 @@ def validate_data_files(task_nums: list, data_dir: Path):
     missing = []
     for num in task_nums:
         p = data_dir / f"task_{num}.jsonl"
-        if not p.exists():
+        # 也支持目录结构：data/task_N/ 目录（内含多个 jsonl 文件）
+        p_dir = data_dir.parent / f"task_{num}"
+        if not p.exists() and not p_dir.is_dir():
             missing.append(str(p))
     if missing:
         print("❌ 以下自定义任务数据文件不存在，请检查 --data-dir 路径：")

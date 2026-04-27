@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
-import { Plus, ArrowRight, Activity, Info } from 'lucide-react';
+import { Plus, Activity, Info, RotateCcw } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 const STATUS_CONFIG = {
@@ -50,6 +50,13 @@ export function BatchesPage() {
     },
   });
 
+  const cloneMut = useMutation({
+    mutationFn: (id) => api.batches.clone(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['batches'] });
+    },
+  });
+
   function handleSubmit(e) {
     e.preventDefault();
     createMut.mutate({
@@ -91,19 +98,19 @@ export function BatchesPage() {
           <table className="min-w-full">
             <thead>
               <tr className="border-b border-gray-100">
-                {['评测任务ID', '名称', '模式', 'Eval Version', '创建时间', '状态', '评测结果'].map(h => (
+                {['评测任务ID', '名称', '模式', 'Eval Version', '创建时间', '状态', '操作', '测评结果'].map(h => (
                   <th key={h} className="px-5 py-3 text-center text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {isLoading ? (
-                <tr><td colSpan={7} className="px-5 py-8 text-center text-sm text-gray-400">加载中...</td></tr>
+                <tr><td colSpan={8} className="px-5 py-8 text-center text-sm text-gray-400">加载中...</td></tr>
               ) : batches?.length === 0 ? (
-                <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-gray-400">暂无评测任务</td></tr>
+                <tr><td colSpan={8} className="px-5 py-12 text-center text-sm text-gray-400">暂无评测任务</td></tr>
               ) : batches?.map(b => (
                 <tr key={b.id} className="trow cursor-pointer transition-colors" onClick={() => navigate(`/batches/${b.id}`)}>
-                  <td className="px-5 py-4 text-center text-[12px] font-mono text-gray-400">#{b.id}</td>
+                  <td className="px-5 py-4 text-center text-[12px] font-mono text-gray-400">{b.id}</td>
                   <td className="px-5 py-4 text-center text-[13px] font-semibold text-gray-900">{b.name}</td>
                   <td className="px-5 py-4 text-center">
                     <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${
@@ -112,14 +119,29 @@ export function BatchesPage() {
                     }`}>{b.mode === 'all' ? '推理+评测' : b.mode === 'infer' ? '仅推理' : '仅评测'}</span>
                   </td>
                   <td className="px-5 py-4 text-center text-[12px] text-gray-500 font-mono">{b.default_eval_version}</td>
-                  <td className="px-5 py-4 text-center text-[12px] text-gray-500">{new Date(b.created_at).toLocaleDateString('zh-CN')}</td>
+                  <td className="px-5 py-4 text-center text-[12px] text-gray-500">
+                    {new Date(b.created_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  </td>
                   <td className="px-5 py-4 text-center" onClick={e => e.stopPropagation()}>
                     <StatusBadge status={b.status} />
                   </td>
-                  <td className="px-5 py-4 text-center">
+                  <td className="px-5 py-4 text-center" onClick={e => e.stopPropagation()}>
+                    {canWrite() && (
+                      <button
+                        onClick={e => { e.stopPropagation(); cloneMut.mutate(b.id); }}
+                        disabled={cloneMut.isPending}
+                        title="以相同配置重新发起任务"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[12px] font-medium border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors disabled:opacity-40"
+                      >
+                        <RotateCcw size={12} />
+                        重试
+                      </button>
+                    )}
+                  </td>
+                  <td className="px-5 py-4 text-center" onClick={e => e.stopPropagation()}>
                     <button
                       onClick={e => { e.stopPropagation(); navigate(`/batches/${b.id}`); }}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-primary-600 hover:bg-primary-50 transition-colors font-bold text-base mx-auto"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-primary-600 hover:bg-primary-50 transition-colors font-bold text-base"
                     >→</button>
                   </td>
                 </tr>

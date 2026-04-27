@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from backend.app.models import SchemaVersion
 
 
-CURRENT_VERSION = 2
+CURRENT_VERSION = 3
 
 
 def _has_table(session: Session, name: str) -> bool:
@@ -67,4 +67,42 @@ def run_migrations(session: Session):
     _add_column_if_missing(session, "jobs", "created_by_user_id",
                            "created_by_user_id INTEGER REFERENCES users(id)")
 
+    # v2 → v3：models.host / models.port 改为可空（支持 common_gateway 等无需 host/port 的配置）
+    _migrate_models_host_port_nullable(session)
+
     _write_version(session, CURRENT_VERSION)
+
+
+def _migrate_models_host_port_nullable(session: Session):
+    """将 models 表的 host/port 列从 NOT NULL 改为可空（SQLite 需重建表）。"""
+    rows = session.execute(text("PRAGMA table_info(models)")).fetchall()
+    col_map = {r[1]: r[3] for r in rows}  # name -> notnull
+    if not col_map.get("host", 0) and not col_map.get("port", 0):
+        return  # 已经是可空，无需迁移
+
+    session.execute(text("""
+        CREATE TABLE models_v3 (
+            id INTEGER NOT NULL PRIMARY KEY,
+            name VARCHAR NOT NULL UNIQUE,
+            model_config_key VARCHAR,
+            host VARCHAR,
+            port INTEGER,
+            url TEXT,
+            api_key TEXT,
+            model_name VARCHAR NOT NULL,
+            concurrency INTEGER,
+            gen_kwargs_json JSON,
+            created_at DATETIME,
+            updated_at DATETIME
+        )
+    """))
+    session.execute(text("""
+        INSERT INTO models_v3
+            (id, name, model_config_key, host, port, url, api_key,
+             model_name, concurrency, gen_kwargs_json, created_at, updated_at)
+        SELECT id, name, model_config_key, host, port, url, api_key,
+               model_name, concurrency, gen_kwargs_json, created_at, updated_at
+        FROM models
+    """))
+    session.execute(text("DROP TABLE models"))
+    session.execute(text("ALTER TABLE models_v3 RENAME TO models"))

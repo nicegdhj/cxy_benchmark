@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from backend.app.deps import db_session, require_role
@@ -41,8 +40,12 @@ def get_log(jid: int,
     if not j:
         raise HTTPException(status_code=404, detail=f"Job {jid} not found")
     if not j.log_path:
-        raise HTTPException(status_code=404, detail="No log file for this job")
-    return FileResponse(j.log_path, media_type="text/plain")
+        return {"log": ""}
+    try:
+        content = open(j.log_path, encoding="utf-8", errors="replace").read()
+    except OSError:
+        content = ""
+    return {"log": content}
 
 
 @router.post("/{jid}/cancel")

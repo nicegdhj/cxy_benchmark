@@ -3,21 +3,47 @@ import json
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.app.config import get_settings
 from backend.app.deps import db_session, require_role
 from backend.app.models import DatasetVersion, Task, User
 from backend.app.schemas import DatasetVersionOut, TaskOut
+from backend.app.task_meta import TASK_META
 
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
 
 
+def _enrich(task: Task, dataset_count: int) -> TaskOut:
+    meta = TASK_META.get(task.key, {})
+    return TaskOut(
+        id=task.id,
+        key=task.key,
+        type=task.type,
+        suite_name=task.suite_name,
+        display_name=task.display_name,
+        custom_task_num=task.custom_task_num,
+        default_data_rel_path=task.default_data_rel_path,
+        is_llm_judge=task.is_llm_judge,
+        created_at=task.created_at,
+        alias=meta.get("alias"),
+        category=meta.get("category"),
+        dataset_count=dataset_count,
+    )
+
+
 @router.get("", response_model=list[TaskOut])
 def list_(db: Session = Depends(db_session),
           _: User = Depends(require_role("viewer", "operator", "admin"))):
-    return db.query(Task).order_by(Task.key).all()
+    tasks = db.query(Task).order_by(Task.key).all()
+    counts = dict(
+        db.query(DatasetVersion.task_id, func.count())
+        .group_by(DatasetVersion.task_id)
+        .all()
+    )
+    return [_enrich(t, counts.get(t.id, 0)) for t in tasks]
 
 
 @router.get("/{tid}", response_model=TaskOut)
@@ -27,7 +53,8 @@ def get(tid: int,
     t = db.get(Task, tid)
     if not t:
         raise HTTPException(status_code=404, detail="Task not found")
-    return t
+    count = db.query(func.count()).select_from(DatasetVersion).filter_by(task_id=tid).scalar()
+    return _enrich(t, count)
 
 
 @router.post("/{tid}/datasets", response_model=DatasetVersionOut)

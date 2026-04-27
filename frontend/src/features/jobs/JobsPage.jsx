@@ -79,7 +79,7 @@ export function JobsPage() {
               ) : jobs?.map(job => (
                 <tr key={job.id} className="trow transition-colors">
                   <td className="px-4 py-3.5 text-center text-[13px] text-primary-600 font-medium">
-                    {job.batch_id ? `#${job.batch_id}` : '—'}
+                    {job.batch_id ?? '—'}
                   </td>
                   <td className="px-4 py-3.5 text-center">
                     <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${

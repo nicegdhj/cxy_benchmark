@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from backend.app.config import get_settings
 from backend.app.db import get_session
 from backend.app.models import (
-    Batch, BatchCell, Evaluation, Job, JudgeLLM, Model, Prediction, Task,
+    Batch, BatchCell, DatasetVersion, Evaluation, Job, JudgeLLM, Model, Prediction, Task,
 )
 from backend.app.services.batch_service import record_revision
 from backend.app.services.docker_runner import (
@@ -88,6 +88,26 @@ async def _run_infer(db: Session, job: Job, settings):
         task = db.get(Task, job.task_id)
 
         output_task_id = _make_output_task_id(job)
+
+        # 自定义任务：将已上传的数据集版本软链到容器读取路径
+        if task.type == "custom" and task.custom_task_num is not None:
+            cell = db.get(BatchCell, (job.batch_id, job.model_id, job.task_id)) if job.batch_id else None
+            dv_id = (cell.dataset_version_id if cell and cell.dataset_version_id else None)
+            if dv_id is None:
+                dv = (db.query(DatasetVersion)
+                      .filter_by(task_id=job.task_id, is_default=True)
+                      .first())
+            else:
+                dv = db.get(DatasetVersion, dv_id)
+            if dv:
+                src = settings.workspace_dir / dv.data_path
+                dst = settings.workspace_dir / "data" / "custom_task" / f"task_{task.custom_task_num}.jsonl"
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                if dst.is_symlink() or dst.exists():
+                    dst.unlink()
+                dst.symlink_to(src.resolve())
+                logger.info("dataset symlink: %s -> %s", dst, src)
+
         env_file = write_env_file(settings, job.id, _env_vars_for_model(model))
         cmd = build_infer_cmd(
             settings=settings, job_id=job.id, env_file=env_file,

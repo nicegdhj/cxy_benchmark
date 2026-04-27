@@ -91,6 +91,7 @@ export const api = {
     report: (id, rev) => request(`/batches/${id}/report${rev ? `?rev=${rev}` : ''}`),
     revisions: (id) => request(`/batches/${id}/revisions`),
     rerun: (id, data) => request(`/batches/${id}/rerun`, { method: 'POST', body: JSON.stringify(data) }),
+    clone: (id, data = {}) => request(`/batches/${id}/clone`, { method: 'POST', body: JSON.stringify(data) }),
   },
 
   jobs: {

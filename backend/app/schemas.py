@@ -128,6 +128,10 @@ class BatchCreate(BaseModel):
     notes: str | None = None
 
 
+class CloneBatchIn(BaseModel):
+    name: str | None = None  # 留空则自动追加"(重试)"
+
+
 class UserBrief(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int | None
