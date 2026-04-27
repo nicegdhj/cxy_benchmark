@@ -25,7 +25,7 @@ def is_missing(val) -> bool:
     if val is None:
         return True
     s = str(val).strip()
-    return s == "" or s.lower() == "null" or s.lower() == "nan" or len(s) < 4
+    return s == "" or s.lower() == "null" or s.lower() == "nan"
 
 
 def check_xlsx(xlsx_path: Path) -> dict:

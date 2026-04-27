@@ -33,6 +33,11 @@ cp -n "$PROJECT_DIR/setup.py"       "$WORKSPACE_DIR/code/" 2>/dev/null || true
 cp -n "$PROJECT_DIR/README.md"      "$WORKSPACE_DIR/code/" 2>/dev/null || true
 
 # ── 构建 ais_bench 镜像（如果尚未构建）─────────────────────────────
+# 避免 desktop-linux 等 context 导致 buildx 报错
+if docker context ls >/dev/null 2>&1; then
+    docker context use default >/dev/null 2>&1 || true
+fi
+
 if ! docker image inspect benchmark-eval:latest >/dev/null 2>&1; then
     echo "[1/2] 构建 ais_bench 计算镜像 (benchmark-eval:latest)..."
     BUILDX_BUILDER=default docker build -t benchmark-eval:latest \

@@ -46,11 +46,11 @@ RUN pip install --no-cache-dir -e . --no-deps
 RUN pip install --no-cache-dir --force-reinstall "huggingface-hub==1.5.0" "fsspec[http]>=2023.1.0,<=2026.2.0"
 
 # ── 提前下载 NLTK 数据（离线环境无法临时下载）──────────────────────
-# 下载后校验目录存在，避免网络问题导致静默失败
+# 从本地预下载的 nltk_data 目录 COPY 进镜像，避免构建时依赖外网
 ENV NLTK_DATA=/usr/local/nltk_data
-RUN python -c "import nltk; nltk.download('punkt', download_dir='${NLTK_DATA}'); nltk.download('punkt_tab', download_dir='${NLTK_DATA}')" \
-    && test -d /usr/local/nltk_data/tokenizers/punkt_tab \
-    || (echo '❌ NLTK punkt_tab 下载失败，请检查网络！' && exit 1)
+COPY deploy_docker/ais_bench/nltk_data/ ${NLTK_DATA}/
+RUN test -d ${NLTK_DATA}/tokenizers/punkt_tab \
+    || (echo '❌ NLTK punkt_tab 未找到，请确保 nltk_data/ 目录包含完整数据' && exit 1)
 
 # ── 数据 / 输出 / 代码 均通过 -v 挂载，不打包进镜像 ─────────────────
 # -v /host/data:/app/data

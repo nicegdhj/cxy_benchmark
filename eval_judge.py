@@ -258,6 +258,27 @@ def _parse_eval_result(work_dir: Path, suite: str) -> tuple:
         except Exception:
             pass
 
+    # 兜底：summary 缺失时，从各子任务结果 JSON 文件恢复得分（简单平均）
+    # 适用场景：ais_bench eval 写完各子任务结果后在 summary 阶段挂起被 kill
+    if accuracy is None:
+        score_files = [
+            f for f in (work_dir / "results").glob("**/*.json")
+            if not f.name.endswith("_details.json")
+        ]
+        subtask_scores = []
+        for jf in score_files:
+            try:
+                data = json.loads(jf.read_text(encoding="utf-8"))
+                if "error" in data:
+                    continue
+                score = data.get("accuracy", data.get("score"))
+                if isinstance(score, (int, float)):
+                    subtask_scores.append(float(score))
+            except Exception:
+                pass
+        if subtask_scores:
+            accuracy = round(sum(subtask_scores) / len(subtask_scores), 2)
+
     # 从 results 的 details.jsonl 统计样本数
     details_files = list((work_dir / "results").glob("**/*_details.jsonl"))
     if details_files:

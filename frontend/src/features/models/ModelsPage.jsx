@@ -11,6 +11,10 @@ const DEFAULT_FORM = {
   host: '', port: '', url: '', api_key: '', concurrency: '20', gen_kwargs_json: {},
 };
 
+function deriveNameFromModelName(modelName) {
+  return modelName?.trim() || '';
+}
+
 const CONFIG_KEY_OPTIONS = [
   { value: 'local_qwen',    label: 'local_qwen',    desc: '垂类模型配置（本地 vLLM 服务）' },
   { value: 'maas_gateway',  label: 'maas_gateway',  desc: 'MaaS 服务（带网关鉴权）' },
@@ -84,6 +88,14 @@ export function ModelsPage() {
     setEditing(m);
     setForm({ ...DEFAULT_FORM, ...m, port: String(m.port ?? ''), concurrency: String(m.concurrency ?? '20'), gen_kwargs_json: m.gen_kwargs_json || {} });
     setModalOpen(true);
+  }
+
+  function setField(key, value) {
+    const next = { ...form, [key]: value };
+    if (key === 'model_name' && !editing && !form.name) {
+      next.name = deriveNameFromModelName(value);
+    }
+    setForm(next);
   }
 
   function handleSubmit(e) {
@@ -161,18 +173,21 @@ export function ModelsPage() {
             <select
               className="input"
               value={form.model_config_key}
-              onChange={e => setForm({ ...form, model_config_key: e.target.value, name: e.target.value })}
+              onChange={e => setForm({ ...form, model_config_key: e.target.value })}
             >
               {CONFIG_KEY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             <p className="mt-1 text-xs text-gray-400">{CONFIG_KEY_OPTIONS.find(o => o.value === form.model_config_key)?.desc}</p>
           </div>
-          {/* 名称自动同步为 Config_Key，不再允许用户自定义 */}
-          <input type="hidden" value={form.name} readOnly />
+          <div>
+            <label className="label">配置名称 <span className="text-red-500">*</span></label>
+            <input className="input" value={form.name} placeholder="qwen-plus" onChange={e => setForm({ ...form, name: e.target.value })} required />
+            <p className="mt-1 text-xs text-gray-400">唯一标识名，不可重复</p>
+          </div>
           {activeFields.map(f => (
             <div key={f.key}>
               <label className="label">{f.label}{f.required && <span className="text-red-500">*</span>}</label>
-              <input className="input" value={form[f.key]} placeholder={f.placeholder || ''} onChange={e => setForm({ ...form, [f.key]: e.target.value })} required={f.required} />
+              <input className="input" value={form[f.key]} placeholder={f.placeholder || ''} onChange={e => setField(f.key, e.target.value)} required={f.required} />
             </div>
           ))}
           {(createMut.isError || updateMut.isError) && (
