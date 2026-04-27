@@ -9,10 +9,10 @@ set -a; source "$(dirname "$0")/.env"; set +a
 
 #ais_bench --models local_qwen --datasets exam_gen_0_shot --debug  --num-prompts 1
 
-#ais_bench --models bailian_qwen --datasets task_1_suite --debug --num-prompts 1
 
 
-ais_bench --models bailian_qwen --datasets task_101_suite --debug --num-prompts 1
+
+ais_bench --models common_gateway --datasets task_102_suite --debug --num-prompts 1
 
 
 
