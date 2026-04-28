@@ -23,20 +23,23 @@ def scan_infer_output(settings: Settings, output_task_id: str,
 
 def scan_eval_output(settings: Settings, output_task_id: str,
                      eval_version: str, suite_name: str) -> dict:
-    """扫描 eval_version/suite_name/{summary,report}.json 得到 accuracy。"""
-    details_dir = (settings.workspace_dir / "outputs" / output_task_id
-                   / eval_version / suite_name)
+    """扫描 outputs/{output_task_id}/{eval_version}/report.json 得到 accuracy。"""
+    eval_dir = settings.workspace_dir / "outputs" / output_task_id / eval_version
     accuracy = None
     num_samples = None
-    for fname in ("summary.json", "report.json"):
-        p = details_dir / fname
-        if not p.exists():
-            continue
+    report = eval_dir / "report.json"
+    if report.exists():
         try:
-            data = json.loads(p.read_text(encoding="utf-8"))
-            accuracy = data.get("accuracy", accuracy)
-            num_samples = data.get("num_samples", num_samples)
+            data = json.loads(report.read_text(encoding="utf-8"))
+            # 优先用总平均准确率
+            accuracy = data.get("avg_accuracy", data.get("accuracy"))
+            # 从 tasks 列表累加样本数
+            tasks = data.get("tasks", [])
+            if tasks:
+                nums = [t.get("num_samples") for t in tasks if t.get("num_samples") is not None]
+                if nums:
+                    num_samples = sum(nums)
         except Exception:
             pass
-    return {"accuracy": accuracy, "details_path": str(details_dir),
+    return {"accuracy": accuracy, "details_path": str(eval_dir),
             "num_samples": num_samples}

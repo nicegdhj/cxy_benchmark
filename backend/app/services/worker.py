@@ -63,7 +63,7 @@ def _env_vars_for_model(model: Model) -> dict[str, str]:
         return {**base,
                 "COMMON_MODEL_NAME":   model.model_name or "",
                 "COMMON_API_KEY":      model.api_key or "",
-                "COMMON_API_URL":      model.url or "",
+                "COMMON_URL":          model.url or "",
                 "COMMON_CONCURRENCY":  str(model.concurrency)}
 
     else:
@@ -93,32 +93,47 @@ async def _run_infer(db: Session, job: Job, settings):
         if task.type == "custom" and task.custom_task_num is not None:
             cell = db.get(BatchCell, (job.batch_id, job.model_id, job.task_id)) if job.batch_id else None
             dv_id = (cell.dataset_version_id if cell and cell.dataset_version_id else None)
-            if dv_id is None:
+            if dv_id is not None:
+                dv = db.get(DatasetVersion, dv_id)
+            else:
+                # 优先取 is_default，否则取最新上传的版本
                 dv = (db.query(DatasetVersion)
                       .filter_by(task_id=job.task_id, is_default=True)
-                      .first())
-            else:
-                dv = db.get(DatasetVersion, dv_id)
+                      .first()
+                      or db.query(DatasetVersion)
+                         .filter_by(task_id=job.task_id)
+                         .order_by(DatasetVersion.uploaded_at.desc())
+                         .first())
             if dv:
                 src = settings.workspace_dir / dv.data_path
                 dst = settings.workspace_dir / "data" / "custom_task" / f"task_{task.custom_task_num}.jsonl"
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 if dst.is_symlink() or dst.exists():
                     dst.unlink()
-                dst.symlink_to(src.resolve())
-                logger.info("dataset symlink: %s -> %s", dst, src)
+                # 使用相对路径软链，确保容器内挂载后也能解析
+                import os
+                rel = os.path.relpath(src.resolve(), dst.parent)
+                dst.symlink_to(rel)
+                logger.info("dataset symlink: %s -> %s", dst, rel)
+            else:
+                raise RuntimeError(
+                    f"Task {task.key} (custom_num={task.custom_task_num}) has no dataset version, "
+                    "please upload data first"
+                )
 
         env_file = write_env_file(settings, job.id, _env_vars_for_model(model))
         cmd = build_infer_cmd(
             settings=settings, job_id=job.id, env_file=env_file,
             output_task_id=output_task_id,
             model_config_key=model.model_config_key,
+            model_name=model.model_name,
+            concurrency=model.concurrency,
             task_type=task.type,
             custom_task_num=task.custom_task_num,
             suite_name=task.suite_name,
         )
 
-        log_path = settings.logs_dir / f"job_{job.id}.log"
+        log_path = settings.logs_dir / f"task_{job.batch_id}_job_{job.id}.log"
         settings.logs_dir.mkdir(parents=True, exist_ok=True)
 
         job.params_json = {**(job.params_json or {}), "output_task_id": output_task_id}
@@ -237,7 +252,7 @@ async def _run_eval(db: Session, job: Job, settings):
             suite_name=task.suite_name,
         )
 
-        log_path = settings.logs_dir / f"job_{job.id}.log"
+        log_path = settings.logs_dir / f"task_{job.batch_id}_job_{job.id}.log"
         job.status = "running"
         job.started_at = datetime.utcnow()
         job.log_path = str(log_path)
@@ -298,6 +313,9 @@ async def _run_eval(db: Session, job: Job, settings):
 async def run_pending_jobs_once():
     settings = get_settings()
     with get_session() as db:
+        global_running = db.query(Job).filter_by(status="running").count()
+        if global_running >= settings.default_job_concurrency:
+            return
         job = _pick_next_job(db)
         if not job:
             return

@@ -16,16 +16,29 @@ const STATUS_FILTERS = [
   { value: 'cancelled', label: '已取消' },
 ];
 
+function toBeijingTime(utcStr) {
+  if (!utcStr) return '—';
+  const d = new Date(utcStr.endsWith('Z') ? utcStr : utcStr + 'Z');
+  return d.toLocaleString('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+const CANCELLABLE = new Set(['pending', 'running']);
+
 export function JobsPage() {
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
-  const [logJobId, setLogJobId] = useState(null);
+  const [logJob, setLogJob] = useState(null);
   const [logOpen, setLogOpen] = useState(false);
   const [confirmCancelId, setConfirmCancelId] = useState(null);
 
   const { data: jobs, isLoading } = useQuery({
     queryKey: ['jobs', { status: statusFilter }],
     queryFn: () => api.jobs.list(statusFilter ? { status: statusFilter } : {}),
+    refetchOnMount: 'always',
   });
 
   const cancelMut = useMutation({
@@ -33,7 +46,7 @@ export function JobsPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['jobs'] }); setConfirmCancelId(null); },
   });
 
-  function openLog(id) { setLogJobId(id); setLogOpen(true); }
+  function openLog(job) { setLogJob(job); setLogOpen(true); }
 
   return (
     <div>
@@ -66,16 +79,16 @@ export function JobsPage() {
           <table className="min-w-full">
             <thead>
               <tr className="border-b border-gray-100">
-                {['测评任务ID', '类型', '状态', '模型', '任务', '提交人', '创建时间', '日志', '操作'].map(h => (
+                {['测评任务ID', '类型', '状态', '模型', '提交人', '创建时间', '日志', '操作'].map(h => (
                   <th key={h} className="px-4 py-3 text-center text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {isLoading ? (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-gray-400">加载中...</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-400">加载中...</td></tr>
               ) : jobs?.length === 0 ? (
-                <tr><td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-400">暂无记录</td></tr>
+                <tr><td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">暂无记录</td></tr>
               ) : jobs?.map(job => (
                 <tr key={job.id} className="trow transition-colors">
                   <td className="px-4 py-3.5 text-center text-[13px] text-primary-600 font-medium">
@@ -88,21 +101,20 @@ export function JobsPage() {
                   </td>
                   <td className="px-4 py-3.5 text-center"><StatusBadge status={job.status} /></td>
                   <td className="px-4 py-3.5 text-center text-[13px] text-gray-700 max-w-[160px] truncate">{job.model_name || '—'}</td>
-                  <td className="px-4 py-3.5 text-center text-[12px] text-gray-500 font-mono">{job.task_key || '—'}</td>
                   <td className="px-4 py-3.5 text-center text-[12px] text-gray-500">
                     {job.created_by ? userDisplay(job.created_by) : '—'}
                   </td>
-                  <td className="px-4 py-3.5 text-center text-[12px] text-gray-500">{job.created_at ? new Date(job.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                  <td className="px-4 py-3.5 text-center text-[12px] text-gray-500">{toBeijingTime(job.created_at)}</td>
                   <td className="px-4 py-3.5 text-center">
                     <button
-                      onClick={() => openLog(job.id)}
+                      onClick={() => openLog(job)}
                       className="text-[12px] text-primary-600 hover:text-primary-700 hover:bg-blue-50 px-2.5 py-1 rounded-lg transition-colors font-medium"
                     >
                       查看
                     </button>
                   </td>
                   <td className="px-4 py-3.5 text-center">
-                    {(job.status === 'pending' || job.status === 'running') && (
+                    {CANCELLABLE.has(job.status) ? (
                       confirmCancelId === job.id ? (
                         <div className="flex items-center gap-1 justify-center">
                           <AlertTriangle size={13} className="text-amber-500" />
@@ -118,6 +130,10 @@ export function JobsPage() {
                           <XCircle size={13} /> 取消
                         </button>
                       )
+                    ) : (
+                      <span className="flex items-center gap-1 text-xs text-gray-300 px-2 py-1 mx-auto w-fit cursor-not-allowed select-none">
+                        <XCircle size={13} /> 取消
+                      </span>
                     )}
                   </td>
                 </tr>
@@ -127,7 +143,7 @@ export function JobsPage() {
         </CardBody>
       </Card>
 
-      <JobLogModal jobId={logJobId} open={logOpen} onClose={() => setLogOpen(false)} />
+      <JobLogModal job={logJob} open={logOpen} onClose={() => setLogOpen(false)} />
     </div>
   );
 }

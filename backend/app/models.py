@@ -171,9 +171,19 @@ class Job(Base):
     created_by_user_id = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=_now)
     created_by = relationship("User", foreign_keys=[created_by_user_id])
+    _model_rel = relationship("Model", foreign_keys=[model_id], lazy="joined")
+    _task_rel = relationship("Task", foreign_keys=[task_id], lazy="joined")
     started_at = Column(DateTime)
     finished_at = Column(DateTime)
     error_msg = Column(Text)
+
+    @property
+    def model_name(self):
+        return self._model_rel.name if self._model_rel else None
+
+    @property
+    def task_key(self):
+        return self._task_rel.key if self._task_rel else None
 
 
 class User(Base):

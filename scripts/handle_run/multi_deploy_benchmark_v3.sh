@@ -60,7 +60,7 @@ EVAL_VERSION="eval_init"
 #      模型名   - 留空则使用 DEFAULT_LOCAL_MODEL_NAME
 #      IP       - 留空则使用 DEFAULT_LOCAL_HOST_IP
 TARGETS=(
-#     "pt_v_0_2:9092:qwen3-32b:188.109.35.147"
+      "pt_v_03:10051:qwen3-32b:188.109.35.155"
 #     "telechat_36b:10052:telechat-36b:188.109.35.152"
      #"pt1_9_set81_think:10052:qwen3-32b:188.109.35.195"
      # "deepseek_3_1:0:deepseek_V3_1:188.109.35.100"
@@ -70,12 +70,12 @@ TARGETS=(
 #     "pt_v02_grpo_global_step_100:6380:qwen3-32b-0421-global-step-100:188.109.35.148"
 #     "pt_v02_grpo_global_step_207:6380:qwen3-32b-0421-global-step-207:188.109.35.149"
 
-      "gemma-4-31b:10051:gemma:188.109.35.152"
-      "glm-4-7-flash:10052:glm:188.109.35.152"
-      "telechat-36b:10053:telechat:188.109.35.152"
-      "qwen3-235b-think:10053:qwen3-235b:188.109.35.153"
-      "qwen3-32b-think:10051:qwen3-32b:188.109.35.159"
-      "qwen3-5-27b-think:10052:qwen3-27b:188.109.35.159"
+      #"gemma-4-31b:10051:gemma:188.109.35.152"
+      #"glm-4-7-flash:10052:glm:188.109.35.152"
+      #"telechat-36b:10053:telechat:188.109.35.152"
+      #"qwen3-235b-think:30012:qwen3-235b:188.109.35.153"
+      #"qwen3-32b-think:10051:qwen3-32b:188.109.35.159"
+      #"qwen3-5-27b-think:10052:qwen3-27b:188.109.35.159"
 
 #待测评
 #    "qwen3_5_27b_think:9091:qwen3-27b:188.109.35.147"

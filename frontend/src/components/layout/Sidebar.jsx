@@ -6,6 +6,7 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../lib/api';
 import { userDisplay } from '../../lib/userDisplay';
+import cmccLogo from '../../assets/cmcc_logo.png';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: '仪表盘' },
@@ -43,16 +44,7 @@ export function Sidebar() {
         <div className="flex items-center gap-3">
           {/* 中国移动 logo */}
           <div className="flex-shrink-0 w-7 h-7">
-            <svg width="28" height="28" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="40" height="40" rx="10" fill="white" stroke="#e4eaf2" strokeWidth="0.8"/>
-              <clipPath id="cm-clip"><rect width="40" height="40" rx="10"/></clipPath>
-              <g clipPath="url(#cm-clip)">
-                <path d="M3 14 Q16 2 37 2"   stroke="#0671C2" strokeWidth="5" strokeLinecap="round"/>
-                <path d="M3 22 Q16 10 37 10"  stroke="#0671C2" strokeWidth="5" strokeLinecap="round"/>
-                <path d="M3 30 Q16 18 37 18"  stroke="#6CC04A" strokeWidth="5" strokeLinecap="round"/>
-                <path d="M3 38 Q16 26 37 26"  stroke="#0671C2" strokeWidth="5" strokeLinecap="round"/>
-              </g>
-            </svg>
+            <img src={cmccLogo} alt="logo" className="w-full h-full object-contain" />
           </div>
           <div>
             <div className="text-[14px] font-extrabold leading-tight tracking-tight" style={{ color: '#0C5CAB' }}>垂类大模型评测平台</div>

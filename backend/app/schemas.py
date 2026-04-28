@@ -245,6 +245,8 @@ class JobOut(BaseModel):
     started_at: datetime | None
     finished_at: datetime | None
     error_msg: str | None
+    model_name: str | None = None
+    task_key: str | None = None
 
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

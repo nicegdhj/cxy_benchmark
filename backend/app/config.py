@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     workspace_dir: Path = Path("/opt/eval_workspace")
     code_dir: Path = Path("/opt/eval_workspace/code")
     docker_image_tag: str = "benchmark-eval:latest"
-    worker_poll_interval_sec: float = 1.0
-    default_job_concurrency: int = 4
+    worker_poll_interval_sec: float = 60.0
+    default_job_concurrency: int = 6
     auth_token: str | None = None
 
     # 权限系统新增

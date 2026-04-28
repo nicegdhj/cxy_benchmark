@@ -5,7 +5,9 @@ import { api } from '../../lib/api';
 import { useInterval } from '../../hooks/useInterval';
 import { Download } from 'lucide-react';
 
-export function JobLogModal({ jobId, open, onClose }) {
+export function JobLogModal({ job, open, onClose }) {
+  const jobId = job?.id;
+  const batchId = job?.batch_id;
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   const { data, refetch, isLoading } = useQuery({
@@ -25,9 +27,11 @@ export function JobLogModal({ jobId, open, onClose }) {
   useInterval(() => { if (open && autoRefresh) refetch(); }, 60000);
 
   const logContent = data?.log ?? '';
+  const title = batchId ? `Task ${batchId} · Job ${jobId} 日志` : `Job ${jobId} 日志`;
+  const downloadName = batchId ? `task_${batchId}_job_${jobId}.txt` : `job_${jobId}.txt`;
 
   return (
-    <Modal open={open} onClose={onClose} title={`Job ${jobId} 日志`} size="xl">
+    <Modal open={open} onClose={onClose} title={title} size="xl">
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer">
@@ -41,7 +45,7 @@ export function JobLogModal({ jobId, open, onClose }) {
                 const blob = new Blob([logContent], { type: 'text/plain;charset=utf-8' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url; a.download = `job-${jobId}.txt`; a.click();
+                a.href = url; a.download = downloadName; a.click();
                 URL.revokeObjectURL(url);
               }}
               disabled={!logContent}

@@ -25,6 +25,8 @@ def build_infer_cmd(
     env_file: Path,
     output_task_id: str,
     model_config_key: str,
+    model_name: str,
+    concurrency: int,
     task_type: str,          # 'custom' | 'generic'
     custom_task_num: int | None,
     suite_name: str,
@@ -36,6 +38,8 @@ def build_infer_cmd(
         "python", "eval_entry.py",
         "--task-id", output_task_id,
         "--model-config", model_config_key,
+        "--model", model_name,
+        "--concurrency", str(concurrency),
     ]
     if task_type == "custom":
         cmd += ["--tasks", str(custom_task_num)]

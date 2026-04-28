@@ -2,6 +2,16 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../../lib/api';
+
+function toBeijingTime(utcStr) {
+  if (!utcStr) return '—';
+  const d = new Date(utcStr.endsWith('Z') ? utcStr : utcStr + 'Z');
+  return d.toLocaleString('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
 import { Card, CardBody } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { Plus, Activity, Info, RotateCcw } from 'lucide-react';
@@ -54,6 +64,8 @@ export function BatchesPage() {
     mutationFn: (id) => api.batches.clone(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['batches'] });
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+      navigate('/jobs');
     },
   });
 
@@ -120,22 +132,26 @@ export function BatchesPage() {
                   </td>
                   <td className="px-5 py-4 text-center text-[12px] text-gray-500 font-mono">{b.default_eval_version}</td>
                   <td className="px-5 py-4 text-center text-[12px] text-gray-500">
-                    {new Date(b.created_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    {toBeijingTime(b.created_at)}
                   </td>
                   <td className="px-5 py-4 text-center" onClick={e => e.stopPropagation()}>
-                    <StatusBadge status={b.status} />
+                    <div className="flex justify-center">
+                      <StatusBadge status={b.status} />
+                    </div>
                   </td>
                   <td className="px-5 py-4 text-center" onClick={e => e.stopPropagation()}>
                     {canWrite() && (
-                      <button
-                        onClick={e => { e.stopPropagation(); cloneMut.mutate(b.id); }}
-                        disabled={cloneMut.isPending}
-                        title="以相同配置重新发起任务"
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[12px] font-medium border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors disabled:opacity-40"
-                      >
-                        <RotateCcw size={12} />
-                        重试
-                      </button>
+                      <div className="flex justify-center">
+                        <button
+                          onClick={e => { e.stopPropagation(); cloneMut.mutate(b.id); }}
+                          disabled={cloneMut.isPending}
+                          title="以相同配置重新发起任务"
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[12px] font-medium border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors disabled:opacity-40"
+                        >
+                          <RotateCcw size={12} />
+                          重试
+                        </button>
+                      </div>
                     )}
                   </td>
                   <td className="px-5 py-4 text-center" onClick={e => e.stopPropagation()}>
