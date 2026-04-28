@@ -25,6 +25,9 @@ htmlcov/
 *.swp
 *.swo
 
+# macOS
+.DS_Store
+
 # Project Specific - Data & Outputs
 # Ignore datasets directory but keep the .gitkeep or README if they exist to maintain structure
 ais_bench/datasets/*
@@ -42,6 +45,7 @@ summary/
 tmp/
 *.log
 *.tmp
+*.db
 
 mydata
 data/
@@ -49,8 +53,17 @@ data/
 # Secrets
 .env
 
+# Git worktrees
+.worktrees/
+
+# Local workspace directory
+workspace/
+
 # GitHub workflows / CI config
 .github/
 
 # Smoke tests
-smoke_tests/
+smoke_tests//.worktrees/
+
+# Docker ais_bench - 包含大型预下载数据及构建产物，不纳入版本控制
+deploy_docker/ais_bench/

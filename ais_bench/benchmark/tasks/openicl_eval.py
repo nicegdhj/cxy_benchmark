@@ -357,10 +357,9 @@ class OpenICLEvalTask(BaseTask):
                     {"is_fc_model": self.model_cfg.get("returns_tool_calls")}
                 )
             if "LLMJudgeEvaluator" in self.eval_cfg["evaluator"]["type"]:
-                if "model_cfg" not in self.eval_cfg["evaluator"] and not os.environ.get("SCORE_MODEL_NAME"):
+                if not os.environ.get("SCORE_MODEL_NAME"):
                     raise ValueError(
-                        "LLMJudgeEvaluator 未配置打分模型：请在 eval_cfg 中指定 model_cfg，"
-                        "或设置 SCORE_MODEL_NAME 等环境变量。"
+                        "LLMJudgeEvaluator 未配置打分模型：请设置 SCORE_MODEL_NAME 等环境变量。"
                     )
             icl_evaluator: BaseEvaluator = ICL_EVALUATORS.build(
                 self.eval_cfg["evaluator"]
@@ -482,6 +481,20 @@ class OpenICLEvalTask(BaseTask):
                     if item_id in written_ids:
                         continue
                     written_ids.add(item_id)
+
+                    # Merge gold from evaluator details into prediction dict if not already present
+                    gold_val = None
+                    for _gold_key in ("gold", "references", "possible_answer", "answer"):
+                        _v = d.get(_gold_key)
+                        # unwrap single-element list produced by multi-shot grouping
+                        if isinstance(_v, list) and len(_v) == 1:
+                            _v = _v[0]
+                        if _v is not None:
+                            gold_val = _v
+                            break
+                    if gold_val is not None and "gold" not in pred_dict:
+                        pred_dict = dict(pred_dict)  # shallow copy to avoid mutating shared ref
+                        pred_dict["gold"] = gold_val
 
                     out_record = {
                         "prediction": pred_dict,

@@ -29,21 +29,21 @@ class MaaSAPI(BaseAPIModel):
     is_chat_api: bool = True
 
     def __init__(
-        self,
-        path: str = "",
-        model: str = "",
-        stream: bool = False,
-        max_out_len: int = 4096,
-        retry: int = 2,
-        api_key: str = "",
-        host_ip: str = "localhost",
-        host_port: int = 8080,
-        url: str = "",
-        trust_remote_code: bool = False,
-        generation_kwargs: Optional[Dict] = None,
-        meta_template: Optional[Dict] = None,
-        enable_ssl: bool = False,
-        verbose: bool = False,
+            self,
+            path: str = "",
+            model: str = "",
+            stream: bool = False,
+            max_out_len: int = 20000,
+            retry: int = 2,
+            api_key: str = "",
+            host_ip: str = "localhost",
+            host_port: int = 8080,
+            url: str = "",
+            trust_remote_code: bool = False,
+            generation_kwargs: Optional[Dict] = None,
+            meta_template: Optional[Dict] = None,
+            enable_ssl: bool = False,
+            verbose: bool = False,
     ):
         super().__init__(
             path=path,
@@ -84,7 +84,7 @@ class MaaSAPI(BaseAPIModel):
         return url
 
     async def get_request_body(
-        self, input: PromptType, max_out_len: int, output: RequestOutput, **args
+            self, input: PromptType, max_out_len: int, output: RequestOutput, **args
     ):
         if max_out_len <= 0:
             return ""
@@ -129,6 +129,11 @@ class MaaSAPI(BaseAPIModel):
                 request_body[param] = all_params[param]
         if self.stream:
             request_body["stream"] = True
+        # 故意不发送 max_tokens：让服务端以 (max_model_len - input_tokens) 自动决定
+        # 输出上限，避免 max_tokens + input > max_model_len 触发 400 BadRequest。
+        # 副作用：think 模型可能输出很长的思考过程导致单条耗时增加；如需兜底
+        # 可解开下一行注释并在 config 的 max_out_len 设置一个合理值（如 8192）。
+        request_body["max_tokens"] = max_out_len
         return request_body
 
     async def parse_stream_response(self, json_content, output):
@@ -142,9 +147,10 @@ class MaaSAPI(BaseAPIModel):
 
     async def parse_text_response(self, json_content, output):
         for item in json_content.get("choices", []):
-            if content := item["message"].get("content"):
-                output.content += content
-            if reasoning_content := item["message"].get("reasoning_content"):
+            msg = item["message"]
+            content = msg.get("content") or msg.get("reasoning_content") or msg.get("reasoning") or ""
+            output.content += content
+            if reasoning_content := msg.get("reasoning_content"):
                 output.reasoning_content += reasoning_content
         if json_content.get("usage"):
             output.output_tokens = json_content["usage"]["completion_tokens"]
@@ -153,7 +159,7 @@ class MaaSAPI(BaseAPIModel):
         self.logger.debug(f"Output reasoning content: {output.reasoning_content}")
 
     async def get_ppl_request_body(
-        self, input_data: PromptType, max_out_len: int, output: PPLRequestOutput, **args
+            self, input_data: PromptType, max_out_len: int, output: PPLRequestOutput, **args
     ):
         request_body = await self.get_request_body(
             input_data, max_out_len, output, **args
