@@ -46,6 +46,7 @@ CODE_DIR=""
 SKIP_LLM="false"
 EVAL_VERSION="eval_init"
 CONTAINER_NAME=""
+MODEL_CONFIG="local_qwen"
 
 RUN_MODE="all"
 INFER_TASK_ID=""
@@ -244,6 +245,24 @@ DOCKER_common_args=(
     "${IMAGE_TAG}"
 )
 
+# ── 从 .env 加载模型信息（shell 侧读取，用于显式传参）────────────
+set +e; set -a; source "${ENV_FILE}" 2>/dev/null; set +a; set -e
+# 根据 model-config 类型选择对应的环境变量
+case "${MODEL_CONFIG}" in
+    common_gateway)
+        MODEL_NAME="${COMMON_MODEL_NAME:-unknown}"
+        CONCURRENCY="${COMMON_CONCURRENCY:-5}"
+        ;;
+    maas|maas_gateway)
+        MODEL_NAME="${MAAS_MODEL:-unknown}"
+        CONCURRENCY="${MAAS_CONCURRENCY:-5}"
+        ;;
+    *)
+        MODEL_NAME="${LOCAL_MODEL_NAME:-unknown}"
+        CONCURRENCY="${LOCAL_CONCURRENCY:-20}"
+        ;;
+esac
+
 # ── 阶段 1：推理（infer 或 all 模式）────────────────────────────────
 if [[ "$RUN_MODE" == "infer" ]] || [[ "$RUN_MODE" == "all" ]]; then
     echo ""
@@ -259,8 +278,10 @@ if [[ "$RUN_MODE" == "infer" ]] || [[ "$RUN_MODE" == "all" ]]; then
     docker run "${INFER_NAME_ARG[@]}" "${DOCKER_common_args[@]}" \
         python eval_entry.py \
             --task-id "${TASK_ID}" \
-            --model-config local_qwen \
-            --tasks 1 34 36 43 44 60 101 \
+            --model "${MODEL_NAME}" \
+            --concurrency "${CONCURRENCY}" \
+            --model-config "${MODEL_CONFIG}" \
+            --tasks 1 34 36 43 44 60 101 102 \
             --generic-datasets \
                 ceval_gen_0_shot_str \
                 mmlu_redux_gen_5_shot_str \

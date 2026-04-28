@@ -77,20 +77,14 @@ def parse_args():
     )
     parser.add_argument(
         "--model",
-        default=(os.environ.get("COMMON_MODEL_NAME")
-                 or os.environ.get("MAAS_MODEL")
-                 or os.environ.get("LOCAL_MODEL_NAME")
-                 or "qwen3-14b"),
-        help="推理模型名称，用于报告标识（按 COMMON_MODEL_NAME/MAAS_MODEL/LOCAL_MODEL_NAME 顺序读取）",
+        required=True,
+        help="推理模型名称，用于报告标识",
     )
     parser.add_argument(
         "--concurrency",
         type=int,
-        default=int(os.environ.get("COMMON_CONCURRENCY")
-                    or os.environ.get("MAAS_CONCURRENCY")
-                    or os.environ.get("LOCAL_CONCURRENCY")
-                    or "20"),
-        help="推理并发请求数（按 COMMON_CONCURRENCY/MAAS_CONCURRENCY/LOCAL_CONCURRENCY 顺序读取）",
+        required=True,
+        help="推理并发请求数",
     )
     parser.add_argument(
         "--model-config",
